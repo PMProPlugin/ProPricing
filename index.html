@@ -3,233 +3,345 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Price Tag Manager — ProPlugin (Calibrated Print)</title>
+  <title>Price Tag Manager — ProPlugin (All‑in‑One)</title>
+  <!-- Fonts (force Kanit everywhere) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- SheetJS & FileSaver -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <style>
-    :root{ --bg:#0b0b0b; --fg:#fff; --accent:#e6192b; --card:#101214; --gap:14px }
+    :root{
+      --bg:#0b0b0b; --fg:#fff; --muted:#a9b3bd; --accent:#e6192b; --card:#111418; --stroke:#252c33; --radius:16px; --gap:14px;
+      /* Print + Template defaults (overridden by JS with your saved settings) */
+      --frame:12mm; --inset:12mm; --pg-margin:5mm; --print-scale:1;
+      --logo-x:14mm; --logo-y:14mm; --logo-h:16mm; --sku-x:15mm; --sku-y:16mm;
+    }
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--fg);font-family:"Kanit",system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif}
-    body,button,input,select,table,.tag,.tag *{font-family:"Kanit",system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif!important}
-    .container{max-width:1200px;margin:0 auto;padding:18px}
-    .stack{display:flex;gap:var(--gap)}.v{flex-direction:column}
-    .card{background:var(--card);border:1px solid #23292f;border-radius:16px;padding:16px}
-    .btn{background:#171b20;border:1px solid #2c333b;border-radius:12px;color:#fff;padding:10px 14px;font-weight:600;cursor:pointer}
+    /* enforce Kanit everywhere including print */
+    body, button, input, select, textarea, table, th, td, .tag, .tag *{font-family:"Kanit",system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif !important}
+    a{color:var(--accent);text-decoration:none}
+    .container{max-width:1240px;margin:0 auto;padding:18px}
+    .stack{display:flex;gap:var(--gap)} .v{flex-direction:column}
+    .card{background:var(--card);border:1px solid var(--stroke);border-radius:var(--radius);box-shadow:0 6px 20px rgba(0,0,0,.35)}
+    .pad{padding:18px}
+    .btn{background:#171b20;border:1px solid #2a3139;border-radius:12px;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer}
+    .btn:hover{border-color:#3a4450}
     .btn.red{background:var(--accent);border-color:transparent}
-    .input,.select{background:#0f1215;border:1px solid #2a3139;border-radius:12px;color:#fff;padding:10px 12px;width:100%}
-    table{width:100%;border-collapse:collapse} thead th{background:#0f1215;border-bottom:1px solid #303841;text-align:left;padding:10px} tbody td{border-bottom:1px solid #1b2229;padding:10px}
+    .btn.ghost{background:transparent;border:1px dashed #3a4450}
+    .btn.small{padding:6px 10px;font-size:12px;border-radius:10px}
+    .input,.select{width:100%;background:#0f1215;border:1px solid #2a3139;border-radius:12px;color:#fff;padding:10px 12px}
+    .muted{color:var(--muted)}
+    h1{margin:0 0 6px;font-size:26px;font-weight:800}
 
-    /* ==== PRINTABLE TAG PRIMITIVES (values filled from JS via <style id=tplStyle>) ==== */
+    .toolbar{display:grid;grid-template-columns:1fr auto;gap:var(--gap)}
+    .filters{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap)}
+    .actions{display:flex;gap:var(--gap);flex-wrap:wrap}
+
+    table{width:100%;border-collapse:collapse}
+    thead th{background:#0f1215;border-bottom:1px solid #2a3139;font-weight:700;text-align:left;padding:10px;font-size:12px}
+    tbody td{border-bottom:1px solid #1b232a;padding:10px;vertical-align:top;font-size:13px}
+    tbody tr:hover{background:#0f1114}
+    .right{text-align:right}
+    .strike{text-decoration:line-through;color:#b7bfc9}
+
+    /* Modals */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
+    .modal{background:#0f1215;border:1px solid #2a3139;border-radius:16px;width:min(100%,1100px);max-height:90vh;overflow:auto}
+    .modal .head{position:sticky;top:0;background:#0f1215;border-bottom:1px solid #20262d;padding:14px;display:flex;align-items:center;justify-content:space-between}
+    .modal .body{padding:16px}
+
+    /* -------- TAG primitives (mm-based) -------- */
     .tag{position:relative;display:flex;flex-direction:column;background:#fff;color:#000;overflow:hidden}
-    .frame{position:absolute;inset:0;border:var(--frame,12mm) solid #000}
-    .tag-inner{position:absolute;inset:var(--inset,12mm);display:flex;flex-direction:column}
-    .tag-logo{position:absolute;left:var(--logo-x,14mm);top:var(--logo-y,14mm);height:var(--logo-h,16mm)}
-    .sku{position:absolute;right:var(--sku-x,15mm);top:var(--sku-y,16mm);font-size:6mm;font-weight:600}
-    .title{margin-top:35mm;margin-left:14mm;margin-right:14mm;font-size:16mm;line-height:1.05;font-weight:800}
+    .frame{position:absolute;inset:0;border:var(--frame) solid #000}
+    .tag-inner{position:absolute;inset:var(--inset);display:flex;flex-direction:column}
+    .tag-logo{position:absolute;left:var(--logo-x);top:var(--logo-y);height:var(--logo-h)}
+    .sku{position:absolute;right:var(--sku-x);top:var(--sku-y);font-size:6mm;font-weight:600;color:#111}
+    .title{margin-top:34mm;margin-left:14mm;margin-right:14mm;font-size:16mm;line-height:1.05;font-weight:800}
     .bullets{margin:4mm 14mm 0 14mm;font-size:7mm;line-height:1.35}
+    .bullets li{margin:.8mm 0}
     .price-area{position:absolute;left:14mm;right:14mm;bottom:14mm;display:grid;grid-template-columns:1fr auto;align-items:end}
     .expire{font-size:6mm;font-weight:800}
     .price-now{font-size:22mm;font-weight:900}
     .price-was{font-size:8mm;font-weight:800;color:#b71c1c;text-decoration:line-through}
 
-    /* A4 page container the sheets mount into */
-    .print-sheet{page-break-after:always;break-after:page;display:grid;background:#fff;width:210mm}
+    /* Print sheets container */
+    .sheet{page-break-after:always;break-after:page;display:grid;background:#fff;width:210mm}
 
     @media print{
-      @page{ size:A4; margin: var(--pg-margin,5mm); }
-      .no-print{display:none!important}
+      @page{ size:A4; margin:var(--pg-margin); }
+      .no-print{display:none !important}
       body{background:#fff}
-      /* print calibration: scale whole sheet if needed */
-      .print-root{ transform-origin:top left; transform:scale(var(--print-scale,1)); width: calc(210mm / var(--print-scale,1)); }
+      .print-root{transform-origin:top left;transform:scale(var(--print-scale));width:calc(210mm / var(--print-scale))}
     }
   </style>
 </head>
 <body>
-<div class="container v">
-  <div class="card">
-    <div class="stack" style="justify-content:space-between;align-items:center">
-      <strong>Price Tag Manager — Calibrated Print</strong>
-      <div class="stack">
-        <button class="btn" id="btnTpl">ตั้งค่าเทมเพลต/พิมพ์</button>
-        <button class="btn" id="btnPreview">พรีวิว/พิมพ์</button>
+<div id="app"></div>
+
+<!-- ===== Views ===== -->
+<template id="loginView">
+  <div class="container">
+    <div class="card pad" style="max-width:520px;margin:42px auto">
+      <div class="stack" style="align-items:center;gap:10px;margin-bottom:8px"><div style="width:14px;height:14px;background:var(--accent);border-radius:3px"></div><strong>ProPlugin — Internal</strong></div>
+      <h1>เข้าสู่ระบบ</h1>
+      <div class="muted" style="margin:-4px 0 12px">ธีมดำ/ขาว/แดง • ฟอนต์ Kanit</div>
+      <div class="stack v">
+        <label>ชื่อผู้ใช้ <input id="lg_user" class="input" placeholder="username"></label>
+        <label>รหัสผ่าน <input id="lg_pass" class="input" placeholder="password" type="password"></label>
+        <button class="btn red" id="btnLogin">เข้าสู่ระบบ</button>
+      </div>
+      <div class="muted" style="margin-top:12px;font-size:13px">Demo: host1/host123 • admin1/admin123 • user1/u1pass • user2/u2pass • user3/u3pass • user4/u4pass</div>
+    </div>
+  </div>
+</template>
+
+<template id="mainView">
+  <div class="container v">
+    <div class="card pad">
+      <div class="stack" style="justify-content:space-between;align-items:center">
+        <div class="stack" style="align-items:center;gap:12px"><strong>ProPlugin — Price Tag Manager</strong><span class="muted" id="roleBadge"></span></div>
+        <div class="stack" style="gap:8px;align-items:center">
+          <input type="file" id="logoInput" accept="image/*" hidden>
+          <button class="btn small" onclick="document.querySelector('#logoInput').click()">อัปโหลดโลโก้</button>
+          <button class="btn small" id="btnUsers" style="display:none">จัดการผู้ใช้</button>
+          <button class="btn small" id="btnTpl">ตั้งค่าเทมเพลต/พิมพ์</button>
+          <button class="btn small" id="btnLogout">ออกจากระบบ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar card pad">
+      <div class="filters">
+        <input id="q" class="input" placeholder="ค้นหา SKU หรือชื่อสินค้า">
+        <select id="channel" class="select"></select>
+        <select id="template" class="select">
+          <option value="A4">A4</option>
+          <option value="A5">A5</option>
+          <option value="A6">A6</option>
+          <option value="ACC">Accessories</option>
+        </select>
+        <select id="dealerTier" class="select" style="display:none"></select>
+        <input id="dateFilter" type="date" class="input">
+        <select id="perPage" class="select"><option>20</option><option>40</option><option>80</option></select>
+        <div class="stack" style="gap:8px">
+          <input type="file" id="excelInput" accept=".xlsx,.xls" hidden>
+          <button class="btn" onclick="document.querySelector('#excelInput').click()">นำเข้า Excel</button>
+          <button class="btn" id="btnExportXLSX">ส่งออก Excel</button>
+          <button class="btn red" id="btnPreview">พรีวิว/พิมพ์</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card pad">
+      <div id="tableWrap" class="v"></div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="backdrop" id="pvModal">
+    <div class="modal">
+      <div class="head">
+        <div class="stack" style="align-items:center;gap:8px"><strong>พรีวิวป้ายราคา</strong><span class="muted" id="pvMeta"></span></div>
+        <div class="stack" style="gap:8px">
+          <select id="pvTpl" class="select" style="width:160px"><option value="A4">A4</option><option value="A5">A5</option><option value="A6">A6</option><option value="ACC">Accessories</option></select>
+          <select id="pvTier" class="select" style="width:160px;display:none"></select>
+          <button class="btn red" id="btnPrint">พิมพ์ / PDF</button>
+          <button class="btn" id="pvClose">ปิด</button>
+        </div>
+      </div>
+      <div class="body"><div id="pvHost" class="v"></div></div>
+    </div>
+  </div>
+
+  <!-- Template/Print Settings Modal -->
+  <div class="backdrop" id="tplModal">
+    <div class="modal" style="max-width:1000px">
+      <div class="head"><strong>ตั้งค่าเทมเพลต & การพิมพ์ (หน่วย: mm)</strong><button class="btn" id="tplClose">ปิด</button></div>
+      <div class="body">
+        <div class="stack" style="flex-wrap:wrap">
+          <div>
+            <div><b>A4 Tag</b></div>
+            <label>กว้าง <input class="input" id="wA4" type="number" step=".1"></label>
+            <label>สูง   <input class="input" id="hA4" type="number" step=".1"></label>
+          </div>
+          <div>
+            <div><b>A5 Tag</b></div>
+            <label>กว้าง <input class="input" id="wA5" type="number" step=".1"></label>
+            <label>สูง   <input class="input" id="hA5" type="number" step=".1"></label>
+          </div>
+          <div>
+            <div><b>A6 Tag</b></div>
+            <label>กว้าง <input class="input" id="wA6" type="number" step=".1"></label>
+            <label>สูง   <input class="input" id="hA6" type="number" step=".1"></label>
+          </div>
+          <div>
+            <div><b>Accessories Tag</b></div>
+            <label>กว้าง <input class="input" id="wACC" type="number" step=".1"></label>
+            <label>สูง   <input class="input" id="hACC" type="number" step=".1"></label>
+          </div>
+          <div>
+            <div><b>องค์ประกอบ</b></div>
+            <label>ความหนากรอบ <input class="input" id="frameMM" type="number" step=".1"></label>
+            <label>ระยะขอบด้านใน <input class="input" id="insetMM" type="number" step=".1"></label>
+            <label>Offset โลโก้ x/y/h <input class="input" id="logoX" type="number" step=".1" placeholder="mm">
+              <input class="input" id="logoY" type="number" step=".1" placeholder="mm">
+              <input class="input" id="logoH" type="number" step=".1" placeholder="mm"></label>
+            <label>Offset SKU x/y <input class="input" id="skuX" type="number" step=".1"> <input class="input" id="skuY" type="number" step=".1"></label>
+          </div>
+          <div>
+            <div><b>การพิมพ์</b></div>
+            <label>ขอบหน้ากระดาษ (Margin) <input class="input" id="pgMargin" type="number" step=".1"></label>
+            <label>สเกลการพิมพ์ (%) <input class="input" id="printScale" type="number" step="1" min="50" max="150"></label>
+            <small class="muted">Tip: พิมพ์ไม้บรรทัด 100mm → วัดจริง → ปรับสเกลจนตรง</small>
+          </div>
+        </div>
+        <div class="stack" style="margin-top:12px">
+          <button class="btn red" id="saveTpl">บันทึก</button>
+          <button class="btn" id="resetTpl">รีเซ็ตค่าเริ่มต้น</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div id="tableWrap"></div>
-  </div>
-</div>
-
-<!-- Settings Modal -->
-<div id="tplModal" class="no-print" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px">
-  <div class="card" style="width:min(100%,950px);max-height:90vh;overflow:auto">
-    <div class="stack" style="justify-content:space-between;align-items:center"><strong>ตั้งค่าเทมเพลต & การพิมพ์</strong><button class="btn" id="tplClose">ปิด</button></div>
-    <div class="stack v" style="margin-top:12px">
-      <div class="stack" style="gap:16px;flex-wrap:wrap">
-        <div>
-          <div><b>A4 Tag</b></div>
-          <label>กว้าง (mm) <input class="input" id="wA4" type="number" step=".1"></label>
-          <label>สูง (mm) <input class="input" id="hA4" type="number" step=".1"></label>
-        </div>
-        <div>
-          <div><b>A5 Tag</b></div>
-          <label>กว้าง (mm) <input class="input" id="wA5" type="number" step=".1"></label>
-          <label>สูง (mm) <input class="input" id="hA5" type="number" step=".1"></label>
-        </div>
-        <div>
-          <div><b>A6 Tag</b></div>
-          <label>กว้าง (mm) <input class="input" id="wA6" type="number" step=".1"></label>
-          <label>สูง (mm) <input class="input" id="hA6" type="number" step=".1"></label>
-        </div>
-        <div>
-          <div><b>Accessories Tag</b></div>
-          <label>กว้าง (mm) <input class="input" id="wACC" type="number" step=".1"></label>
-          <label>สูง (mm) <input class="input" id="hACC" type="number" step=".1"></label>
-        </div>
-        <div>
-          <div><b>องค์ประกอบ</b></div>
-          <label>ความหนากรอบ (mm) <input class="input" id="frameMM" type="number" step=".1"></label>
-          <label>ระยะขอบด้านใน (mm) <input class="input" id="insetMM" type="number" step=".1"></label>
-        </div>
-        <div>
-          <div><b>การพิมพ์</b></div>
-          <label>ขอบหน้ากระดาษ (mm) <input class="input" id="pgMargin" type="number" step=".1"></label>
-          <label>สเกลการพิมพ์ (%) <input class="input" id="printScale" type="number" step="1" min="50" max="150"></label>
-          <small>Tips: พิมพ์ไม้บรรทัด 100mm ทดสอบ → วัดจริง แล้วปรับสเกลให้ตรง</small>
-        </div>
-      </div>
-      <div>
-        <button class="btn red" id="saveTpl">บันทึก</button>
-        <button class="btn" id="resetTpl">รีเซ็ตเป็นค่าเริ่มต้น</button>
+  <!-- User Management Modal (Host) -->
+  <div class="backdrop" id="userModal">
+    <div class="modal" style="max-width:1000px">
+      <div class="head"><strong>จัดการผู้ใช้ (Host)</strong><div class="stack"><button class="btn" id="userAdd">เพิ่มผู้ใช้</button><button class="btn red" id="userSave">บันทึก</button><button class="btn" id="userClose">ปิด</button></div></div>
+      <div class="body">
+        <table>
+          <thead><tr><th>Username</th><th>Password</th><th>Role</th><th>Channels</th><th>ลบ</th></tr></thead>
+          <tbody id="userTbody"></tbody>
+        </table>
+        <div class="muted" style="margin-top:8px">* ลบ host1 ไม่ได้</div>
       </div>
     </div>
   </div>
-</div>
-
-<!-- Preview Modal -->
-<div id="pvModal" class="no-print" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px">
-  <div class="card" style="width:min(100%,1100px);max-height:90vh;overflow:auto">
-    <div class="stack" style="justify-content:space-between;align-items:center"><strong>พรีวิว</strong><div class="stack"><select class="select" id="selTpl"><option>A4</option><option>A5</option><option>A6</option><option>ACC</option></select><button class="btn red" id="btnPrint">พิมพ์ / PDF</button><button class="btn" id="pvClose">ปิด</button></div></div>
-    <div id="pvHost" style="margin-top:12px"></div>
-  </div>
-</div>
+</template>
 
 <script>
-// ===== CONFIG (editable & persisted) =====
-const DEF={
-  sizes:{ A4:{w:210,h:297}, A5:{w:148,h:210}, A6:{w:105,h:148}, ACC:{w:99,h:35} },
-  frame:12, inset:12, pgMargin:5, printScale:100
-};
-const loadCfg=()=>{try{return JSON.parse(localStorage.getItem('tpl_cfg'))||DEF}catch(e){return DEF}}
-const saveCfg=(cfg)=>localStorage.setItem('tpl_cfg',JSON.stringify(cfg))
-let CFG=loadCfg();
+/* ===============================================
+   AUTH + ROLES + USER DB (persisted in localStorage)
+   =============================================== */
+const DEFAULT_USERS=[
+  {u:'host1',p:'host123',role:'Host'},
+  {u:'admin1',p:'admin123',role:'Admin'},
+  {u:'user1',p:'u1pass',role:'User1'},
+  {u:'user2',p:'u2pass',role:'User2'},
+  {u:'user3',p:'u3pass',role:'User3'}, // Dealer
+  {u:'user4',p:'u4pass',role:'User4'}, // Marketplace
+];
+const ROLE_CHANNELS={ Host:['Flagship','Dealer','Marketplace'], Admin:['Flagship','Dealer','Marketplace'], User1:['Flagship'], User2:['Flagship'], User3:['Dealer'], User4:['Marketplace'] };
+const getUserDB=()=>{const s=localStorage.getItem('user_db'); if(s){try{return JSON.parse(s)}catch(e){}} localStorage.setItem('user_db',JSON.stringify(DEFAULT_USERS)); return JSON.parse(localStorage.getItem('user_db'))};
+const setUserDB=(arr)=>localStorage.setItem('user_db',JSON.stringify(arr));
+const allowedChannelsFor=(u)=>{ if(u?.role==='Host'||u?.role==='Admin') return ['Flagship','Dealer','Marketplace']; if(Array.isArray(u?.channels)&&u.channels.length) return u.channels; return ROLE_CHANNELS[u?.role]||['Flagship']; };
 
-// inject dynamic CSS based on CFG
-function applyTplCSS(){
-  let css=`:root{--frame:${CFG.frame}mm;--inset:${CFG.inset}mm;--pg-margin:${CFG.pgMargin}mm;--print-scale:${(CFG.printScale/100).toFixed(3)};}`;
-  // Tag size classes
-  css+=`.tpl-A4{width:${CFG.sizes.A4.w}mm;height:${CFG.sizes.A4.h}mm}`;
-  css+=`.tpl-A5{width:${CFG.sizes.A5.w}mm;height:${CFG.sizes.A5.h}mm}`;
-  css+=`.tpl-A6{width:${CFG.sizes.A6.w}mm;height:${CFG.sizes.A6.h}mm}`;
-  css+=`.tpl-ACC{width:${CFG.sizes.ACC.w}mm;height:${CFG.sizes.ACC.h}mm}`;
-  // Sheet rows auto-rows should follow selected template; we'll compute inline styles per sheet at build time
-  let el=document.getElementById('tplStyle'); if(!el){el=document.createElement('style'); el.id='tplStyle'; document.head.appendChild(el);} el.textContent=css;
-}
+/* ===============================================
+   GLOBAL STATE
+   =============================================== */
+const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+const fmt=v=>new Intl.NumberFormat('th-TH').format(Number(v||0));
+const thDate=d=>{try{const o=new Date(d||Date.now());const dd=('0'+o.getDate()).slice(-2);const mm=('0'+(o.getMonth()+1)).slice(-2);const yy=o.getFullYear();return `${dd}-${mm}-${yy}`;}catch(e){return d}}
+
+const DEFAULT_TIER_LABELS=JSON.parse(localStorage.getItem('tier_labels')||'["Dealer Tier 1","Dealer Tier 2","Dealer Tier 3"]');
+let DEFAULT_TIER=localStorage.getItem('tier_default')||'T1';
+let LOGO_DATAURL=localStorage.getItem('logo_dataurl')||'';
+let me=null;
+let state={q:'',channel:'Flagship',template:'A4',tier:DEFAULT_TIER,date:'',page:1,perPage:20,selected:new Set()};
+// Template/print settings (mm)
+const DEF={ sizes:{A4:{w:210,h:297},A5:{w:148,h:210},A6:{w:105,h:148},ACC:{w:99,h:35}}, frame:12, inset:12, pgMargin:5, printScale:100, logoX:14, logoY:14, logoH:16, skuX:15, skuY:16 };
+const loadCfg=()=>{try{return JSON.parse(localStorage.getItem('tpl_cfg'))||DEF}catch(e){return DEF}}; const saveCfg=c=>localStorage.setItem('tpl_cfg',JSON.stringify(c)); let CFG=loadCfg();
+function applyTplCSS(){ let css=`:root{--frame:${CFG.frame}mm;--inset:${CFG.inset}mm;--pg-margin:${CFG.pgMargin}mm;--print-scale:${(CFG.printScale/100).toFixed(3)};--logo-x:${CFG.logoX}mm;--logo-y:${CFG.logoY}mm;--logo-h:${CFG.logoH}mm;--sku-x:${CFG.skuX}mm;--sku-y:${CFG.skuY}mm}`; css+=`.tpl-A4{width:${CFG.sizes.A4.w}mm;height:${CFG.sizes.A4.h}mm}`; css+=`.tpl-A5{width:${CFG.sizes.A5.w}mm;height:${CFG.sizes.A5.h}mm}`; css+=`.tpl-A6{width:${CFG.sizes.A6.w}mm;height:${CFG.sizes.A6.h}mm}`; css+=`.tpl-ACC{width:${CFG.sizes.ACC.w}mm;height:${CFG.sizes.ACC.h}mm}`; let el=document.getElementById('tplStyle'); if(!el){el=document.createElement('style'); el.id='tplStyle'; document.head.appendChild(el);} el.textContent=css; }
 applyTplCSS();
 
-// ===== SAMPLE ROWS =====
-const ROWS=[{ sku:'MP-00010', description:'iCon Pro Audio', details:'GoLive Pro...\nออดิโออินเตอร์เฟสสำหรับสตรีมมิ่งพร้อมรีโมทคอนโทรล\nคุณภาพเสียง 24-bit / 48kHz พร้อม DSP ในตัว (Reverb, EQ, Vocal Tune)\nแบตเตอรี่ในตัว 5000mAh ใช้งานได้สูงสุด 6 ชั่วโมง\nรองรับ Mic Input ทั้งแบบ mini-XLR (พร้อม 48V) และ 1/4 นิ้ว\nเชื่อมต่อ Bluetooth สำหรับเล่นเพลงและควบคุม', normal_price:7990, promo_price:5990, expire_date:'2099-09-09'}];
+/* ===============================================
+   SAMPLE DATA (replace by Excel import)
+   =============================================== */
+let ROWS=[{ sku:'MP-00010', description:'iCon Pro Audio', details:'GoLive Pro...\nออดิโออินเตอร์เฟสสำหรับสตรีมมิ่งพร้อมรีโมทคอนโทรล\nคุณภาพเสียง 24-bit / 48kHz พร้อม DSP ในตัว (Reverb, EQ, Vocal Tune)\nแบตเตอรี่ในตัว 5000mAh ใช้งานได้สูงสุด 6 ชั่วโมง\nรองรับ Mic Input ทั้งแบบ mini-XLR (พร้อม 48V) และ 1/4 นิ้ว\nเชื่อมต่อ Bluetooth สำหรับเล่นเพลงและควบคุม', normal_price:7990, promo_price:5990, flagship_price:'', marketplace_price:'', market_gp:'', dealer_price_t1:5790, dealer_price_t2:5590, dealer_price_t3:5390, dealer_gp_t1:'18%', dealer_gp_t2:'22%', dealer_gp_t3:'26%', expire_date:'2099-09-09' }];
 
-function fmt(n){return new Intl.NumberFormat('th-TH').format(Number(n||0))}
-function dstr(d){try{const o=new Date(d);return String(o.getDate()).padStart(2,'0')+'-'+String(o.getMonth()+1).padStart(2,'0')+'-'+o.getFullYear()}catch(e){return d}}
+/* ===============================================
+   MOUNT VIEWS
+   =============================================== */
+function mount(id){ $('#app').innerHTML = $('#'+id).innerHTML; }
+function renderLogin(){ mount('loginView'); $('#btnLogin').onclick=()=>{ const u=$('#lg_user').value.trim(); const p=$('#lg_pass').value.trim(); const found=getUserDB().find(x=>x.u===u && x.p===p); if(!found){alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');return} me=found; localStorage.setItem('last_user',JSON.stringify(me)); renderMain(); } }
 
-// ===== TABLE =====
-(function drawTable(){
-  const t=document.createElement('table');
-  t.innerHTML='<thead><tr><th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th><th>ราคาปกติ</th><th>โปร</th><th>Expire</th></tr></thead>';
-  const tb=document.createElement('tbody');
-  for(const r of ROWS){
-    const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>'• '+x.trim()).join('<br>');
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td><input type="checkbox" data-sel="${r.sku}" checked></td><td>${r.sku}</td><td>${r.description}</td><td>${bullets}</td><td style="text-align:right">${fmt(r.normal_price)}</td><td style="text-align:right">${fmt(r.promo_price)}</td><td>${dstr(r.expire_date)}</td>`;
-    tb.appendChild(tr);
-  }
-  t.appendChild(tb); document.getElementById('tableWrap').appendChild(t);
-})();
+function populateTierSelect(sel){ const el=$(sel); el.innerHTML=''; [['T1',DEFAULT_TIER_LABELS[0]],['T2',DEFAULT_TIER_LABELS[1]],['T3',DEFAULT_TIER_LABELS[2]]].forEach(([v,lbl])=>{const o=document.createElement('option'); o.value=v; o.textContent=lbl; el.appendChild(o)}); el.value=DEFAULT_TIER; }
 
-// ===== RENDER TAG =====
-function renderTag(r,tpl){
-  const tag=document.createElement('div'); tag.className='tag tpl-'+tpl;
-  tag.innerHTML=`<div class="frame"></div><div class="tag-inner"></div>`; const box=tag.querySelector('.tag-inner');
-  const sku=document.createElement('div'); sku.className='sku'; sku.textContent=r.sku; box.appendChild(sku);
-  const title=document.createElement('div'); title.className='title'; title.textContent=r.description; box.appendChild(title);
-  const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>x.trim());
-  const ul=document.createElement('ul'); ul.className='bullets'; ul.innerHTML=bullets.map(x=>`<li>${x}</li>`).join(''); box.appendChild(ul);
-  const area=document.createElement('div'); area.className='price-area'; area.innerHTML=`<div class="expire">Expire : ${dstr(r.expire_date)}</div><div style="text-align:right"><div class="price-was">${fmt(r.normal_price)}.-</div><div class="price-now">${fmt(r.promo_price)}.-</div></div>`; box.appendChild(area);
-  return tag;
+function renderMain(){ mount('mainView'); $('#roleBadge').textContent=`Role: ${me.role}`;
+  const chSel=$('#channel'); chSel.innerHTML=''; const channels=allowedChannelsFor(me); channels.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;chSel.appendChild(o)}); state.channel=channels[0]||'Flagship';
+  populateTierSelect('#dealerTier');
+  // inputs
+  $('#q').oninput=()=>{state.q=$('#q').value;state.page=1;drawTable()};
+  chSel.onchange=()=>{state.channel=chSel.value;toggleTierSelects();drawTable()};
+  $('#template').onchange=()=>{state.template=$('#template').value};
+  $('#dealerTier').onchange=()=>{state.tier=$('#dealerTier').value};
+  $('#dateFilter').onchange=()=>{state.date=$('#dateFilter').value;state.page=1;drawTable()};
+  $('#perPage').onchange=()=>{state.perPage=parseInt($('#perPage').value,10);state.page=1;drawTable()};
+  $('#btnPreview').onclick=openPreview; $('#btnExportXLSX').onclick=exportToXLSX; $('#btnLogout').onclick=()=>{me=null;renderLogin()};
+  // Host buttons
+  if(me.role==='Host'){ $('#btnUsers').style.display='inline-flex'; $('#btnUsers').onclick=openUserManager; }
+  $('#btnTpl').onclick=openTplSettings;
+  // logo upload
+  $('#logoInput').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{LOGO_DATAURL=r.result; localStorage.setItem('logo_dataurl',LOGO_DATAURL); alert('บันทึกโลโก้แล้ว')}; r.readAsDataURL(f); });
+  // excel import
+  $('#excelInput').addEventListener('change',handleExcelImport);
+  drawTable();
 }
 
-// ===== PREVIEW/PRINT =====
-function buildSheets(items,tpl){
-  // Remove existing
-  document.querySelectorAll('.print-root').forEach(n=>n.remove());
-  const root=document.createElement('div'); root.className='print-root'; document.body.appendChild(root);
+function toggleTierSelects(){ $('#dealerTier').style.display = state.channel==='Dealer' ? 'block' : 'none'; }
+function filtered(){ const q=state.q.trim().toLowerCase(); let rows=[...ROWS]; if(q){rows=rows.filter(r=>(r.sku||'').toLowerCase().includes(q)||(r.description||'').toLowerCase().includes(q)||(r.details||'').toLowerCase().includes(q));} if(state.date){rows=rows.filter(r=>(r.expire_date||'').slice(0,10)===state.date)} return rows; }
 
-  const size=CFG.sizes[tpl];
-  // Decide how many per row/col to fit A4 (210 x 297)
-  const perCol=Math.max(1,Math.floor(210/size.w));
-  const perRow=Math.max(1,Math.floor(297/size.h));
-  const perPage=perCol*perRow;
+/* ===============================================
+   USER MANAGEMENT (Host)
+   =============================================== */
+function openUserManager(){ const modal=$('#userModal'); const tbody=$('#userTbody'); const db=getUserDB().map(x=>({...x})); const chk=(i,c,set)=>`<label style="margin-right:8px"><input type="checkbox" data-chk="${i}" value="${c}" ${set.has(c)?'checked':''}> ${c}</label>`; tbody.innerHTML=db.map((u,i)=>{ const set=new Set(Array.isArray(u.channels)&&u.channels.length?u.channels:(ROLE_CHANNELS[u.role]||[])); return `<tr data-i="${i}"><td><input class="input" data-f="u" value="${u.u}" ${u.u==='host1'?'disabled':''}></td><td><input class="input" data-f="p" type="password" placeholder="(เว้นว่าง = ไม่เปลี่ยน)"></td><td><select class="select" data-f="role">${['Host','Admin','User1','User2','User3','User4'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select></td><td>${chk(i,'Flagship',set)+chk(i,'Dealer',set)+chk(i,'Marketplace',set)}</td><td><button class="btn small" data-del="${i}" ${u.u==='host1'?'disabled':''}>ลบ</button></td></tr>` }).join(''); modal.style.display='flex'; $('#userClose').onclick=()=>modal.style.display='none'; $('#userAdd').onclick=()=>{ const cur=getUserDB(); cur.push({u:'',p:'',role:'User1',channels:['Flagship']}); setUserDB(cur); modal.style.display='none'; setTimeout(openUserManager,0); }; $$('#userTbody [data-del]').forEach(b=>b.onclick=e=>{ const i=+e.target.getAttribute('data-del'); const cur=getUserDB(); if(cur[i]?.u==='host1') return; cur.splice(i,1); setUserDB(cur); modal.style.display='none'; setTimeout(openUserManager,0); }); $('#userSave').onclick=()=>{ const cur=getUserDB(); const rows=[...tbody.querySelectorAll('tr')]; const out=[]; for(let idx=0; idx<rows.length; idx++){ const row=rows[idx]; const orig=cur[idx]||{}; const u=row.querySelector('[data-f="u"]').value.trim(); if(!u){alert('Username ห้ามว่าง'); return} const role=row.querySelector('[data-f="role"]').value; const pass=row.querySelector('[data-f="p"]').value; const chks=[...row.querySelectorAll('[data-chk="'+idx+'"]:checked')].map(x=>x.value); const channels=(role==='Host'||role==='Admin')?['Flagship','Dealer','Marketplace']:(chks.length?chks:(ROLE_CHANNELS[role]||['Flagship'])); out.push({u,p:pass?pass:(orig.p||''),role,channels}); } if(!out.find(x=>x.u==='host1')) out.push({u:'host1',p:'host123',role:'Host',channels:['Flagship','Dealer','Marketplace']}); setUserDB(out); if(out.find(x=>x.u===me.u)){me=out.find(x=>x.u===me.u)} modal.style.display='none'; renderMain(); alert('บันทึกผู้ใช้เรียบร้อย'); } }
 
-  for(let i=0;i<items.length;i+=perPage){
-    const sheet=document.createElement('div'); sheet.className='print-sheet';
-    sheet.style.gridTemplateColumns=`repeat(${perCol}, ${size.w}mm)`;
-    sheet.style.gridAutoRows=`${size.h}mm`;
-    sheet.style.gap='0mm';
-    for(let j=0;j<perPage && (i+j)<items.length;j++) sheet.appendChild(renderTag(items[i+j],tpl));
-    root.appendChild(sheet);
-  }
-}
+/* ===============================================
+   TABLE + CHANNEL RULES
+   =============================================== */
+function priceForRow(r){ const ch=state.channel; if(ch==='Dealer'){ const key= state.tier==='T1'?'dealer_price_t1':(state.tier==='T2'?'dealer_price_t2':'dealer_price_t3'); return r[key]?? r.promo_price ?? r.normal_price; } if(ch==='Marketplace') return (r.marketplace_price||r.promo_price||r.normal_price); if(r.flagship_price) return r.flagship_price; return r.promo_price||r.normal_price; }
 
-// ===== SETTINGS UI =====
-const m=$=>document.getElementById($);
-function openTpl(){
-  m('tplModal').style.display='flex';
-  m('wA4').value=CFG.sizes.A4.w; m('hA4').value=CFG.sizes.A4.h;
-  m('wA5').value=CFG.sizes.A5.w; m('hA5').value=CFG.sizes.A5.h;
-  m('wA6').value=CFG.sizes.A6.w; m('hA6').value=CFG.sizes.A6.h;
-  m('wACC').value=CFG.sizes.ACC.w; m('hACC').value=CFG.sizes.ACC.h;
-  m('frameMM').value=CFG.frame; m('insetMM').value=CFG.inset; m('pgMargin').value=CFG.pgMargin; m('printScale').value=CFG.printScale;
-}
-function saveTpl(){
-  CFG={
-    sizes:{
-      A4:{w:+m('wA4').value,h:+m('hA4').value},
-      A5:{w:+m('wA5').value,h:+m('hA5').value},
-      A6:{w:+m('wA6').value,h:+m('hA6').value},
-      ACC:{w:+m('wACC').value,h:+m('hACC').value}
-    },
-    frame:+m('frameMM').value,
-    inset:+m('insetMM').value,
-    pgMargin:+m('pgMargin').value,
-    printScale:+m('printScale').value
-  };
-  saveCfg(CFG); applyTplCSS(); alert('บันทึกการตั้งค่าแล้ว'); m('tplModal').style.display='none';
-}
-function resetTpl(){ CFG=JSON.parse(JSON.stringify(DEF)); saveCfg(CFG); applyTplCSS(); openTpl(); }
+function drawTable(){ const rows=filtered(); const start=(state.page-1)*state.perPage; const pageRows=rows.slice(start,start+state.perPage); const table=document.createElement('table'); const thead=document.createElement('thead'); const trh=document.createElement('tr'); if(state.channel==='Dealer'){ trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th><th>D1</th><th>GP%</th><th>D2</th><th>GP%</th><th>D3</th><th>GP%</th><th>Expire</th>`; } else if(state.channel==='Marketplace'){ trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th><th>ราคาปกติ</th><th>Marketplace</th><th>Expire</th><th>GP%</th>`; } else { trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th><th>ราคาปกติ</th><th>Flagship</th><th>Expire</th>`; } thead.appendChild(trh); table.appendChild(thead); const tbody=document.createElement('tbody'); for(const r of pageRows){ const tr=document.createElement('tr'); const checked= state.selected.has(r.sku)?'checked':''; const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>x.trim()); if(state.channel==='Dealer'){ tr.innerHTML=`<td><input type="checkbox" data-sel="${r.sku}" ${checked}></td><td>${r.sku||''}</td><td>${r.description||''}</td><td>${bullets.map(x=>`• ${x}`).join('<br>')}</td><td class="right">${fmt(r.dealer_price_t1||r.normal_price)}</td><td class="right">${r.dealer_gp_t1||''}</td><td class="right">${fmt(r.dealer_price_t2||r.dealer_price_t1||r.normal_price)}</td><td class="right">${r.dealer_gp_t2||''}</td><td class="right">${fmt(r.dealer_price_t3||r.dealer_price_t2||r.normal_price)}</td><td class="right">${r.dealer_gp_t3||''}</td><td>${thDate(r.expire_date)}</td>`; } else if(state.channel==='Marketplace'){ tr.innerHTML=`<td><input type="checkbox" data-sel="${r.sku}" ${checked}></td><td>${r.sku||''}</td><td>${r.description||''}</td><td>${bullets.map(x=>`• ${x}`).join('<br>')}</td><td class="right">${fmt(r.normal_price)}</td><td class="right">${fmt(r.marketplace_price||r.promo_price||r.normal_price)}</td><td>${thDate(r.expire_date)}</td><td class="right">${r.market_gp||''}</td>`; } else { tr.innerHTML=`<td><input type="checkbox" data-sel="${r.sku}" ${checked}></td><td>${r.sku||''}</td><td>${r.description||''}</td><td>${bullets.map(x=>`• ${x}`).join('<br>')}</td><td class="right">${fmt(r.normal_price)}</td><td class="right">${fmt(r.flagship_price||r.promo_price||r.normal_price)}</td><td>${thDate(r.expire_date)}</td>`; } tbody.appendChild(tr);} table.appendChild(tbody); const totalPages=Math.max(1,Math.ceil(filtered().length/state.perPage)); const pager=document.createElement('div'); pager.className='stack'; pager.style.justifyContent='space-between'; pager.style.marginTop='12px'; pager.innerHTML=`<div class="muted">ทั้งหมด ${filtered().length} รายการ • หน้า ${state.page}/${totalPages}</div><div class="stack">${Array.from({length:totalPages},(_,i)=>`<button class='btn small' data-page='${i+1}'>${i+1}</button>`).join('')}</div>`; const wrap=$('#tableWrap'); wrap.innerHTML=''; wrap.appendChild(table); wrap.appendChild(pager); wrap.querySelectorAll('[data-page]').forEach(b=>b.onclick=e=>{state.page=parseInt(e.target.dataset.page,10);drawTable()}); wrap.querySelectorAll('[data-sel]').forEach(cb=>cb.onchange=e=>{ const k=e.target.dataset.sel; if(e.target.checked) state.selected.add(k); else state.selected.delete(k)}); toggleTierSelects(); }
 
-m('btnTpl').onclick=openTpl; m('tplClose').onclick=()=>m('tplModal').style.display='none'; m('saveTpl').onclick=saveTpl; m('resetTpl').onclick=resetTpl;
+/* ===============================================
+   PREVIEW + PRINT (mm + calibrated scale)
+   =============================================== */
+function renderTag(r,tpl){ const tag=document.createElement('div'); tag.className='tag tpl-'+tpl; tag.innerHTML=`<div class="frame"></div><div class="tag-inner"></div>`; const box=tag.querySelector('.tag-inner'); if(LOGO_DATAURL){ const img=new Image(); img.src=LOGO_DATAURL; img.className='tag-logo'; box.appendChild(img); } const sku=document.createElement('div'); sku.className='sku'; sku.textContent=r.sku||''; box.appendChild(sku); const title=document.createElement('div'); title.className='title'; title.textContent=(r.description||''); box.appendChild(title); const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>x.trim()); const ul=document.createElement('ul'); ul.className='bullets'; ul.innerHTML=bullets.map(x=>`<li>${x}</li>`).join(''); box.appendChild(ul); const area=document.createElement('div'); area.className='price-area'; const expire=document.createElement('div'); expire.className='expire'; expire.textContent=`Expire : ${thDate(r.expire_date)}`; const pr=document.createElement('div'); pr.style.textAlign='right'; const ch=state.channel; const now=priceForRow(r); const showWas=(ch!=='Dealer') && (r.promo_price?true:false) && !r.flagship_price && (!!r.normal_price); pr.innerHTML=`${showWas?`<div class='price-was'>${fmt(r.normal_price)}.-</div>`:''}<div class='price-now'>${fmt(now)}.-</div>`; area.appendChild(expire); area.appendChild(pr); box.appendChild(area); return tag; }
 
-// ===== PREVIEW EVENTS =====
-const items=ROWS; // would be selection in full app
-m('btnPreview').onclick=()=>{ m('pvModal').style.display='flex'; m('selTpl').value='A6'; buildSheets(items,'A6'); }
-m('pvClose').onclick=()=>m('pvModal').style.display='none';
-m('selTpl').onchange=e=>buildSheets(items,e.target.value);
-m('btnPrint').onclick=()=>window.print();
+function buildSheets(items,tpl){ document.querySelectorAll('.print-root').forEach(n=>n.remove()); const root=document.createElement('div'); root.className='print-root'; document.body.appendChild(root); const size=CFG.sizes[tpl]; const perCol=Math.max(1,Math.floor(210/size.w)); const perRow=Math.max(1,Math.floor(297/size.h)); const perPage=perCol*perRow; for(let i=0;i<items.length;i+=perPage){ const sheet=document.createElement('div'); sheet.className='sheet'; sheet.style.gridTemplateColumns=`repeat(${perCol}, ${size.w}mm)`; sheet.style.gridAutoRows=`${size.h}mm`; sheet.style.gap='0mm'; for(let j=0;j<perPage && (i+j)<items.length;j++){ sheet.appendChild(renderTag(items[i+j],tpl)); } root.appendChild(sheet); } }
+
+function openPreview(){ const list=filtered().filter(r=> state.selected.size===0 || state.selected.has(r.sku)); if(list.length===0){alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ');return} $('#pvModal').style.display='flex'; $('#pvTpl').value=state.template; populateTierSelect('#pvTier'); $('#pvTier').style.display = state.channel==='Dealer'?'block':'none'; $('#pvTier').value=state.tier; let cur=0; function show(i){ const r=list[i]; $('#pvMeta').textContent=`${i+1}/${list.length} • ${r.sku}`; const host=$('#pvHost'); host.innerHTML=''; host.appendChild(renderTag(r,$('#pvTpl').value)); } $('#pvTpl').onchange=()=>show(cur); $('#pvTier').onchange=()=>{state.tier=$('#pvTier').value; show(cur)}; $('#btnPrint').onclick=()=>{ buildSheets(list,$('#pvTpl').value); window.print(); }; $('#pvClose').onclick=()=>$('#pvModal').style.display='none'; show(cur); }
+
+/* ===============================================
+   TEMPLATE / PRINT SETTINGS UI
+   =============================================== */
+function openTplSettings(){ const m=$('#tplModal'); m.style.display='flex'; const v=(id,val)=>{$('#'+id).value=val}; v('wA4',CFG.sizes.A4.w); v('hA4',CFG.sizes.A4.h); v('wA5',CFG.sizes.A5.w); v('hA5',CFG.sizes.A5.h); v('wA6',CFG.sizes.A6.w); v('hA6',CFG.sizes.A6.h); v('wACC',CFG.sizes.ACC.w); v('hACC',CFG.sizes.ACC.h); v('frameMM',CFG.frame); v('insetMM',CFG.inset); v('pgMargin',CFG.pgMargin); v('printScale',CFG.printScale); v('logoX',CFG.logoX); v('logoY',CFG.logoY); v('logoH',CFG.logoH); v('skuX',CFG.skuX); v('skuY',CFG.skuY); $('#tplClose').onclick=()=>m.style.display='none'; $('#saveTpl').onclick=()=>{ CFG={ sizes:{ A4:{w:+$('#wA4').value,h:+$('#hA4').value}, A5:{w:+$('#wA5').value,h:+$('#hA5').value}, A6:{w:+$('#wA6').value,h:+$('#hA6').value}, ACC:{w:+$('#wACC').value,h:+$('#hACC').value} }, frame:+$('#frameMM').value, inset:+$('#insetMM').value, pgMargin:+$('#pgMargin').value, printScale:+$('#printScale').value, logoX:+$('#logoX').value, logoY:+$('#logoY').value, logoH:+$('#logoH').value, skuX:+$('#skuX').value, skuY:+$('#skuY').value }; saveCfg(CFG); applyTplCSS(); alert('บันทึกแล้ว'); m.style.display='none'; }; $('#resetTpl').onclick=()=>{ CFG=JSON.parse(JSON.stringify(DEF)); saveCfg(CFG); applyTplCSS(); openTplSettings(); }; }
+
+/* ===============================================
+   EXCEL IMPORT/EXPORT
+   =============================================== */
+async function handleExcelImport(e){ const f=e.target.files[0]; if(!f) return; const data=await f.arrayBuffer(); const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const json=XLSX.utils.sheet_to_json(ws,{defval:''}); const map=(row,k,alts=[])=> row[k] || alts.map(a=>row[a]).find(v=>v!==undefined && v!=='') || '';
+  ROWS=json.map(row=>({ sku: map(row,'Item No.',['รหัสสินค้า','SKU','ItemNo','Item']), description: map(row,'Description',['ชื่อสินค้า','Description (TH)']), details: map(row,'Details',['รายละเอียด','Bullets']), normal_price: Number(map(row,'Normal Price',['ราคาปกติ']))||'', promo_price: Number(map(row,'Promotion Price',['ราคาโปร','Promo Price']))||'', dealer_price_t1: Number(map(row,'Dealer Price T1',['Dealer T1','Dealer1']))||'', dealer_price_t2: Number(map(row,'Dealer Price T2',['Dealer T2','Dealer2']))||'', dealer_price_t3: Number(map(row,'Dealer Price T3',['Dealer T3','Dealer3']))||'', dealer_gp_t1: map(row,'Dealer GP% T1',['GP T1','Dealer GP1']), dealer_gp_t2: map(row,'Dealer GP% T2',['GP T2','Dealer GP2']), dealer_gp_t3: map(row,'Dealer GP% T3',['GP T3','Dealer GP3']), flagship_price: Number(map(row,'Flagship Price',['Flagship']))||'', marketplace_price: Number(map(row,'Marketplace Price',['Marketplace']))||'', market_gp: map(row,'Marketplace GP%',['Market GP']), cost: Number(map(row,'Cost',['ต้นทุน','Cost (optional)']))||'', expire_date: (map(row,'Expire date',['วันหมดอายุ','Expire','Expiry'])||'').toString().slice(0,10) })); state.page=1; state.selected.clear(); drawTable(); alert('นำเข้าข้อมูลเสร็จแล้ว'); }
+
+function exportToXLSX(){ const rows=filtered(); const ws=XLSX.utils.json_to_sheet(rows); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'PriceTags'); const out=XLSX.write(wb,{bookType:'xlsx',type:'array'}); saveAs(new Blob([out],{type:'application/octet-stream'}),'price-tags-export.xlsx'); }
+
+/* ===============================================
+   BOOT
+   =============================================== */
+(function init(){ try{const last=JSON.parse(localStorage.getItem('last_user')||'null'); if(last){me=last; renderMain();} else {renderLogin();} }catch(e){renderLogin()} })();
+
+/* ===============================================
+   README (comment)
+   - Host can fully manage users (add/edit/delete/assign channels), persisted in localStorage.
+   - Dealer table columns order: D1 | GP% | D2 | GP% | D3 | GP%.
+   - Font forced to Kanit across UI and printed tags.
+   - Print engine is mm-based with adjustable sizes (A4/A5/A6/ACC), frame/inset, logo+SKU offsets.
+   - Global Print Scale (%) for physical calibration; @page margins configurable.
+   - Preview modal supports Dealer Tier selector; Print batches grid to fit A4 automatically based on your mm sizes.
+*/
 </script>
 </body>
 </html>
