@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Price Tag Manager — ProPlugin (Internal)</title>
-  <!-- Fonts -->
+  <!-- Fonts (preconnect + Kanit) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- SheetJS (Excel) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -25,7 +27,10 @@
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--fg);font-family:"Kanit",system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif;}
-    a{color:var(--accent);}
+    a{color:var(--accent);} 
+    /* Enforce Kanit everywhere, including form controls and printed tags */
+    body, button, input, select, textarea, table, .tag, .tag *{ font-family:"Kanit",system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif !important; }
+
     .container{max-width:1200px;margin:0 auto;padding:18px;}
     .stack{display:flex;gap:var(--gap)}
     .stack.v{flex-direction:column}
@@ -62,7 +67,6 @@
     .modal-body{padding:16px}
 
     /* Tag components (pixel‑match based on provided templates) */
-    /* — Shared measurements (mm) — */
     .tag{position:relative;display:flex;flex-direction:column;background:#fff;color:#000;overflow:hidden}
     .frame{position:absolute;inset:0;border:12mm solid #000}
     .tag-inner{position:absolute;inset:12mm;display:flex;flex-direction:column}
@@ -77,12 +81,12 @@
     .price-now{font-size:22mm;font-weight:900}
     .price-was{font-size:8mm;font-weight:800;color:#b71c1c;text-decoration:line-through}
 
-    /* Size variants (portrait) — A4/A5/A6 follow the same visual ratio; numbers tuned to PDF */
+    /* Size variants (portrait) */
     .tpl-A4{width:210mm;height:297mm}
     .tpl-A5{width:148mm;height:210mm}
     .tpl-A6{width:105mm;height:148mm}
 
-    /* Accessories tag (landscape micro card, 12 per A4) */
+    /* Accessories tag */
     .tpl-ACC{width:99mm;height:35mm;display:flex}
     .tpl-ACC .frame{border:6mm solid #000}
     .tpl-ACC .tag-inner{inset:6mm}
@@ -102,7 +106,6 @@
     .sheet-A6{grid-template-columns:1fr;grid-auto-rows:148mm;width:210mm}
     .sheet-ACC{grid-template-columns:1fr 1fr;grid-auto-rows:49.5mm;width:210mm;padding:3mm;gap:3mm}
 
-    /* Media print */
     @media print{
       body{background:#fff}
       .no-print{display:none !important}
@@ -152,6 +155,7 @@
             <div class="stack" style="align-items:center;gap:8px">
               <input type="file" id="logoInput" class="no-print" accept="image/*" hidden>
               <button class="btn small" onclick="document.querySelector('#logoInput').click()">อัปโหลดโลโก้</button>
+              <button class="btn small" id="btnUsers" style="display:none">จัดการผู้ใช้</button>
               <button class="btn small" id="btnLogout">ออกจากระบบ</button>
             </div>
           </div>
@@ -185,7 +189,7 @@
       </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Preview/Print Modal -->
     <div class="modal-backdrop" id="modal">
       <div class="modal">
         <div class="modal-head no-print">
@@ -216,9 +220,9 @@
 
   <script>
   /* ==========================
-     DATA & AUTH (static demo)
+     DATA & AUTH (static demo + Host management)
      ========================== */
-  const USERS=[
+  const DEFAULT_USERS=[
     {u:'host1',p:'host123',role:'Host'},
     {u:'admin1',p:'admin123',role:'Admin'},
     {u:'user1',p:'u1pass',role:'User1'},
@@ -226,6 +230,11 @@
     {u:'user3',p:'u3pass',role:'User3'}, // Dealer + GP
     {u:'user4',p:'u4pass',role:'User4'}, // Marketplace + GP
   ];
+
+  // Persistable DB
+  const getUserDB=()=>{const s=localStorage.getItem('user_db'); if(s){try{return JSON.parse(s)}catch(e){}} localStorage.setItem('user_db', JSON.stringify(DEFAULT_USERS)); return JSON.parse(localStorage.getItem('user_db'));};
+  const setUserDB=(arr)=>localStorage.setItem('user_db', JSON.stringify(arr));
+
   const ROLE_CHANNELS={
     Host:['Flagship','Dealer','Marketplace'],
     Admin:['Flagship','Dealer','Marketplace'],
@@ -255,6 +264,7 @@
   const $=sel=>document.querySelector(sel);
   const fmtPrice=v=> new Intl.NumberFormat('th-TH').format(Number(v||0));
   const thDate=d=>{try{const o=new Date(d||Date.now());const dd=('0'+o.getDate()).slice(-2);const mm=('0'+(o.getMonth()+1)).slice(-2);const yy=o.getFullYear();return `${dd}-${mm}-${yy}`;}catch(e){return d}}
+  const allowedChannelsFor=(user)=>{ if(user?.role==='Host'||user?.role==='Admin') return ['Flagship','Dealer','Marketplace']; if(Array.isArray(user?.channels)&&user.channels.length) return user.channels; return ROLE_CHANNELS[user?.role]||['Flagship']; }
   const log=(who,what)=>{const logs=JSON.parse(localStorage.getItem('logs')||'[]');logs.push({who,what,when:new Date().toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})});localStorage.setItem('logs',JSON.stringify(logs));}
 
   /* ==========================
@@ -273,7 +283,7 @@
     $('#btnLogin').onclick=()=>{
       const u=$('#lg_user').value.trim();
       const p=$('#lg_pass').value.trim();
-      const found=USERS.find(x=>x.u===u && x.p===p);
+      const found=getUserDB().find(x=>x.u===u && x.p===p);
       if(!found){alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');return}
       me=found;
       localStorage.setItem('last_user',JSON.stringify(me));
@@ -282,15 +292,23 @@
     }
   }
 
+  function populateTierSelect(sel){
+    const el=$(sel);
+    el.innerHTML='';
+    [['T1',DEFAULT_TIER_LABELS[0]],['T2',DEFAULT_TIER_LABELS[1]],['T3',DEFAULT_TIER_LABELS[2]]]
+      .forEach(([v,lbl])=>{const o=document.createElement('option');o.value=v;o.textContent=lbl;el.appendChild(o)});
+    el.value=DEFAULT_TIER;
+  }
+
   function renderMain(){
     mount('mainView');
     $('#roleBadge').textContent=`Role: ${me.role}`;
 
-    // channels by role
+    // channels by role or per-user setting
     const chSel=$('#channel');
     chSel.innerHTML='';
-    ROLE_CHANNELS[me.role].forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;chSel.appendChild(o)});
-    state.channel=ROLE_CHANNELS[me.role][0]||'Flagship';
+    const channels=allowedChannelsFor(me); channels.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;chSel.appendChild(o)});
+    state.channel=channels[0]||'Flagship';
 
     // dealer tiers
     populateTierSelect('#dealerTier');
@@ -305,6 +323,7 @@
     $('#btnPreview').onclick=openPreview;
     $('#btnExportXLSX').onclick=exportToXLSX;
     $('#btnLogout').onclick=()=>{me=null;renderLogin()};
+    if(me.role==='Host'){ $('#btnUsers').style.display='inline-flex'; $('#btnUsers').onclick=openUserManager; }
 
     // logo input
     $('#logoInput').addEventListener('change',e=>{
@@ -315,14 +334,6 @@
     $('#excelInput').addEventListener('change',handleExcelImport);
 
     drawTable();
-  }
-
-  function populateTierSelect(sel){
-    const el=$(sel);
-    el.innerHTML='';
-    [['T1',DEFAULT_TIER_LABELS[0]],['T2',DEFAULT_TIER_LABELS[1]],['T3',DEFAULT_TIER_LABELS[2]]]
-      .forEach(([v,lbl])=>{const o=document.createElement('option');o.value=v;o.textContent=lbl;el.appendChild(o)});
-    el.value=DEFAULT_TIER;
   }
 
   function toggleTierSelects(){
@@ -338,6 +349,54 @@
     return rows;
   }
 
+  /* ==========================
+     USER MANAGEMENT (Host)
+     ========================== */
+  function openUserManager(){
+    let modal=document.getElementById('userModal');
+    if(!modal){
+      modal=document.createElement('div'); modal.className='modal-backdrop'; modal.id='userModal';
+      modal.innerHTML=`<div class="modal" style="max-width:1000px">
+        <div class="modal-head no-print">
+          <strong>จัดการผู้ใช้ (Host)</strong>
+          <div class="stack" style="gap:8px">
+            <button class="btn" id="btnUserAdd">เพิ่มผู้ใช้</button>
+            <button class="btn red" id="btnUserSave">บันทึก</button>
+            <button class="btn" id="btnUserClose">ปิด</button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <table><thead><tr><th>Username</th><th>Password</th><th>Role</th><th>Channels</th><th>ลบ</th></tr></thead><tbody id="userTbody"></tbody></table>
+          <div class="muted" style="margin-top:8px">* ไม่สามารถลบผู้ใช้ Host เดิม (host1) ได้</div>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+    }
+    const tbody=modal.querySelector('#userTbody');
+    const db=getUserDB().map(u=>({...u}));
+    const channelCells=(u,idx)=>{ const set=new Set(Array.isArray(u.channels)&&u.channels.length?u.channels:(ROLE_CHANNELS[u.role]||[])); const chk=c=>`<label style="margin-right:8px"><input type="checkbox" data-chk="${idx}" value="${c}" ${set.has(c)?'checked':''}> ${c}</label>`; return chk('Flagship')+chk('Dealer')+chk('Marketplace'); };
+    tbody.innerHTML = db.map((u,i)=>`<tr data-i="${i}">
+      <td><input class="input" data-field="u" value="${u.u}" ${u.u==='host1'?'disabled':''}></td>
+      <td><input class="input" data-field="p" placeholder="(เว้นว่าง = ไม่เปลี่ยน)" type="password"></td>
+      <td><select class="select" data-field="role">${['Host','Admin','User1','User2','User3','User4'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select></td>
+      <td>${channelCells(u,i)}</td>
+      <td><button class="btn small" data-del="${i}" ${u.u==='host1'?'disabled':''}>ลบ</button></td>
+    </tr>`).join('');
+
+    modal.style.display='flex';
+    modal.querySelector('#btnUserClose').onclick=()=> modal.style.display='none';
+    modal.querySelector('#btnUserAdd').onclick=()=>{ const db2=getUserDB(); db2.push({u:'',p:'',role:'User1',channels:['Flagship']}); setUserDB(db2); modal.style.display='none'; setTimeout(openUserManager,0); };
+    modal.querySelectorAll('[data-del]').forEach(btn=>btn.onclick=(e)=>{ const i=Number(e.target.getAttribute('data-del')); const cur=getUserDB(); if(cur[i]?.u==='host1') return; cur.splice(i,1); setUserDB(cur); modal.style.display='none'; setTimeout(openUserManager,0); });
+    modal.querySelector('#btnUserSave').onclick=()=>{
+      const cur=getUserDB();
+      const rows=[...tbody.querySelectorAll('tr')]; const out=[]; for(let idx=0; idx<rows.length; idx++){ const row=rows[idx]; const orig=cur[idx]||{}; const u=row.querySelector('[data-field="u"]').value.trim(); if(!u){alert('Username ห้ามว่าง'); return;} const role=row.querySelector('[data-field="role"]').value; const pass=row.querySelector('[data-field="p"]').value; const chks=[...row.querySelectorAll('[data-chk="'+idx+'"]:checked')].map(x=>x.value); const channels=(role==='Host'||role==='Admin')?['Flagship','Dealer','Marketplace']:(chks.length?chks:(ROLE_CHANNELS[role]||['Flagship'])); out.push({u, p:pass?pass:(orig.p||''), role, channels}); }
+      if(!out.find(x=>x.u==='host1')) out.push({u:'host1',p:'host123',role:'Host',channels:['Flagship','Dealer','Marketplace']});
+      setUserDB(out); log(me.role,'save users ('+out.length+')'); modal.style.display='none'; if(out.find(x=>x.u===me.u)){ me=out.find(x=>x.u===me.u); renderMain(); } alert('บันทึกผู้ใช้เรียบร้อย'); };
+  }
+
+  /* ==========================
+     TABLE / FILTERS
+     ========================== */
   function priceForRow(r){
     const ch=state.channel;
     if(ch==='Dealer'){
@@ -345,7 +404,6 @@
       return r[key]?? r.promo_price ?? r.normal_price;
     }
     if(ch==='Marketplace') return (r.marketplace_price||r.promo_price||r.normal_price);
-    // Flagship rule: promo -> normal
     if(r.flagship_price) return r.flagship_price;
     return r.promo_price || r.normal_price;
   }
@@ -357,13 +415,10 @@
     const table=document.createElement('table');
     const thead=document.createElement('thead');
     const trh=document.createElement('tr');
-    const ths=['เลือก','Item No.','สินค้า','รายละเอียด','ราคาปกติ','ราคาช่องทาง','Expire','GP%'];
 
-    // When Dealer: show D1/D2/D3 and GP per tier
     if(state.channel==='Dealer'){
       trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th>
-                     <th>D1</th><th>D2</th><th>D3</th>
-                     <th>GP_D1</th><th>GP_D2</th><th>GP_D3</th>
+                     <th>D1</th><th>GP%</th><th>D2</th><th>GP%</th><th>D3</th><th>GP%</th>
                      <th>Expire</th>`;
     } else if(state.channel==='Marketplace'){
       trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th>
@@ -386,10 +441,10 @@
           <td>${r.description||''}</td>
           <td>${bullets.map(x=>`• ${x}`).join('<br>')}</td>
           <td class="right">${fmtPrice(r.dealer_price_t1||r.normal_price)}</td>
-          <td class="right">${fmtPrice(r.dealer_price_t2||r.dealer_price_t1||r.normal_price)}</td>
-          <td class="right">${fmtPrice(r.dealer_price_t3||r.dealer_price_t2||r.normal_price)}</td>
           <td class="right">${r.dealer_gp_t1||''}</td>
+          <td class="right">${fmtPrice(r.dealer_price_t2||r.dealer_price_t1||r.normal_price)}</td>
           <td class="right">${r.dealer_gp_t2||''}</td>
+          <td class="right">${fmtPrice(r.dealer_price_t3||r.dealer_price_t2||r.normal_price)}</td>
           <td class="right">${r.dealer_gp_t3||''}</td>
           <td>${thDate(r.expire_date)}</td>`;
       } else if(state.channel==='Marketplace'){
@@ -467,75 +522,45 @@
   }
 
   function buildPrintSheets(items){
-    // remove existing sheets
     document.querySelectorAll('.print-root').forEach(n=>n.remove());
+    const root=document.createElement('div'); root.className='print-root'; document.body.appendChild(root);
 
-    const root=document.createElement('div');
-    root.className='print-root';
-    document.body.appendChild(root);
-
-    const tpl=state.template;
-    let perA4=1, klass='sheet-A4';
+    const tpl=state.template; let perA4=1, klass='sheet-A4';
     if(tpl==='A5'){perA4=2; klass='sheet-A5'}
     if(tpl==='A6'){perA4=4; klass='sheet-A6'}
     if(tpl==='ACC'){perA4=12; klass='sheet-ACC'}
 
     for(let i=0;i<items.length;i+=perA4){
-      const sheet=document.createElement('div');
-      sheet.className='print-sheet '+klass;
-      for(let j=0;j<perA4 && (i+j)<items.length;j++){
-        sheet.appendChild(renderTag(items[i+j],tpl));
-      }
+      const sheet=document.createElement('div'); sheet.className='print-sheet '+klass;
+      for(let j=0;j<perA4 && (i+j)<items.length;j++) sheet.appendChild(renderTag(items[i+j],tpl));
       root.appendChild(sheet);
     }
   }
 
   function renderTag(r,tpl){
-    const tag=document.createElement('div');
-    tag.className=`tag tpl-${tpl}`;
+    const tag=document.createElement('div'); tag.className=`tag tpl-${tpl}`;
+    tag.innerHTML=`<div class='frame'></div><div class='tag-inner'></div>`; const box=tag.querySelector('.tag-inner');
 
-    // frame and inner area
-    tag.innerHTML=`<div class='frame'></div><div class='tag-inner'></div>`;
-    const box=tag.querySelector('.tag-inner');
+    if(LOGO_DATAURL){ const img=new Image(); img.src=LOGO_DATAURL; img.className='tag-logo'; box.appendChild(img); }
 
-    // logo
-    if(LOGO_DATAURL){
-      const img=new Image(); img.src=LOGO_DATAURL; img.className='tag-logo'; box.appendChild(img);
-    }
-
-    // sku top-right
     const sku=document.createElement('div'); sku.className='sku'; sku.textContent=r.sku||''; box.appendChild(sku);
 
-    // title (brand + name lines)
-    const title=document.createElement('div'); title.className='title'; title.innerHTML=`${(r.description||'').replaceAll('\n','<br>')}<br>${((r.name||'')||'').trim()}`;
-    title.textContent = (r.description||'') + (r.name? ('\n'+r.name):'');
-    title.innerHTML = (r.description||'') + '<br>' + (r.details_title||'');
-    title.textContent = (r.description||'') + (r.details_title? (' '+r.details_title):'');
-    title.textContent = (r.description||'');
-    box.appendChild(title);
+    const title=document.createElement('div'); title.className='title'; title.textContent = (r.description||''); box.appendChild(title);
 
-    // bullets (4-5 lines max)
     const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>x.trim());
     const ul=document.createElement('ul'); ul.className='bullets'; ul.innerHTML=bullets.map(x=>`<li>${x}</li>`).join(''); box.appendChild(ul);
 
-    // price area
     const area=document.createElement('div'); area.className='price-area';
     const expire=document.createElement('div'); expire.className='expire'; expire.textContent=`Expire : ${thDate(r.expire_date)}`;
     const pr=document.createElement('div'); pr.className='price-block';
 
-    // normal/promo rules (and dealer tier)
-    const channel=state.channel;
-    const priceNow=priceForRow(r);
-    const normal=r.normal_price;
-
-    // promo shown only on Flagship when exists; for Dealer show tier price only
+    const channel=state.channel; const priceNow=priceForRow(r); const normal=r.normal_price;
     const showWas = (channel!=='Dealer') && (r.promo_price? true:false) && !r.flagship_price && (!!r.normal_price);
 
     pr.innerHTML=`${showWas? `<div class='price-was'>${fmtPrice(normal)}.-</div>`:''}
                   <div class='price-now'>${fmtPrice(priceNow)}.-</div>`;
 
     area.appendChild(expire); area.appendChild(pr); box.appendChild(area);
-
     return tag;
   }
 
@@ -545,8 +570,6 @@
   async function handleExcelImport(e){
     const f=e.target.files[0]; if(!f) return; const data=await f.arrayBuffer();
     const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const json=XLSX.utils.sheet_to_json(ws,{defval:''});
-
-    // Column mapping (Thai/Eng tolerated)
     const map=(row,k,alts=[])=> row[k] || alts.map(a=>row[a]).find(v=>v!==undefined && v!=='') || '';
     ROWS=json.map(row=>({
       sku: map(row,'Item No.', ['รหัสสินค้า','SKU','ItemNo','Item']),
@@ -586,33 +609,6 @@
     try{const last=JSON.parse(localStorage.getItem('last_user')||'null'); if(last){me=last; renderMain();} else {renderLogin();}}
     catch(e){renderLogin()}
   })();
-
-  /* ==========================
-     README (How to use / Deploy)
-     ========================== *\
-  
-  HOW-TO (ย่อ):
-  1) เปิดไฟล์ index.html นี้ได้ทันที (double‑click) หรืออัปขึ้น GitHub Pages / Vercel ได้เลย (ไม่มี backend)  
-  2) ปุ่ม "อัปโหลดโลโก้" เพื่อวางโลโก้ (เก็บใน localStorage)  
-  3) ปุ่ม "นำเข้า Excel" รองรับคอลัมน์ตาม mapping ต่อไปนี้:  
-     - Item No. → sku  
-     - Description → description  
-     - Details → details (บรรทัดละ 1 bullet)  
-     - Normal Price / Promotion Price  
-     - Dealer Price T1/T2/T3 → dealer_price_t1/2/3  
-     - Dealer GP% T1/T2/T3 → dealer_gp_t1/2/3 (แสดงตามไฟล์ ไม่คำนวณ)  
-     - Flagship Price, Marketplace Price, Marketplace GP%  
-     - Expire date (YYYY‑MM‑DD)  
-  4) เลือก Channel (Flagship / Dealer / Marketplace) — ถ้า Dealer จะเห็น D1/D2/D3 และ GP%  
-  5) เลือก Template (A4/A5/A6/Accessories) + พรีวิว/พิมพ์  
-  6) การพิมพ์: ระบบจัดหน้าอัตโนมัติตาม template: A4=1, A5=2, A6=4, ACC=12 ต่อ 1 แผ่น A4  
-  7) สี/ฟอนต์/น้ำหนัก ตรงตามธีม, Expire อยู่มุมซ้ายบนของพื้นที่ราคา, ราคาโปรใหญ่สุด, ราคาปกติขีดฆ่าเมื่อมีโปร (ยกเว้น Dealer จะแสดงราคาตาม Tier)  
-
-  เคล็ดลับปรับระยะให้ตรง PDF 100%:
-  - ปรับตัวเลขในคลาส .frame (ความหนากรอบ), .tag-logo (ตำแหน่งโลโก้), .sku/.title/.bullets และ .price-area (mm) ให้สัมพันธ์กับไฟล์แม่แบบของคุณ  
-  - ใช้ Print dialog → More settings → Scale = 100%, Margins = Default/5mm (กำหนดใน @page แล้ว)  
-
-  */
   </script>
 </body>
 </html>
