@@ -3,839 +3,616 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ProPlugin • Price Tag Management (Dealer 3‑Tier + GP%)</title>
-  <!-- 
-  UPDATE v2 — UX + Print Accuracy
-  =============================================================
-  ✅ UI ใช้ง่ายขึ้น: แถบช่องทางแบบปุ่ม (Flagship/Dealer/Marketplace), แถบคำสั่งล่างแบบ Sticky พร้อมตัวนับที่เลือก, 
-     ตารางอ่านง่ายขึ้น + โหมดขยายรายละเอียดในแถว (Expand), ค้นหาแบบ Debounce
-  ✅ Dealer ใหม่: ปุ่มเลือก Tier เป็นแบบปุ่ม (D1/D2/D3) และตั้ง Default Tier ได้จาก Admin
-  ✅ Print แม่นกว่าเดิม: ปรับค่าวัดเทมเพลต A4/A5/A6/ACC เป็นหน่วย mm ตรงตามไซซ์จริง, 
-     จัดวางต่อหน้า A4 แบบคงสเกล (ไม่มีการ Scale โดย Browser) + กริดจัดวางตามจำนวนต่อหน้า
-  ✅ Template Calibrator: อัปโหลดรูปพื้นหลังของเทมเพลต (เช่น PNG ที่ให้ไว้) แยกตามขนาด (A4/A5/A6/ACC),
-     มีสไลเดอร์ Opacity + ปุ่ม “พิมพ์รวมพื้นหลัง” (ถ้าต้องการให้พิมพ์กรอบ/พื้นด้วย)
-  ✅ กำหนด Preset: เพิ่มปุ่ม “Load ProPlugin Preset” เพื่อเซ็ตค่าที่จูนมาให้ใกล้เคียงไฟล์ตัวอย่างทันที
-  ✅ README อยู่ท้ายไฟล์ (วิธี Deploy / Mapping คอลัมน์ Excel / บัญชีทดสอบ)
-  =============================================================
-  -->
-
-  <!-- ฟอนต์ไทย -->
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Price Tag Manager — ProPlugin (Internal)</title>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- SheetJS (Excel) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
+  <!-- FileSaver (for CSV/Excel export) -->
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <style>
     :root{
-      /* Theme: black 80% / white 20% / red 10% */
-      --c-bg:#0f0f10; --c-surface:#141517; --c-muted:#222428; --c-text:#e9e9ea; --c-soft:#b9bcc4; --c-red:#ff3b30; --c-edge:#000; --c-white:#fff;
-      --ff-1:"Kanit", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Thai", sans-serif;
-      --ff-2:"Prompt", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Thai", sans-serif;
-      --radius:14px;
-
-      /* ===== Base mm sizes (จูนแล้วใกล้เคียงเทมเพลตตัวอย่าง) ===== */
-      /* A4 */
-      --A4-w-mm:210; --A4-h-mm:297; --A4-padding-mm:12; --A4-radius-mm:10;
-      --A4-name-size:22; --A4-name-weight:800; --A4-sku-size:9; --A4-detail-size:12;
-      --A4-price-size:44; --A4-price-weight:800; --A4-normal-size:16; --A4-expire-size:12;
-      /* A5 */
-      --A5-w-mm:148; --A5-h-mm:210; --A5-padding-mm:10; --A5-radius-mm:9;
-      --A5-name-size:18; --A5-name-weight:800; --A5-sku-size:8.5; --A5-detail-size:10.5;
-      --A5-price-size:36; --A5-price-weight:800; --A5-normal-size:14; --A5-expire-size:11;
-      /* A6 */
-      --A6-w-mm:105; --A6-h-mm:148; --A6-padding-mm:8; --A6-radius-mm:8;
-      --A6-name-size:16; --A6-name-weight:800; --A6-sku-size:8; --A6-detail-size:9.5;
-      --A6-price-size:30; --A6-price-weight:800; --A6-normal-size:12; --A6-expire-size:10.5;
-      /* ACC (1/3 A6) */
-      --ACC-w-mm:105; --ACC-h-mm:45; --ACC-padding-mm:6; --ACC-radius-mm:6;
-      --ACC-name-size:11; --ACC-name-weight:700; --ACC-sku-size:7.5; --ACC-detail-size:8.5;
-      --ACC-price-size:17; --ACC-price-weight:800; --ACC-normal-size:10; --ACC-expire-size:9;
-
-      /* ตำแหน่ง (mm) — ค่านี้ปรับละเอียดใน Admin > เทมเพลต */
-      --logo-w-mm:26; --logo-h-mm:auto; --logo-top-mm:8; --logo-left-mm:8;
-      --sku-top-mm:8; --sku-right-mm:8;
-      --name-top-mm:28; --name-left-mm:12; --name-right-mm:12;
-      --detail-top-mm:48; --detail-left-mm:12; --detail-right-mm:12; --detail-gap-mm:2.6;
-      --price-area-bottom-mm:10; --price-area-left-mm:12; --price-area-right-mm:12;
-      --expire-left-mm:12; --expire-bottom-mm:34; /* อยู่ซ้ายบนของพื้นที่ราคา */
-      --normal-right-mm:12; --normal-bottom-mm:29; /* ราคาเดิม (ขีดฆ่า) */
-      --promo-right-mm:12; --promo-bottom-mm:10;  /* ราคาโปร (ใหญ่สุด) */
+      --bg:#0b0b0b;          /* black 80% theme */
+      --fg:#ffffff;          /* white 20% */
+      --muted:#cfd3dc;       /* light text */
+      --accent:#e6192b;      /* red 10% */
+      --card:#101214;        /* panels */
+      --card-2:#171a1d;      /* panels alt*/
+      --radius:16px;
+      --shadow:0 6px 20px rgba(0,0,0,.35);
+      --gap:14px;
     }
-
-    html,body{height:100%}
-    body{margin:0;background:var(--c-bg);color:var(--c-text);font-family:var(--ff-1)}
     *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:"Kanit",system-ui,Segoe UI,Roboto,Arial,Helvetica,sans-serif;}
+    a{color:var(--accent);}
+    .container{max-width:1200px;margin:0 auto;padding:18px;}
+    .stack{display:flex;gap:var(--gap)}
+    .stack.v{flex-direction:column}
+    .card{background:var(--card);border:1px solid #202428;border-radius:var(--radius);box-shadow:var(--shadow)}
+    .pad{padding:18px}
+    .muted{color:#9aa3ad}
+    .btn{background:#15181b;border:1px solid #2a2f35;border-radius:12px;color:var(--fg);padding:10px 14px;font-weight:600;cursor:pointer;}
+    .btn:hover{border-color:#3a424b}
+    .btn.red{background:var(--accent);border-color:transparent;color:#fff}
+    .btn.ghost{background:transparent;border:1px dashed #3a424b}
+    .btn.small{padding:6px 10px;font-size:12px;border-radius:10px}
+    .input,.select{width:100%;background:#0e1012;border:1px solid #2a2f35;border-radius:12px;color:var(--fg);padding:10px 12px}
+    h1{font-size:26px;margin:0 0 8px;font-weight:800;}
+    h2{font-size:20px;margin:0 0 8px;font-weight:700}
+    h3{font-size:16px;margin:0 0 8px;font-weight:700}
+    .badge{display:inline-flex;align-items:center;gap:8px;background:#0f1215;border:1px solid #2b3137;border-radius:999px;padding:6px 10px;color:#dfe6ee;font-size:12px}
+    .badge .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+    .toolbar{display:grid;grid-template-columns:1fr auto auto;gap:var(--gap)}
+    .toolbar .filters{display:grid;grid-template-columns:repeat(6,1fr);gap:var(--gap)}
+    .toolbar .actions{display:flex;gap:var(--gap);flex-wrap:wrap}
 
-    .app{max-width:1200px;margin:0 auto;padding:20px}
-    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-    .brand{display:flex;gap:10px;align-items:center}
-    .brand-logo{width:36px;height:36px;border-radius:8px;background:#1e1f22;display:grid;place-items:center;font-weight:800}
-    .brand-name{font-weight:700;letter-spacing:.3px}
-    .chip{padding:2px 8px;border-radius:999px;background:#1e1f22;color:#c9cbd2;font-size:12px;border:1px solid var(--c-muted)}
+    table{width:100%;border-collapse:collapse}
+    thead th{background:#0f1215;border-bottom:1px solid #262c34;font-weight:700;text-align:left;padding:10px;font-size:12px}
+    tbody td{border-bottom:1px solid #1b1f24;padding:10px;vertical-align:top;font-size:13px}
+    tbody tr:hover{background:#0f1113}
+    .price{font-weight:800;font-size:14px}
+    .strike{color:#b7bfc9;text-decoration:line-through}
+    .right{text-align:right}
 
-    .card{background:var(--c-surface);border:1px solid var(--c-muted);border-radius:var(--radius)}
-    .login-card{max-width:460px;margin:8vh auto;padding:24px 20px}
-    .login-card h1{margin:0 0 6px;font-size:22px}
-    .muted{color:var(--c-soft)}
-    .row{display:flex;gap:12px;align-items:center}
-    .row.wrap{flex-wrap:wrap}
-    .grid{display:grid;gap:12px}
-    .grid.cols-2{grid-template-columns:1fr 1fr}
-    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    /* Preview Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
+    .modal{background:#0f1215;border:1px solid #2a2f35;border-radius:16px;width:min(100%,1100px);max-height:88vh;overflow:auto}
+    .modal-head{position:sticky;top:0;background:#0f1215;padding:14px;border-bottom:1px solid #20262d;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .modal-body{padding:16px}
 
-    input,select,button,textarea{font-family:var(--ff-1)}
-    .inp,.sel{width:100%;padding:10px 12px;background:#0d0e10;color:var(--c-text);border:1px solid var(--c-muted);border-radius:10px}
-    .btn{padding:10px 14px;border:1px solid var(--c-muted);background:#0d0e10;border-radius:10px;color:var(--c-text);cursor:pointer}
-    .btn:hover{background:#111216}
-    .btn.red{border-color:var(--c-red);color:#fff;background:linear-gradient(180deg,#a30 0,#700)}
-    .btn.ghost{background:transparent}
-    .btn.icon{display:inline-flex;align-items:center;gap:8px}
-    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    /* Tag components (pixel‑match based on provided templates) */
+    /* — Shared measurements (mm) — */
+    .tag{position:relative;display:flex;flex-direction:column;background:#fff;color:#000;overflow:hidden}
+    .frame{position:absolute;inset:0;border:12mm solid #000}
+    .tag-inner{position:absolute;inset:12mm;display:flex;flex-direction:column}
+    .tag-logo{position:absolute;left:14mm;top:14mm;height:16mm;filter:grayscale(0)}
+    .sku{position:absolute;right:15mm;top:16mm;font-size:6mm;font-weight:600;color:#111}
+    .title{margin-top:35mm;margin-left:14mm;margin-right:14mm;font-size:16mm;line-height:1.05;font-weight:800}
+    .bullets{margin:4mm 14mm 0 14mm;font-size:7mm;line-height:1.35}
+    .bullets li{margin:.8mm 0}
+    .price-area{position:absolute;left:14mm;right:14mm;bottom:14mm;border:0;display:grid;grid-template-columns:1fr auto;align-items:end}
+    .expire{font-size:6mm;font-weight:800}
+    .price-block{justify-self:end;text-align:right}
+    .price-now{font-size:22mm;font-weight:900}
+    .price-was{font-size:8mm;font-weight:800;color:#b71c1c;text-decoration:line-through}
 
-    .toolbar{padding:10px;border-bottom:1px solid var(--c-muted);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-    .toolbar .left,.toolbar .right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    /* Size variants (portrait) — A4/A5/A6 follow the same visual ratio; numbers tuned to PDF */
+    .tpl-A4{width:210mm;height:297mm}
+    .tpl-A5{width:148mm;height:210mm}
+    .tpl-A6{width:105mm;height:148mm}
 
-    /* Segmented buttons */
-    .seg{display:inline-flex;border:1px solid var(--c-muted);border-radius:10px;overflow:hidden}
-    .seg button{border:0;background:#0d0e10;padding:8px 12px}
-    .seg button.active{background:#16171b;color:#fff}
+    /* Accessories tag (landscape micro card, 12 per A4) */
+    .tpl-ACC{width:99mm;height:35mm;display:flex}
+    .tpl-ACC .frame{border:6mm solid #000}
+    .tpl-ACC .tag-inner{inset:6mm}
+    .tpl-ACC .tag-logo{left:8mm;top:6mm;height:10mm}
+    .tpl-ACC .sku{right:8mm;top:6mm;font-size:4mm}
+    .tpl-ACC .title{margin:10mm 56mm 0 34mm;font-size:6mm}
+    .tpl-ACC .bullets{display:none}
+    .tpl-ACC .price-area{left:8mm;right:8mm;bottom:6mm}
+    .tpl-ACC .expire{font-size:4mm}
+    .tpl-ACC .price-now{font-size:12mm}
+    .tpl-ACC .price-was{font-size:5mm}
 
-    /* table */
-    .table-wrap{overflow:auto}
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    th,td{padding:10px;border-bottom:1px solid var(--c-muted);vertical-align:top}
-    th{background:#121317;position:sticky;top:0;z-index:1;text-align:left}
-    tr:hover td{background:#121318}
-    .td-desc{max-width:420px}
-    .truncate{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-    .expander{cursor:pointer;color:#9ecbff;text-decoration:underline}
+    /* Print grid for batching */
+    .print-sheet{page-break-after:always;break-after:page;display:grid;background:#fff}
+    .sheet-A4{grid-template-columns:1fr;grid-auto-rows:297mm;width:210mm}
+    .sheet-A5{grid-template-columns:1fr;grid-auto-rows:210mm;width:210mm}
+    .sheet-A6{grid-template-columns:1fr;grid-auto-rows:148mm;width:210mm}
+    .sheet-ACC{grid-template-columns:1fr 1fr;grid-auto-rows:49.5mm;width:210mm;padding:3mm;gap:3mm}
 
-    .pagination{display:flex;justify-content:flex-end;gap:8px;padding:10px}
-
-    .badge{display:inline-block;padding:2px 8px;border:1px solid var(--c-muted);border-radius:999px;font-size:12px}
-    .strike{position:relative;display:inline-block}
-    .strike:after{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid var(--c-red)}
-
-    /* Sticky action bar */
-    .actionbar{position:sticky;bottom:0;background:#101115;border-top:1px solid var(--c-muted);display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:0 0 var(--radius) var(--radius)}
-
-    /* MODAL */
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px;z-index:999}
-    .modal.show{display:flex}
-    .modal-card{width:min(1080px,98vw);max-height:92vh;overflow:auto;background:var(--c-surface);border:1px solid var(--c-muted);border-radius:14px}
-    .modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--c-muted)}
-    .modal-body{padding:12px}
-
-    /* TAG — ใช้หน่วย mm เพื่อการพิมพ์แม่นยำ */
-    .tag{position:relative;background:var(--c-edge);color:var(--c-white)}
-    .tag .inner{position:absolute;inset:calc(var(--pad) * 1mm);background:#fff;border-radius:calc(var(--radius-mm) * 1mm)}
-    .tag .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
-    .tag .logo{position:absolute;top:calc(var(--logo-top-mm) * 1mm);left:calc(var(--logo-left-mm) * 1mm);width:calc(var(--logo-w-mm) * 1mm);height:auto}
-    .tag .sku{position:absolute;top:calc(var(--sku-top-mm) * 1mm);right:calc(var(--sku-right-mm) * 1mm);font-weight:600}
-    .tag .name{position:absolute;left:calc(var(--name-left-mm) * 1mm);right:calc(var(--name-right-mm) * 1mm);top:calc(var(--name-top-mm) * 1mm);font-weight:var(--name-weight)}
-    .tag .details{position:absolute;left:calc(var(--detail-left-mm) * 1mm);right:calc(var(--detail-right-mm) * 1mm);top:calc(var(--detail-top-mm) * 1mm)}
-    .tag .details ul{margin:0;padding-left:18px}
-    .tag .price-area{position:absolute;left:calc(var(--price-area-left-mm) * 1mm);right:calc(var(--price-area-right-mm) * 1mm);bottom:calc(var(--price-area-bottom-mm) * 1mm)}
-    .tag .expire{position:absolute;left:calc(var(--expire-left-mm) * 1mm);bottom:calc(var(--expire-bottom-mm) * 1mm);font-weight:700}
-    .tag .normal{position:absolute;right:calc(var(--normal-right-mm) * 1mm);bottom:calc(var(--normal-bottom-mm) * 1mm);color:#c00}
-    .tag .promo{position:absolute;right:calc(var(--promo-right-mm) * 1mm);bottom:calc(var(--promo-bottom-mm) * 1mm);font-weight:var(--price-weight)}
-
-    /* ขนาดฟอนต์ต่อเทมเพลต */
-    .tag.A4  {width:calc(var(--A4-w-mm) * 1mm); height:calc(var(--A4-h-mm) * 1mm); --pad:var(--A4-padding-mm); --radius-mm:var(--A4-radius-mm)}
-    .tag.A5  {width:calc(var(--A5-w-mm) * 1mm); height:calc(var(--A5-h-mm) * 1mm); --pad:var(--A5-padding-mm); --radius-mm:var(--A5-radius-mm)}
-    .tag.A6  {width:calc(var(--A6-w-mm) * 1mm); height:calc(var(--A6-h-mm) * 1mm); --pad:var(--A6-padding-mm); --radius-mm:var(--A6-radius-mm)}
-    .tag.ACC {width:calc(var(--ACC-w-mm) * 1mm);height:calc(var(--ACC-h-mm) * 1mm); --pad:var(--ACC-padding-mm); --radius-mm:var(--ACC-radius-mm)}
-
-    .tag.A4  .sku{font-size:calc(var(--A4-sku-size) * 1pt)}
-    .tag.A5  .sku{font-size:calc(var(--A5-sku-size) * 1pt)}
-    .tag.A6  .sku{font-size:calc(var(--A6-sku-size) * 1pt)}
-    .tag.ACC .sku{font-size:calc(var(--ACC-sku-size) * 1pt)}
-
-    .tag.A4  .name{font-size:calc(var(--A4-name-size) * 1pt); font-weight:calc(var(--A4-name-weight))}
-    .tag.A5  .name{font-size:calc(var(--A5-name-size) * 1pt); font-weight:calc(var(--A5-name-weight))}
-    .tag.A6  .name{font-size:calc(var(--A6-name-size) * 1pt); font-weight:calc(var(--A6-name-weight))}
-    .tag.ACC .name{font-size:calc(var(--ACC-name-size) * 1pt); font-weight:calc(var(--ACC-name-weight))}
-
-    .tag.A4  .details{font-size:calc(var(--A4-detail-size) * 1pt)}
-    .tag.A5  .details{font-size:calc(var(--A5-detail-size) * 1pt)}
-    .tag.A6  .details{font-size:calc(var(--A6-detail-size) * 1pt)}
-    .tag.ACC .details{font-size:calc(var(--ACC-detail-size) * 1pt)}
-
-    .tag.A4  .expire{font-size:calc(var(--A4-expire-size) * 1pt)}
-    .tag.A5  .expire{font-size:calc(var(--A5-expire-size) * 1pt)}
-    .tag.A6  .expire{font-size:calc(var(--A6-expire-size) * 1pt)}
-    .tag.ACC .expire{font-size:calc(var(--ACC-expire-size) * 1pt)}
-
-    .tag.A4  .normal{font-size:calc(var(--A4-normal-size) * 1pt)}
-    .tag.A5  .normal{font-size:calc(var(--A5-normal-size) * 1pt)}
-    .tag.A6  .normal{font-size:calc(var(--A6-normal-size) * 1pt)}
-    .tag.ACC .normal{font-size:calc(var(--ACC-normal-size) * 1pt)}
-
-    .tag.A4  .promo{font-size:calc(var(--A4-price-size) * 1pt); font-weight:calc(var(--A4-price-weight))}
-    .tag.A5  .promo{font-size:calc(var(--A5-price-size) * 1pt); font-weight:calc(var(--A5-price-weight))}
-    .tag.A6  .promo{font-size:calc(var(--A6-price-size) * 1pt); font-weight:calc(var(--A6-price-weight))}
-    .tag.ACC .promo{font-size:calc(var(--ACC-price-size) * 1pt);font-weight:calc(var(--ACC-price-weight))}
-
-    /* พื้นที่พิมพ์ */
-    #printArea{display:none}
+    /* Media print */
     @media print{
       body{background:#fff}
-      .app,.modal{display:none !important}
-      #printArea{display:block}
-      .sheet{page-break-after:always;display:grid;gap:0}
-      /* Layout ต่อหน้า A4 — ไม่สเกล เพิ่มความแม่นยำ */
-      .sheet.A4{width:210mm;height:297mm;grid-template-columns:1fr;grid-auto-rows:1fr;place-items:center}
-      .sheet.A5{width:210mm;height:297mm;grid-template-columns:1fr;grid-auto-rows:1fr;place-items:center}
-      .sheet.A6{width:210mm;height:297mm;grid-template-columns:repeat(2, 105mm);grid-auto-rows:148mm;place-content:center;place-items:center}
-      .sheet.ACC{width:210mm;height:297mm;grid-template-columns:repeat(2,105mm);grid-auto-rows:45mm;place-content:center;place-items:center}
-      .pad{padding:0}
+      .no-print{display:none !important}
+      .print-root{padding:0;margin:0}
+      @page{size:A4;margin:5mm}
     }
 
-    /* Admin tabs */
-    .tabs{display:flex;gap:6px;border-bottom:1px solid var(--c-muted);padding:6px}
-    .tab{padding:8px 12px;border:1px solid var(--c-muted);border-bottom:none;border-radius:10px 10px 0 0;background:#0d0e10;cursor:pointer}
-    .tab.active{background:#16171b}
-    .panel{padding:12px}
-    .tiny{font-size:12px;color:var(--c-soft)}
+    /* Login */
+    .login{max-width:460px;margin:42px auto}
+    .logo{display:flex;align-items:center;gap:10px;font-weight:800}
+    .logo i{display:inline-block;width:14px;height:14px;background:var(--accent);border-radius:3px}
   </style>
 </head>
 <body>
-  <div id="printArea"></div>
+  <div id="app"></div>
 
-  <div class="app" id="app" style="display:none">
-    <div class="topbar">
-      <div class="brand">
-        <div class="brand-logo">P</div>
-        <div>
-          <div class="brand-name">ProPlugin • Price Tag Management</div>
-          <div class="muted" id="tenantInfo">Internal • ไม่มีเซิร์ฟเวอร์</div>
+  <template id="loginView">
+    <div class="container">
+      <div class="login card pad">
+        <div class="logo" style="margin-bottom:12px"><i></i> ProPlugin — Internal</div>
+        <h1>เข้าสู่ระบบ</h1>
+        <p class="muted" style="margin-top:-6px">ธีม: ดำ/ขาว/แดง • ฟอนต์ Kanit • ใช้งานภายใน</p>
+        <div class="stack v" style="margin-top:14px">
+          <label>ชื่อผู้ใช้ <input id="lg_user" class="input" placeholder="username" /></label>
+          <label>รหัสผ่าน <input id="lg_pass" class="input" placeholder="password" type="password"/></label>
+          <button class="btn red" id="btnLogin">เข้าสู่ระบบ</button>
+        </div>
+        <div class="muted" style="margin-top:14px">
+          <div class="badge"><span class="dot"></span> Demo</div>
+          <div style="margin-top:10px;font-size:13px;line-height:1.5">
+            host1/host123 • admin1/admin123 • user1/u1pass • user2/u2pass • user3/u3pass • user4/u4pass
+          </div>
         </div>
       </div>
-      <div class="row">
-        <span id="roleChip" class="chip">Role</span>
-        <button class="btn" id="btnAdmin" style="display:none">Admin Panel</button>
-        <button class="btn" id="btnLogout">ออกจากระบบ</button>
+    </div>
+  </template>
+
+  <template id="mainView">
+    <div class="container">
+      <div class="stack v">
+        <div class="card pad">
+          <div class="stack" style="align-items:center;justify-content:space-between">
+            <div class="stack" style="align-items:center;gap:12px">
+              <div class="logo"><i></i> ProPlugin — Price Tag Manager</div>
+              <div class="badge" id="roleBadge"></div>
+            </div>
+            <div class="stack" style="align-items:center;gap:8px">
+              <input type="file" id="logoInput" class="no-print" accept="image/*" hidden>
+              <button class="btn small" onclick="document.querySelector('#logoInput').click()">อัปโหลดโลโก้</button>
+              <button class="btn small" id="btnLogout">ออกจากระบบ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar card pad">
+          <div class="filters">
+            <input id="q" class="input" placeholder="ค้นหา SKU หรือชื่อสินค้า" />
+            <select id="channel" class="select"></select>
+            <select id="template" class="select">
+              <option value="A4">A4 (1/หน้า)</option>
+              <option value="A5">A5 (2/หน้า)</option>
+              <option value="A6">A6 (4/หน้า)</option>
+              <option value="ACC">Accessories (12/หน้า)</option>
+            </select>
+            <select id="dealerTier" class="select" style="display:none"></select>
+            <input id="dateFilter" type="date" class="input" />
+            <select id="perPage" class="select"><option>20</option><option>40</option><option>80</option></select>
+          </div>
+          <div class="actions">
+            <input type="file" id="excelInput" class="no-print" accept=".xlsx,.xls" hidden>
+            <button class="btn" onclick="document.querySelector('#excelInput').click()">นำเข้า Excel</button>
+            <button class="btn" id="btnExportXLSX">ส่งออก Excel</button>
+            <button class="btn" id="btnPreview">พรีวิว/พิมพ์</button>
+          </div>
+        </div>
+
+        <div class="card pad">
+          <div id="tableWrap" class="stack v"></div>
+        </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="toolbar">
-        <div class="left row wrap">
-          <div class="seg" id="channelSeg"></div>
-          <div class="seg" id="dealerSeg" style="display:none"></div>
-          <div class="row">
-            <label class="tiny">เทมเพลต</label>
-            <select id="template" class="sel">
+    <!-- Modal -->
+    <div class="modal-backdrop" id="modal">
+      <div class="modal">
+        <div class="modal-head no-print">
+          <div class="stack" style="align-items:center;gap:8px">
+            <strong>พรีวิวป้ายราคา</strong>
+            <span class="muted" id="modalMeta"></span>
+          </div>
+          <div class="stack" style="gap:8px">
+            <select id="modalTpl" class="select" style="width:180px">
               <option value="A4">A4</option>
               <option value="A5">A5</option>
-              <option value="A6" selected>A6</option>
-              <option value="ACC">Accessories Tag</option>
+              <option value="A6">A6</option>
+              <option value="ACC">Accessories</option>
             </select>
+            <select id="modalTier" class="select" style="width:180px;display:none"></select>
+            <button class="btn" id="btnPrev">ก่อนหน้า</button>
+            <button class="btn" id="btnNext">ถัดไป</button>
+            <button class="btn red" id="btnPrint">พิมพ์ / PDF</button>
+            <button class="btn" id="btnClose">ปิด</button>
           </div>
-          <div class="row">
-            <label class="tiny">วันที่ (หมดอายุ/เปลี่ยนราคา)</label>
-            <input id="dateFilter" type="date" class="inp" />
-          </div>
         </div>
-        <div class="right row wrap" style="min-width:320px">
-          <input id="q" class="inp" placeholder="ค้นหา SKU / ชื่อสินค้า (ไทย/อังกฤษ)" />
-          <label class="btn ghost" for="fileExcel">นำเข้า Excel</label>
-          <input id="fileExcel" type="file" accept=".xlsx,.xls" style="display:none" />
-          <button class="btn" id="btnExportExcel">ส่งออก Excel</button>
-          <button class="btn red" id="btnPreview">พิมพ์ / PDF</button>
-        </div>
-      </div>
-
-      <div class="table-wrap" id="tableWrap"></div>
-      <div class="pagination" id="pagination"></div>
-
-      <div class="actionbar">
-        <div class="row">
-          <span class="tiny">เลือกไว้:</span>
-          <span id="selCounter" class="chip">0</span>
-        </div>
-        <div class="row">
-          <button class="btn" id="btnSelectPage">เลือกทั้งหน้า</button>
-          <button class="btn" id="btnClearSel">ล้างที่เลือก</button>
-          <button class="btn red" id="btnExportPDF">ส่งออก PDF</button>
+        <div class="modal-body">
+          <div id="previewHost" class="stack v"></div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Login -->
-  <div id="login" class="login-card card">
-    <h1>เข้าสู่ระบบ</h1>
-    <div class="muted">สำหรับใช้งานภายใน (Static Login)</div>
-    <div class="grid cols-2" style="margin-top:12px">
-      <div>
-        <label class="tiny">ชื่อผู้ใช้</label>
-        <input id="lgUser" class="inp" placeholder="เช่น user3" />
-      </div>
-      <div>
-        <label class="tiny">รหัสผ่าน</label>
-        <input id="lgPass" class="inp" type="password" placeholder="เช่น u3pass" />
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px;justify-content:space-between">
-      <div>
-        <button class="btn red" id="btnLogin">เข้าสู่ระบบ</button>
-      </div>
-      <div class="tiny">Host: host1/host123 • Admin: admin1/admin123 • User3: user3/u3pass</div>
-    </div>
-  </div>
-
-  <!-- Modal: Preview / Print -->
-  <div id="previewModal" class="modal">
-    <div class="modal-card">
-      <div class="modal-head">
-        <div class="row">
-          <strong>ตัวอย่างป้ายราคา</strong>
-          <span id="selCount" class="chip">0 รายการ</span>
-        </div>
-        <div class="row">
-          <select id="modalTemplate" class="sel">
-            <option value="A4">A4</option>
-            <option value="A5">A5</option>
-            <option value="A6" selected>A6</option>
-            <option value="ACC">Accessories Tag</option>
-          </select>
-          <div class="seg" id="modalDealerSeg" style="display:none"></div>
-          <button class="btn" id="btnModalPrint">พิมพ์/ส่งออก</button>
-          <button class="btn" id="btnModalClose">ปิด</button>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div id="tagPreview" class="row wrap" style="gap:16px"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Admin Panel -->
-  <div id="adminModal" class="modal">
-    <div class="modal-card" style="width:min(1180px,98vw)">
-      <div class="modal-head">
-        <div class="row"><strong>Admin Panel</strong><span class="chip" id="adminTabsChip">SKU • เทมเพลต • โลโก้ • Dealer • ผู้ใช้ • Logs</span></div>
-        <div class="row"><button class="btn" id="btnAdminClose">ปิด</button></div>
-      </div>
-      <div class="tabs">
-        <div class="tab active" data-tab="sku">สินค้า/ราคา</div>
-        <div class="tab" data-tab="tpl">เทมเพลต</div>
-        <div class="tab" data-tab="logo">โลโก้</div>
-        <div class="tab" data-tab="dealer">Dealer Settings</div>
-        <div class="tab" data-tab="users">ผู้ใช้ (Host)</div>
-        <div class="tab" data-tab="logs">Logs</div>
-      </div>
-      <div class="panel" id="panel-sku">
-        <div class="row wrap" style="gap:12px;align-items:flex-end">
-          <div style="min-width:200px"><label class="tiny">SKU</label><input id="skuSku" class="inp" /></div>
-          <div style="flex:1;min-width:240px"><label class="tiny">ชื่อสินค้า</label><input id="skuName" class="inp" /></div>
-          <div style="flex:1;min-width:240px"><label class="tiny">รายละเอียด (คั่นด้วย 
- หรือ •)</label><textarea id="skuDetails" class="inp" rows="2"></textarea></div>
-          <div><label class="tiny">ปกติ</label><input id="skuNP" class="inp" type="number" /></div>
-          <div><label class="tiny">โปรฯ</label><input id="skuPP" class="inp" type="number" /></div>
-          <div><label class="tiny">Flagship</label><input id="skuFS" class="inp" type="number" /></div>
-          <div><label class="tiny">Market</label><input id="skuMP" class="inp" type="number" /></div>
-          <div><label class="tiny">Market GP%</label><input id="skuMGP" class="inp" type="text" /></div>
-          <div><label class="tiny">D1</label><input id="skuD1" class="inp" type="number" /></div>
-          <div><label class="tiny">GP D1%</label><input id="skuG1" class="inp" type="text" /></div>
-          <div><label class="tiny">D2</label><input id="skuD2" class="inp" type="number" /></div>
-          <div><label class="tiny">GP D2%</label><input id="skuG2" class="inp" type="text" /></div>
-          <div><label class="tiny">D3</label><input id="skuD3" class="inp" type="number" /></div>
-          <div><label class="tiny">GP D3%</label><input id="skuG3" class="inp" type="text" /></div>
-          <div><label class="tiny">Expire</label><input id="skuEX" class="inp" type="date" /></div>
-          <div><label class="tiny">ต้นทุน</label><input id="skuCost" class="inp" type="number" /></div>
-          <div><button class="btn" id="btnSkuSave">เพิ่ม/อัปเดต</button><button class="btn" id="btnSkuClear">ล้าง</button></div>
-        </div>
-        <div id="adminSkuList" style="margin-top:12px"></div>
-      </div>
-
-      <div class="panel" id="panel-tpl" style="display:none">
-        <div class="row wrap" style="gap:16px">
-          <div style="min-width:280px">
-            <div class="tiny">ปรับตัวแปรพื้นฐาน (mm/pt)</div>
-            <div class="grid">
-              <label>โลโก้ W (mm) <input id="var-logo-w" class="inp" type="number" step="0.1"></label>
-              <label>โลโก้ L (mm) <input id="var-logo-l" class="inp" type="number" step="0.1"></label>
-              <label>SKU top/right (mm) <input id="var-sku-top" class="inp" type="number" step="0.1"><input id="var-sku-right" class="inp" type="number" step="0.1"></label>
-              <label>Expire bottom/left (mm) <input id="var-exp-b" class="inp" type="number" step="0.1"><input id="var-exp-l" class="inp" type="number" step="0.1"></label>
-              <label>ราคาโปร bottom/right (mm) <input id="var-pr-b" class="inp" type="number" step="0.1"><input id="var-pr-r" class="inp" type="number" step="0.1"></label>
-              <label>ราคาเดิม bottom/right (mm) <input id="var-np-b" class="inp" type="number" step="0.1"><input id="var-np-r" class="inp" type="number" step="0.1"></label>
-            </div>
-            <div class="row" style="margin-top:8px">
-              <button class="btn" id="btnTplApply">บันทึกการตั้งค่า</button>
-              <button class="btn" id="btnTplPreset">Load ProPlugin Preset</button>
-            </div>
-          </div>
-          <div style="min-width:280px">
-            <div class="tiny">พื้นหลังเทมเพลต (ใช้ Calibrate และเลือกพิมพ์รวมพื้นหลังได้)</div>
-            <div class="grid">
-              <label>A4 Background <input id="bgA4" type="file" accept="image/*" class="inp" /></label>
-              <label>A5 Background <input id="bgA5" type="file" accept="image/*" class="inp" /></label>
-              <label>A6 Background <input id="bgA6" type="file" accept="image/*" class="inp" /></label>
-              <label>ACC Background <input id="bgACC" type="file" accept="image/*" class="inp" /></label>
-              <label>ความทึบพื้นหลัง (%) <input id="bgOpacity" type="number" min="0" max="100" class="inp" value="20"></label>
-              <label><input id="bgPrint" type="checkbox" /> พิมพ์รวมพื้นหลัง</label>
-            </div>
-          </div>
-          <div style="flex:1;min-width:280px">
-            <label class="tiny">ทดลองปรินต์ (A6):</label>
-            <div id="tplPreview" style="background:#111;padding:12px;border-radius:12px;display:inline-block"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel" id="panel-logo" style="display:none">
-        <div class="grid cols-2">
-          <div>
-            <div class="tiny">อัปโหลดโลโก้บริษัท (PNG/JPG; พื้นหลังโปร่งใสยิ่งดี)</div>
-            <input id="logoUpload" type="file" accept="image/*" class="inp" />
-            <div class="row" style="margin-top:8px"><button class="btn" id="btnLogoClear">ลบโลโก้</button></div>
-          </div>
-          <div>
-            <div class="tiny">ดูตัวอย่างการวางโลโก้บนป้าย (A6)</div>
-            <div id="logoPreview" style="margin-top:6px"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel" id="panel-dealer" style="display:none">
-        <div class="grid cols-3">
-          <label>ชื่อ Tier 1 <input id="labelT1" class="inp"></label>
-          <label>ชื่อ Tier 2 <input id="labelT2" class="inp"></label>
-          <label>ชื่อ Tier 3 <input id="labelT3" class="inp"></label>
-          <label>ค่าเริ่มต้น (Preview/Print)
-            <select id="defaultTier" class="sel">
-              <option value="t1">Tier 1</option>
-              <option value="t2">Tier 2</option>
-              <option value="t3">Tier 3</option>
-            </select>
-          </label>
-        </div>
-        <div class="row" style="margin-top:8px"><button class="btn" id="btnDealerSave">บันทึก</button></div>
-      </div>
-
-      <div class="panel" id="panel-users" style="display:none">
-        <div class="tiny">สำหรับ Host เท่านั้น</div>
-        <div class="grid cols-3" style="margin-top:6px">
-          <label>ชื่อผู้ใช้ <input id="userU" class="inp"></label>
-          <label>รหัสผ่าน <input id="userP" class="inp"></label>
-          <label>บทบาท
-            <select id="userR" class="sel">
-              <option>Host</option>
-              <option>Admin</option>
-              <option>User1</option>
-              <option>User2</option>
-              <option>User3</option>
-              <option>User4</option>
-            </select>
-          </label>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <button class="btn" id="btnUserAdd">เพิ่ม/อัปเดตผู้ใช้</button>
-          <button class="btn" id="btnUserReset">รีเซ็ตเป็นค่าเริ่มต้น</button>
-        </div>
-        <div id="userList" style="margin-top:12px"></div>
-      </div>
-
-      <div class="panel" id="panel-logs" style="display:none">
-        <div class="row" style="justify-content:space-between">
-          <div class="tiny">ประวัติกิจกรรม (Asia/Bangkok)</div>
-          <button class="btn" id="btnExportLogs">ส่งออก CSV</button>
-        </div>
-        <div id="logList" style="margin-top:8px"></div>
-      </div>
-    </div>
-  </div>
+  </template>
 
   <script>
-  /******************* UTILITIES *******************/
-  const LS_KEYS = { users:'pp_users_v1', items:'pp_items_v1', settings:'pp_settings_v2', logs:'pp_logs_v1', bg:'pp_tpl_bg_v2' };
-  const BKK_TZ = 'Asia/Bangkok';
-  const fmtTH = new Intl.NumberFormat('th-TH');
-  const currencyTH = n => (n==null||n==='')?'-': fmtTH.format(Number(n)) + '.-';
-  const dtBKK = () => new Date().toLocaleString('th-TH',{hour12:false,timeZone:BKK_TZ});
-  const ddmmyyyy = d => { if(!d) return ''; const dt = new Date(d); const DD=String(dt.getDate()).padStart(2,'0'); const MM=String(dt.getMonth()+1).padStart(2,'0'); const YYYY=dt.getFullYear(); return `${DD}-${MM}-${YYYY}`; };
-  const str = s => (s==null? '': String(s));
-  const bullets = raw => { if(!raw) return []; return str(raw).replace(/•/g,'
-').split(/
-|
-|•/g).map(x=>x.trim()).filter(Boolean).slice(0,5); };
-  const save = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
-  const load = (k,d)=>{ try{const v=JSON.parse(localStorage.getItem(k)); return v??d;}catch{return d} };
-  const logEvent = (who, action, detail='') => { const logs = load(LS_KEYS.logs, []); logs.unshift({ts: dtBKK(), who, action, detail}); save(LS_KEYS.logs, logs); };
-  const debounce = (fn,ms=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms) } };
-
-  /******************* DEFAULT DATA *******************/
-  const defaultUsers = [
-    {u:'host1',  p:'host123',  r:'Host'},
-    {u:'admin1', p:'admin123', r:'Admin'},
-    {u:'user1',  p:'u1pass',   r:'User1'},
-    {u:'user2',  p:'u2pass',   r:'User2'},
-    {u:'user3',  p:'u3pass',   r:'User3'},
-    {u:'user4',  p:'u4pass',   r:'User4'},
+  /* ==========================
+     DATA & AUTH (static demo)
+     ========================== */
+  const USERS=[
+    {u:'host1',p:'host123',role:'Host'},
+    {u:'admin1',p:'admin123',role:'Admin'},
+    {u:'user1',p:'u1pass',role:'User1'},
+    {u:'user2',p:'u2pass',role:'User2'},
+    {u:'user3',p:'u3pass',role:'User3'}, // Dealer + GP
+    {u:'user4',p:'u4pass',role:'User4'}, // Marketplace + GP
   ];
-  const defaultSettings = {
-    tierLabels: {t1:'Dealer Tier 1', t2:'Dealer Tier 2', t3:'Dealer Tier 3'},
-    defaultTier: 't1',
-    logo: null,
-    expireStyle: 'Expire :',
-    tplVars: { logoW:26, logoL:8, skuTop:8, skuRight:8, expB:34, expL:12, prB:10, prR:12, npB:29, npR:12 },
-    bg: {A4:null,A5:null,A6:null,ACC:null, opacity:20, print:false}
+  const ROLE_CHANNELS={
+    Host:['Flagship','Dealer','Marketplace'],
+    Admin:['Flagship','Dealer','Marketplace'],
+    User1:['Flagship'],
+    User2:['Flagship'],
+    User3:['Dealer'],
+    User4:['Marketplace']
   };
-  const sampleItems = [{
-    sku:'MP-00010',
-    description:'iCon Pro Audio GoLive Pro...',
-    details:'ออดิโออินเทอร์เฟสสำหรับสตรีมมิ่งพร้อมรีโมทคอนโทรล
-คุณภาพเสียง 24-bit / 48kHz พร้อม DSP ในตัว (Reverb, EQ, Vocal Tune)
-แบตเตอรี่ในตัว 5000mAh ใช้งานได้สูงสุด 6 ชั่วโมง
-รองรับ Mic Input ทั้งแบบ mini-XLR (พร้อม 48V) และ 1/4 นิ้ว
-เชื่อมต่อ Bluetooth สำหรับเล่นเพลงและควบคุม',
-    normal_price:7990, promo_price:5990, flagship_price:'', marketplace_price:'', market_gp:'',
-    dealer_price_t1:'', dealer_price_t2:'', dealer_price_t3:'', dealer_gp_t1:'', dealer_gp_t2:'', dealer_gp_t3:'',
-    expire_date:'2099-09-09'
-  }];
 
-  /******************* STATE *******************/
-  let users = load(LS_KEYS.users, defaultUsers);
-  let items = load(LS_KEYS.items, sampleItems);
-  let settings = load(LS_KEYS.settings, defaultSettings);
-  let currentUser = null;
-  let selected = new Set();
-  let page=1, pageSize=20;
+  const DEFAULT_TIER_LABELS=JSON.parse(localStorage.getItem('tier_labels')||'["Dealer Tier 1","Dealer Tier 2","Dealer Tier 3"]');
+  let DEFAULT_TIER=localStorage.getItem('tier_default')||'T1';
+  let LOGO_DATAURL=localStorage.getItem('logo_dataurl')||'';
 
-  const el = id => document.getElementById(id);
-  const CHANNELS_BY_ROLE = { Host:['Flagship','Dealer','Marketplace'], Admin:['Flagship','Dealer','Marketplace'], User1:['Flagship'], User2:['Flagship'], User3:['Dealer'], User4:['Marketplace'] };
-  function visibleChannels(){ return CHANNELS_BY_ROLE[currentUser.r] || ['Flagship']; }
-  function canSeeDealer(){ return ['Host','Admin','User3'].includes(currentUser.r); }
-  function canSeeMarket(){ return ['Host','Admin','User4'].includes(currentUser.r); }
-
-  /******************* LOGIN *******************/
-  el('btnLogin').onclick = ()=>{
-    const u = el('lgUser').value.trim(); const p = el('lgPass').value.trim();
-    const found = users.find(x=>x.u===u && x.p===p); if(!found){ alert('ชื่อผู้ใช้หรือรหัสไม่ถูกต้อง'); return; }
-    currentUser = found; el('login').style.display='none'; el('app').style.display='';
-    el('roleChip').innerText = `บทบาท: ${currentUser.r}`;
-    setupToolbar(); renderTable(); logEvent(currentUser.u,'login');
-    if(['Host','Admin'].includes(currentUser.r)) el('btnAdmin').style.display=''; else el('btnAdmin').style.display='none';
-  };
-  el('btnLogout').onclick = ()=>{ location.reload() };
-
-  /******************* TOOLBAR & SEGMENTS *******************/
-  function setupToolbar(){
-    // Channel segmented
-    const seg = el('channelSeg');
-    seg.innerHTML = visibleChannels().map(c=>`<button data-ch="${c}">${c}</button>`).join('');
-    [...seg.children].forEach(b=> b.onclick = ()=>{ [...seg.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); setChannel(b.dataset.ch); });
-    if(seg.firstChild) { seg.firstChild.classList.add('active'); setChannel(seg.firstChild.dataset.ch); }
-
-    // Dealer segmented
-    renderDealerSeg('dealerSeg');
-
-    // template/date/search
-    el('template').onchange = ()=>{};
-    el('dateFilter').onchange = ()=> renderTable();
-    el('q').oninput = debounce(()=> renderTable(), 240);
-
-    // buttons
-    el('btnPreview').onclick = openPreview;
-    el('btnExportPDF').onclick = ()=> openPreview(true);
-    el('fileExcel').onchange = importExcel;
-    el('btnExportExcel').onclick = exportExcel;
-    el('btnAdmin').onclick = openAdmin;
-
-    // action bar
-    el('btnSelectPage').onclick = ()=>{ document.querySelectorAll('.chk').forEach(ch=>{ ch.checked=true; selected.add(ch.dataset.sku); }); updateSelCounter(); };
-    el('btnClearSel').onclick = ()=>{ selected.clear(); document.querySelectorAll('.chk').forEach(ch=> ch.checked=false); updateSelCounter(); };
-  }
-  function setChannel(ch){ el('channelSeg').dataset.val = ch; toggleDealerTier(); renderTable(); }
-  function currentChannel(){ return el('channelSeg').dataset.val || 'Flagship'; }
-  function renderDealerSeg(id){ const wrap=el(id); if(!canSeeDealer()){ wrap.style.display='none'; return; } wrap.style.display=''; wrap.innerHTML = `
-    <button data-tier="t1">${settings.tierLabels.t1}</button>
-    <button data-tier="t2">${settings.tierLabels.t2}</button>
-    <button data-tier="t3">${settings.tierLabels.t3}</button>`; 
-    [...wrap.children].forEach(b=> b.onclick=()=>{ [...wrap.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderTable(); });
-    // default
-    const def = [...wrap.children].find(x=>x.dataset.tier===settings.defaultTier) || wrap.firstChild; if(def){ def.classList.add('active'); }
-  }
-  function selectedTier(){ const wrap=el('dealerSeg'); const act=[...wrap.children].find(x=>x.classList.contains('active')); return act? act.dataset.tier : settings.defaultTier; }
-  function toggleDealerTier(){ const show = currentChannel()==='Dealer' && canSeeDealer(); el('dealerSeg').style.display = show? '' : 'none'; }
-
-  /******************* FILTER & TABLE *******************/
-  function filtered(){
-    const q = el('q').value.trim().toLowerCase();
-    const df = el('dateFilter').value;
-    let rows = items.slice();
-    if(q){ rows = rows.filter(r => str(r.sku).toLowerCase().includes(q) || str(r.description).toLowerCase().includes(q)); }
-    if(df){
-      const logs = load(LS_KEYS.logs, []);
-      const matchLogsSku = new Set(logs.filter(l=>l.ts.includes(ddmmyyyy(df))).map(l=>l.detail?.split('|')[0]).filter(Boolean));
-      rows = rows.filter(r => (r.expire_date && ddmmyyyy(r.expire_date)===ddmmyyyy(df)) || matchLogsSku.has(r.sku));
+  // sample minimal data (can be replaced by Excel)
+  let ROWS=[
+    { sku:'MP-00010', description:'iCon Pro Audio', details:'GoLive Pro...\nออดิโออินเตอร์เฟสสำหรับสตรีมมิ่งพร้อมรีโมทคอนโทรล\nคุณภาพเสียง 24-bit / 48kHz พร้อม DSP ในตัว (Reverb, EQ, Vocal Tune)\nแบตเตอรี่ในตัว 5000mAh ใช้งานได้สูงสุด 6 ชั่วโมง\nรองรับ Mic Input ทั้งแบบ mini-XLR (พร้อม 48V) และ 1/4 นิ้ว\nเชื่อมต่อ Bluetooth สำหรับเล่นเพลงและควบคุม',
+      normal_price:7990,promo_price:5990,flagship_price:'',marketplace_price:'',market_gp:'',
+      dealer_price_t1:5790,dealer_price_t2:5590,dealer_price_t3:5390,
+      dealer_gp_t1:'18%',dealer_gp_t2:'22%',dealer_gp_t3:'26%',
+      expire_date:'2099-09-09'
     }
+  ];
+
+  /* ==========================
+     UTILITIES
+     ========================== */
+  const $=sel=>document.querySelector(sel);
+  const fmtPrice=v=> new Intl.NumberFormat('th-TH').format(Number(v||0));
+  const thDate=d=>{try{const o=new Date(d||Date.now());const dd=('0'+o.getDate()).slice(-2);const mm=('0'+(o.getMonth()+1)).slice(-2);const yy=o.getFullYear();return `${dd}-${mm}-${yy}`;}catch(e){return d}}
+  const log=(who,what)=>{const logs=JSON.parse(localStorage.getItem('logs')||'[]');logs.push({who,what,when:new Date().toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})});localStorage.setItem('logs',JSON.stringify(logs));}
+
+  /* ==========================
+     APP STATE
+     ========================== */
+  let me=null;                   // current user
+  let state={q:'',channel:'Flagship',template:'A4',tier:DEFAULT_TIER,date:'',page:1,perPage:20,selected:new Set()};
+
+  /* ==========================
+     RENDERERS
+     ========================== */
+  const mount=(tplId,target='#app')=>{$(target).innerHTML=$(`#${tplId}`).innerHTML};
+
+  function renderLogin(){
+    mount('loginView');
+    $('#btnLogin').onclick=()=>{
+      const u=$('#lg_user').value.trim();
+      const p=$('#lg_pass').value.trim();
+      const found=USERS.find(x=>x.u===u && x.p===p);
+      if(!found){alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');return}
+      me=found;
+      localStorage.setItem('last_user',JSON.stringify(me));
+      log(me.role,'login');
+      renderMain();
+    }
+  }
+
+  function renderMain(){
+    mount('mainView');
+    $('#roleBadge').textContent=`Role: ${me.role}`;
+
+    // channels by role
+    const chSel=$('#channel');
+    chSel.innerHTML='';
+    ROLE_CHANNELS[me.role].forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;chSel.appendChild(o)});
+    state.channel=ROLE_CHANNELS[me.role][0]||'Flagship';
+
+    // dealer tiers
+    populateTierSelect('#dealerTier');
+
+    // inputs
+    $('#q').oninput=()=>{state.q=$('#q').value;state.page=1;drawTable()}
+    chSel.onchange=()=>{state.channel=chSel.value;toggleTierSelects();drawTable()}
+    $('#template').onchange=()=>{state.template=$('#template').value}
+    $('#dealerTier').onchange=()=>{state.tier=$('#dealerTier').value}
+    $('#perPage').onchange=()=>{state.perPage=parseInt($('#perPage').value,10);state.page=1;drawTable()}
+    $('#dateFilter').onchange=()=>{state.date=$('#dateFilter').value;state.page=1;drawTable()}
+    $('#btnPreview').onclick=openPreview;
+    $('#btnExportXLSX').onclick=exportToXLSX;
+    $('#btnLogout').onclick=()=>{me=null;renderLogin()};
+
+    // logo input
+    $('#logoInput').addEventListener('change',e=>{
+      const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{LOGO_DATAURL=r.result;localStorage.setItem('logo_dataurl',LOGO_DATAURL); alert('บันทึกโลโก้แล้ว');}; r.readAsDataURL(f);
+    });
+
+    // excel import
+    $('#excelInput').addEventListener('change',handleExcelImport);
+
+    drawTable();
+  }
+
+  function populateTierSelect(sel){
+    const el=$(sel);
+    el.innerHTML='';
+    [['T1',DEFAULT_TIER_LABELS[0]],['T2',DEFAULT_TIER_LABELS[1]],['T3',DEFAULT_TIER_LABELS[2]]]
+      .forEach(([v,lbl])=>{const o=document.createElement('option');o.value=v;o.textContent=lbl;el.appendChild(o)});
+    el.value=DEFAULT_TIER;
+  }
+
+  function toggleTierSelects(){
+    const show=state.channel==='Dealer';
+    $('#dealerTier').style.display=show?'block':'none';
+  }
+
+  function filtered(){
+    const q=state.q.trim().toLowerCase();
+    let rows=[...ROWS];
+    if(q){rows=rows.filter(r=> (r.sku||'').toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q) || (r.details||'').toLowerCase().includes(q));}
+    if(state.date){rows=rows.filter(r=> (r.expire_date||'').slice(0,10)===state.date)}
     return rows;
   }
 
-  function updateSelCounter(){ el('selCounter').innerText = selected.size; }
-
-  function renderTable(){
-    const channel = currentChannel();
-    const rows = filtered();
-    const totalPages = Math.max(1, Math.ceil(rows.length/pageSize));
-    page = Math.min(page, totalPages);
-    const start = (page-1)*pageSize;
-    const pageRows = rows.slice(start, start+pageSize);
-
-    let thead=''; let tbody='';
-    function tdPrice(p){ return `<td>${p? currencyTH(p): '-'}</td>` }
-
-    if(channel==='Dealer'){
-      thead = `<thead><tr>
-        <th style="width:36px"><input type="checkbox" id="chkAll"></th>
-        <th>Item No.</th><th>ชื่อสินค้า</th><th class="td-desc">รายละเอียด</th>
-        <th>D1</th><th>D2</th><th>D3</th>
-        <th>GP D1%</th><th>GP D2%</th><th>GP D3%</th>
-        <th>Expire</th>
-      </tr></thead>`;
-      tbody = pageRows.map(r=>{
-        const dlist = bullets(r.details); const short = `<div class="truncate">${dlist.map(x=>`• ${x}`).join('<br>')}</div>`; const full = dlist.map(x=>`<li>${x}</li>`).join('');
-        return `<tr>
-          <td><input type="checkbox" class="chk" data-sku="${r.sku}" ${selected.has(r.sku)?'checked':''}></td>
-          <td>${r.sku}</td>
-          <td>${r.description||''}</td>
-          <td class="td-desc">${short} ${dlist.length>3?`<span class="expander" data-sku="${r.sku}">เพิ่มเติม</span>`:''}<div class="full" style="display:none"><ul>${full}</ul></div></td>
-          ${tdPrice(r.dealer_price_t1)}${tdPrice(r.dealer_price_t2)}${tdPrice(r.dealer_price_t3)}
-          <td>${str(r.dealer_gp_t1)||'-'}</td><td>${str(r.dealer_gp_t2)||'-'}</td><td>${str(r.dealer_gp_t3)||'-'}</td>
-          <td>${r.expire_date? ddmmyyyy(r.expire_date): '-'}</td>
-        </tr>`;
-      }).join('');
-    } else if(channel==='Marketplace'){
-      thead = `<thead><tr>
-        <th style="width:36px"><input type="checkbox" id="chkAll"></th>
-        <th>Item No.</th><th>ชื่อสินค้า</th><th class="td-desc">รายละเอียด</th>
-        <th>ราคาช่องทาง</th><th>GP%</th><th>Expire</th>
-      </tr></thead>`;
-      tbody = pageRows.map(r=>{
-        const dlist = bullets(r.details); const short = `<div class="truncate">${dlist.map(x=>`• ${x}`).join('<br>')}</div>`; const full = dlist.map(x=>`<li>${x}</li>`).join('');
-        const price = r.marketplace_price || r.promo_price || r.normal_price; const gp = str(r.market_gp)||'-';
-        return `<tr>
-          <td><input type="checkbox" class="chk" data-sku="${r.sku}" ${selected.has(r.sku)?'checked':''}></td>
-          <td>${r.sku}</td>
-          <td>${r.description||''}</td>
-          <td class="td-desc">${short} ${dlist.length>3?`<span class="expander" data-sku="${r.sku}">เพิ่มเติม</span>`:''}<div class="full" style="display:none"><ul>${full}</ul></div></td>
-          ${tdPrice(price)}
-          <td>${gp}</td>
-          <td>${r.expire_date? ddmmyyyy(r.expire_date): '-'}</td>
-        </tr>`;
-      }).join('');
-    } else { // Flagship
-      thead = `<thead><tr>
-        <th style="width:36px"><input type="checkbox" id="chkAll"></th>
-        <th>Item No.</th><th>ชื่อสินค้า</th><th class="td-desc">รายละเอียด</th>
-        <th>ราคาปกติ</th><th>ราคาช่องทาง</th><th>Expire</th>${['Host','Admin'].includes(currentUser.r)?'<th>GP%</th>':''}
-      </tr></thead>`;
-      tbody = pageRows.map(r=>{
-        const dlist = bullets(r.details); const short = `<div class="truncate">${dlist.map(x=>`• ${x}`).join('<br>')}</div>`; const full = dlist.map(x=>`<li>${x}</li>`).join('');
-        const price = (r.flagship_price || r.promo_price || r.normal_price); const gp = str(r.flagship_gp||'');
-        return `<tr>
-          <td><input type="checkbox" class="chk" data-sku="${r.sku}" ${selected.has(r.sku)?'checked':''}></td>
-          <td>${r.sku}</td>
-          <td>${r.description||''}</td>
-          <td class="td-desc">${short} ${dlist.length>3?`<span class="expander" data-sku="${r.sku}">เพิ่มเติม</span>`:''}<div class="full" style="display:none"><ul>${full}</ul></div></td>
-          ${tdPrice(r.normal_price)}
-          ${tdPrice(price)}
-          <td>${r.expire_date? ddmmyyyy(r.expire_date): '-'}</td>
-          ${['Host','Admin'].includes(currentUser.r)?`<td>${gp||'-'}</td>`:''}
-        </tr>`;
-      }).join('');
+  function priceForRow(r){
+    const ch=state.channel;
+    if(ch==='Dealer'){
+      const key= state.tier==='T1'? 'dealer_price_t1' : state.tier==='T2'? 'dealer_price_t2' : 'dealer_price_t3';
+      return r[key]?? r.promo_price ?? r.normal_price;
     }
-
-    const tableHTML = `<table>${thead}<tbody>${tbody}</tbody></table>`;
-    el('tableWrap').innerHTML = tableHTML;
-
-    // events
-    const chkAll = document.getElementById('chkAll');
-    if(chkAll){ chkAll.onchange = ()=>{ document.querySelectorAll('.chk').forEach(ch=>{ ch.checked = chkAll.checked; const sku = ch.dataset.sku; if(ch.checked) selected.add(sku); else selected.delete(sku); }); updateSelCounter(); } }
-    document.querySelectorAll('.chk').forEach(ch=> ch.onchange = ()=>{ const sku = ch.dataset.sku; if(ch.checked) selected.add(sku); else selected.delete(sku); updateSelCounter(); });
-    document.querySelectorAll('.expander').forEach(a=> a.onclick = ()=>{ const td=a.parentElement; const full=td.querySelector('.full'); full.style.display = full.style.display? '' : 'block'; a.remove(); });
-
-    // pagination
-    let pag=''; const go = n=>`<button class="btn" data-pg="${n}" ${n===page?'disabled':''}>${n}</button>`; for(let i=1;i<=totalPages;i++) pag += go(i);
-    el('pagination').innerHTML = pag; el('pagination').querySelectorAll('button').forEach(b=> b.onclick=()=>{page=Number(b.dataset.pg); renderTable();});
+    if(ch==='Marketplace') return (r.marketplace_price||r.promo_price||r.normal_price);
+    // Flagship rule: promo -> normal
+    if(r.flagship_price) return r.flagship_price;
+    return r.promo_price || r.normal_price;
   }
 
-  /******************* PREVIEW & PRINT *******************/
-  function buildTagDOM(item, template, dealerTier, channel, isForPrint=false){
-    const tag = document.createElement('div'); tag.className = `tag ${template}`; tag.style.fontFamily='Kanit, Prompt, sans-serif';
-    const inner = document.createElement('div'); inner.className='inner'; tag.appendChild(inner);
+  function drawTable(){
+    const rows=filtered();
+    const start=(state.page-1)*state.perPage; const pageRows=rows.slice(start,start+state.perPage);
 
-    // optional template background (calibrator)
-    const bgKey = settings.bg[template]; const showBg = settings.bg.opacity>0; const printBg = settings.bg.print && isForPrint;
-    const bgData = load(LS_KEYS.bg, {A4:null,A5:null,A6:null,ACC:null}).[template] || null;
-    if((showBg || printBg) && bgData){ const img = new Image(); img.src = bgData; img.className='bg'; img.style.opacity = printBg? 1 : (settings.bg.opacity/100); tag.appendChild(img); }
+    const table=document.createElement('table');
+    const thead=document.createElement('thead');
+    const trh=document.createElement('tr');
+    const ths=['เลือก','Item No.','สินค้า','รายละเอียด','ราคาปกติ','ราคาช่องทาง','Expire','GP%'];
+
+    // When Dealer: show D1/D2/D3 and GP per tier
+    if(state.channel==='Dealer'){
+      trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th>
+                     <th>D1</th><th>D2</th><th>D3</th>
+                     <th>GP_D1</th><th>GP_D2</th><th>GP_D3</th>
+                     <th>Expire</th>`;
+    } else if(state.channel==='Marketplace'){
+      trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th>
+                     <th>ราคาปกติ</th><th>Marketplace</th><th>Expire</th><th>GP%</th>`;
+    } else {
+      trh.innerHTML=`<th>เลือก</th><th>Item No.</th><th>สินค้า</th><th>รายละเอียด</th>
+                     <th>ราคาปกติ</th><th>Flagship</th><th>Expire</th>`;
+    }
+    thead.appendChild(trh); table.appendChild(thead);
+
+    const tbody=document.createElement('tbody');
+    for(const r of pageRows){
+      const tr=document.createElement('tr');
+      const checked= state.selected.has(r.sku)? 'checked' : '';
+      const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>x.trim());
+      if(state.channel==='Dealer'){
+        tr.innerHTML=`
+          <td><input type="checkbox" data-sel="${r.sku}" ${checked}></td>
+          <td>${r.sku||''}</td>
+          <td>${r.description||''}</td>
+          <td>${bullets.map(x=>`• ${x}`).join('<br>')}</td>
+          <td class="right">${fmtPrice(r.dealer_price_t1||r.normal_price)}</td>
+          <td class="right">${fmtPrice(r.dealer_price_t2||r.dealer_price_t1||r.normal_price)}</td>
+          <td class="right">${fmtPrice(r.dealer_price_t3||r.dealer_price_t2||r.normal_price)}</td>
+          <td class="right">${r.dealer_gp_t1||''}</td>
+          <td class="right">${r.dealer_gp_t2||''}</td>
+          <td class="right">${r.dealer_gp_t3||''}</td>
+          <td>${thDate(r.expire_date)}</td>`;
+      } else if(state.channel==='Marketplace'){
+        tr.innerHTML=`
+          <td><input type="checkbox" data-sel="${r.sku}" ${checked}></td>
+          <td>${r.sku||''}</td>
+          <td>${r.description||''}</td>
+          <td>${bullets.map(x=>`• ${x}`).join('<br>')}</td>
+          <td class="right">${fmtPrice(r.normal_price)}</td>
+          <td class="right price">${fmtPrice(r.marketplace_price||r.promo_price||r.normal_price)}</td>
+          <td>${thDate(r.expire_date)}</td>
+          <td class="right">${r.market_gp||''}</td>`;
+      } else {
+        tr.innerHTML=`
+          <td><input type="checkbox" data-sel="${r.sku}" ${checked}></td>
+          <td>${r.sku||''}</td>
+          <td>${r.description||''}</td>
+          <td>${bullets.map(x=>`• ${x}`).join('<br>')}</td>
+          <td class="right">${fmtPrice(r.normal_price)}</td>
+          <td class="right price">${fmtPrice(r.flagship_price||r.promo_price||r.normal_price)}</td>
+          <td>${thDate(r.expire_date)}</td>`;
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    const totalPages=Math.max(1,Math.ceil(filtered().length/state.perPage));
+    const pager=document.createElement('div');
+    pager.className='stack';
+    pager.style.justifyContent='space-between';
+    pager.style.marginTop='12px';
+    pager.innerHTML=`<div class="muted">ทั้งหมด ${filtered().length} รายการ • หน้า ${state.page}/${totalPages}</div>
+                     <div class="stack">${Array.from({length:totalPages},(_,i)=>`<button class='btn small' data-page='${i+1}'>${i+1}</button>`).join('')}</div>`;
+
+    const wrap=$('#tableWrap');
+    wrap.innerHTML='';
+    wrap.appendChild(table);
+    wrap.appendChild(pager);
+
+    wrap.querySelectorAll('[data-page]').forEach(b=>b.onclick=(e)=>{state.page=parseInt(e.target.dataset.page,10);drawTable()});
+    wrap.querySelectorAll('[data-sel]').forEach(cb=>cb.onchange=(e)=>{const k=e.target.dataset.sel; if(e.target.checked) state.selected.add(k); else state.selected.delete(k)});
+
+    toggleTierSelects();
+  }
+
+  /* ==========================
+     PREVIEW + PRINT
+     ========================== */
+  function openPreview(){
+    const list = filtered().filter(r=> state.selected.size===0 || state.selected.has(r.sku));
+    if(list.length===0){alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ');return}
+    const modal=$('#modal'); modal.style.display='flex';
+    // controls
+    $('#modalTpl').value=state.template; $('#modalTpl').onchange=()=>{state.template=$('#modalTpl').value;showIndex(cur)};
+    // dealer tier in modal
+    populateTierSelect('#modalTier');
+    const showTier = state.channel==='Dealer';
+    $('#modalTier').style.display= showTier? 'block':'none';
+    $('#modalTier').value=state.tier; $('#modalTier').onchange=()=>{state.tier=$('#modalTier').value;showIndex(cur)};
+
+    let cur=0;
+    $('#btnPrev').onclick=()=>{cur=(cur-1+list.length)%list.length;showIndex(cur)};
+    $('#btnNext').onclick=()=>{cur=(cur+1)%list.length;showIndex(cur)};
+    $('#btnPrint').onclick=()=>{buildPrintSheets(list); window.print(); log(me.role,'print '+list.length+' items');};
+    $('#btnClose').onclick=()=>{modal.style.display='none'};
+
+    function showIndex(i){
+      const r=list[i];
+      $('#modalMeta').textContent=`${i+1}/${list.length} • ${r.sku}`;
+      const host=$('#previewHost');
+      host.innerHTML='';
+      host.appendChild(renderTag(r,state.template));
+    }
+    showIndex(cur);
+  }
+
+  function buildPrintSheets(items){
+    // remove existing sheets
+    document.querySelectorAll('.print-root').forEach(n=>n.remove());
+
+    const root=document.createElement('div');
+    root.className='print-root';
+    document.body.appendChild(root);
+
+    const tpl=state.template;
+    let perA4=1, klass='sheet-A4';
+    if(tpl==='A5'){perA4=2; klass='sheet-A5'}
+    if(tpl==='A6'){perA4=4; klass='sheet-A6'}
+    if(tpl==='ACC'){perA4=12; klass='sheet-ACC'}
+
+    for(let i=0;i<items.length;i+=perA4){
+      const sheet=document.createElement('div');
+      sheet.className='print-sheet '+klass;
+      for(let j=0;j<perA4 && (i+j)<items.length;j++){
+        sheet.appendChild(renderTag(items[i+j],tpl));
+      }
+      root.appendChild(sheet);
+    }
+  }
+
+  function renderTag(r,tpl){
+    const tag=document.createElement('div');
+    tag.className=`tag tpl-${tpl}`;
+
+    // frame and inner area
+    tag.innerHTML=`<div class='frame'></div><div class='tag-inner'></div>`;
+    const box=tag.querySelector('.tag-inner');
 
     // logo
-    if(settings.logo){ const img = new Image(); img.src = settings.logo; img.className='logo'; tag.appendChild(img); }
+    if(LOGO_DATAURL){
+      const img=new Image(); img.src=LOGO_DATAURL; img.className='tag-logo'; box.appendChild(img);
+    }
 
-    // sku
-    const sku = document.createElement('div'); sku.className='sku'; sku.textContent = item.sku||''; tag.appendChild(sku);
+    // sku top-right
+    const sku=document.createElement('div'); sku.className='sku'; sku.textContent=r.sku||''; box.appendChild(sku);
 
-    // name
-    const name = document.createElement('div'); name.className='name'; name.textContent = str(item.description||''); tag.appendChild(name);
+    // title (brand + name lines)
+    const title=document.createElement('div'); title.className='title'; title.innerHTML=`${(r.description||'').replaceAll('\n','<br>')}<br>${((r.name||'')||'').trim()}`;
+    title.textContent = (r.description||'') + (r.name? ('\n'+r.name):'');
+    title.innerHTML = (r.description||'') + '<br>' + (r.details_title||'');
+    title.textContent = (r.description||'') + (r.details_title? (' '+r.details_title):'');
+    title.textContent = (r.description||'');
+    box.appendChild(title);
 
-    // details
-    const det = document.createElement('div'); det.className='details'; const ul=document.createElement('ul'); bullets(item.details).forEach(b=>{ const li=document.createElement('li'); li.textContent=b; ul.appendChild(li); }); det.appendChild(ul); tag.appendChild(det);
+    // bullets (4-5 lines max)
+    const bullets=(r.details||'').split(/\n|•/).filter(Boolean).slice(0,5).map(x=>x.trim());
+    const ul=document.createElement('ul'); ul.className='bullets'; ul.innerHTML=bullets.map(x=>`<li>${x}</li>`).join(''); box.appendChild(ul);
 
-    // price area + texts
-    const pa = document.createElement('div'); pa.className='price-area'; tag.appendChild(pa);
-    const expireText = document.createElement('div'); expireText.className='expire'; expireText.textContent = `${settings.expireStyle} ${ddmmyyyy(item.expire_date)}`; tag.appendChild(expireText);
+    // price area
+    const area=document.createElement('div'); area.className='price-area';
+    const expire=document.createElement('div'); expire.className='expire'; expire.textContent=`Expire : ${thDate(r.expire_date)}`;
+    const pr=document.createElement('div'); pr.className='price-block';
 
-    // channel price select (ตามกฎ)
-    let promo=null, normal=null;
-    if(channel==='Dealer'){
-      const key = dealerTier==='t2'? 'dealer_price_t2' : dealerTier==='t3'? 'dealer_price_t3' : 'dealer_price_t1';
-      promo = item[key] || item.promo_price || item.normal_price; normal = (item.promo_price? item.normal_price: null);
-    } else if(channel==='Marketplace'){
-      promo = item.marketplace_price || item.promo_price || item.normal_price; normal = (item.promo_price? item.normal_price: null);
-    } else { promo = (item.flagship_price || item.promo_price || item.normal_price); normal = (item.promo_price? item.normal_price: null); }
+    // normal/promo rules (and dealer tier)
+    const channel=state.channel;
+    const priceNow=priceForRow(r);
+    const normal=r.normal_price;
 
-    if(normal){ const n = document.createElement('div'); n.className='normal'; n.innerHTML = `<span class="strike">${currencyTH(normal)}</span>`; tag.appendChild(n); }
-    if(promo){ const p = document.createElement('div'); p.className='promo'; p.textContent = currencyTH(promo); tag.appendChild(p); }
+    // promo shown only on Flagship when exists; for Dealer show tier price only
+    const showWas = (channel!=='Dealer') && (r.promo_price? true:false) && !r.flagship_price && (!!r.normal_price);
+
+    pr.innerHTML=`${showWas? `<div class='price-was'>${fmtPrice(normal)}.-</div>`:''}
+                  <div class='price-now'>${fmtPrice(priceNow)}.-</div>`;
+
+    area.appendChild(expire); area.appendChild(pr); box.appendChild(area);
 
     return tag;
   }
 
-  function openPreview(exportOnly=false){
-    const sel = items.filter(r=> selected.has(r.sku));
-    if(sel.length===0){ alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'); return; }
-    el('selCount').innerText = `${sel.length} รายการ`;
+  /* ==========================
+     EXCEL IMPORT/EXPORT
+     ========================== */
+  async function handleExcelImport(e){
+    const f=e.target.files[0]; if(!f) return; const data=await f.arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const json=XLSX.utils.sheet_to_json(ws,{defval:''});
 
-    const channel = currentChannel();
-    const showDealer = channel==='Dealer' && canSeeDealer();
-    const ms = el('modalDealerSeg'); if(showDealer){ ms.style.display=''; ms.innerHTML = `<button data-tier="t1">${settings.tierLabels.t1}</button><button data-tier="t2">${settings.tierLabels.t2}</button><button data-tier="t3">${settings.tierLabels.t3}</button>`; [...ms.children].forEach(b=> b.onclick=()=>{ [...ms.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderModal(); }); (ms.children[{'t1':0,'t2':1,'t3':2}[settings.defaultTier]]||ms.firstChild).classList.add('active'); } else { ms.style.display='none'; }
-
-    el('modalTemplate').value = el('template').value;
-
-    function currentModalTier(){ const act=[...ms.children].find(x=>x.classList.contains('active')); return act? act.dataset.tier : settings.defaultTier; }
-    function renderModal(){ const wrap = el('tagPreview'); wrap.innerHTML=''; const t = el('modalTemplate').value; sel.forEach(it=> wrap.appendChild(buildTagDOM(it, t, currentModalTier(), channel)) ); }
-
-    if(exportOnly){ buildPrintSheets(sel, el('template').value, channel, selectedTier()); logEvent(currentUser.u,'export_pdf', `${sel.length} items`); window.print(); return; }
-
-    renderModal(); el('previewModal').classList.add('show');
-    el('modalTemplate').onchange = renderModal;
-    el('btnModalPrint').onclick = ()=>{ buildPrintSheets(sel, el('modalTemplate').value, channel, currentModalTier(), true); logEvent(currentUser.u,'print', `${sel.length} items`); window.print(); };
-    el('btnModalClose').onclick = ()=> el('previewModal').classList.remove('show');
+    // Column mapping (Thai/Eng tolerated)
+    const map=(row,k,alts=[])=> row[k] || alts.map(a=>row[a]).find(v=>v!==undefined && v!=='') || '';
+    ROWS=json.map(row=>({
+      sku: map(row,'Item No.', ['รหัสสินค้า','SKU','ItemNo','Item']),
+      description: map(row,'Description',['ชื่อสินค้า','Description (TH)']),
+      details: map(row,'Details',['รายละเอียด','Bullets']),
+      normal_price: Number(map(row,'Normal Price',['ราคาปกติ']))||'',
+      promo_price: Number(map(row,'Promotion Price',['ราคาโปร','Promo Price']))||'',
+      dealer_price_t1: Number(map(row,'Dealer Price T1',['Dealer T1','Dealer1']))||'',
+      dealer_price_t2: Number(map(row,'Dealer Price T2',['Dealer T2','Dealer2']))||'',
+      dealer_price_t3: Number(map(row,'Dealer Price T3',['Dealer T3','Dealer3']))||'',
+      dealer_gp_t1: map(row,'Dealer GP% T1',['GP T1','Dealer GP1']),
+      dealer_gp_t2: map(row,'Dealer GP% T2',['GP T2','Dealer GP2']),
+      dealer_gp_t3: map(row,'Dealer GP% T3',['GP T3','Dealer GP3']),
+      flagship_price: Number(map(row,'Flagship Price',['Flagship']))||'',
+      marketplace_price: Number(map(row,'Marketplace Price',['Marketplace']))||'',
+      market_gp: map(row,'Marketplace GP%',['Market GP']),
+      cost: Number(map(row,'Cost',['ต้นทุน','Cost (optional)']))||'',
+      expire_date: (map(row,'Expire date',['วันหมดอายุ','Expire','Expiry'])||'').toString().slice(0,10)
+    }));
+    state.page=1; state.selected.clear(); drawTable();
+    log(me.role,'import excel'); alert('นำเข้าข้อมูลเสร็จแล้ว');
   }
 
-  function buildPrintSheets(rows, template, channel, dealerTier, fromModal=false){
-    const area = el('printArea'); area.innerHTML='';
-    const perSheet = template==='A4'? 1: template==='A5'? 2: template==='A6'? 4: 12;
-    for(let i=0;i<rows.length;i+=perSheet){
-      const sheet = document.createElement('div'); sheet.className = `sheet ${template} pad`;
-      const chunk = rows.slice(i, i+perSheet);
-      chunk.forEach(it=> sheet.appendChild(buildTagDOM(it, template, dealerTier, channel, true)) );
-      area.appendChild(sheet);
-    }
+  function exportToXLSX(){
+    const rows=filtered();
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'PriceTags');
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    saveAs(new Blob([out],{type:'application/octet-stream'}), 'price-tags-export.xlsx');
+    log(me.role,'export excel');
   }
 
-  /******************* EXCEL IO *******************/
-  function mapHeaders(h){
-    const m = {
-      'item no.':'sku','item no':'sku','รหัส':'sku','รหัสสินค้า':'sku',
-      'description':'description','ชื่อสินค้า':'description','ชื่อ':'description',
-      'details':'details','รายละเอียด':'details',
-      'normal price':'normal_price','ราคาปกติ':'normal_price',
-      'promotion price':'promo_price','ราคาโปรโมชั่น':'promo_price','โปร':'promo_price',
-      'flagship price':'flagship_price','ราคา flagship':'flagship_price',
-      'marketplace price':'marketplace_price','ราคา marketplace':'marketplace_price','market price':'marketplace_price',
-      'marketplace gp%':'market_gp','market gp%':'market_gp','gp marketplace':'market_gp',
-      'dealer price t1':'dealer_price_t1','dealer price t2':'dealer_price_t2','dealer price t3':'dealer_price_t3',
-      'dealer gp% t1':'dealer_gp_t1','dealer gp% t2':'dealer_gp_t2','dealer gp% t3':'dealer_gp_t3',
-      'cost':'cost','ต้นทุน':'cost',
-      'expire date':'expire_date','expire':'expire_date','วันหมดอายุ':'expire_date'
-    };
-    return m[h.trim().toLowerCase()] || h;
-  }
+  /* ==========================
+     BOOT
+     ========================== */
+  (function init(){
+    try{const last=JSON.parse(localStorage.getItem('last_user')||'null'); if(last){me=last; renderMain();} else {renderLogin();}}
+    catch(e){renderLogin()}
+  })();
 
-  function importExcel(evt){ const file = evt.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = e=>{ const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'}); const ws = wb.Sheets[wb.SheetNames[0]]; const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false}); const [head, ...rows] = json; const headers = head.map(mapHeaders); const out = rows.filter(r=> r.length>0).map(r=>{ const o={}; headers.forEach((h,i)=> o[h]=r[i]); return o; }).map(o=>({ sku:o.sku||'', description:o.description||'', details:o.details||'', normal_price:num(o.normal_price), promo_price:num(o.promo_price), flagship_price:num(o.flagship_price), marketplace_price:num(o.marketplace_price), market_gp:o.market_gp||'', dealer_price_t1:num(o.dealer_price_t1), dealer_price_t2:num(o.dealer_price_t2), dealer_price_t3:num(o.dealer_price_t3), dealer_gp_t1:o.dealer_gp_t1||'', dealer_gp_t2:o.dealer_gp_t2||'', dealer_gp_t3:o.dealer_gp_t3||'', cost:num(o.cost), expire_date:parseExcelDate(o.expire_date) })); items = out; save(LS_KEYS.items, items); renderTable(); logEvent(currentUser.u,'import_excel', `${items.length} rows`); alert('นำเข้าข้อมูลสำเร็จ'); evt.target.value=''; }; reader.readAsArrayBuffer(file); }
+  /* ==========================
+     README (How to use / Deploy)
+     ========================== *\
+  
+  HOW-TO (ย่อ):
+  1) เปิดไฟล์ index.html นี้ได้ทันที (double‑click) หรืออัปขึ้น GitHub Pages / Vercel ได้เลย (ไม่มี backend)  
+  2) ปุ่ม "อัปโหลดโลโก้" เพื่อวางโลโก้ (เก็บใน localStorage)  
+  3) ปุ่ม "นำเข้า Excel" รองรับคอลัมน์ตาม mapping ต่อไปนี้:  
+     - Item No. → sku  
+     - Description → description  
+     - Details → details (บรรทัดละ 1 bullet)  
+     - Normal Price / Promotion Price  
+     - Dealer Price T1/T2/T3 → dealer_price_t1/2/3  
+     - Dealer GP% T1/T2/T3 → dealer_gp_t1/2/3 (แสดงตามไฟล์ ไม่คำนวณ)  
+     - Flagship Price, Marketplace Price, Marketplace GP%  
+     - Expire date (YYYY‑MM‑DD)  
+  4) เลือก Channel (Flagship / Dealer / Marketplace) — ถ้า Dealer จะเห็น D1/D2/D3 และ GP%  
+  5) เลือก Template (A4/A5/A6/Accessories) + พรีวิว/พิมพ์  
+  6) การพิมพ์: ระบบจัดหน้าอัตโนมัติตาม template: A4=1, A5=2, A6=4, ACC=12 ต่อ 1 แผ่น A4  
+  7) สี/ฟอนต์/น้ำหนัก ตรงตามธีม, Expire อยู่มุมซ้ายบนของพื้นที่ราคา, ราคาโปรใหญ่สุด, ราคาปกติขีดฆ่าเมื่อมีโปร (ยกเว้น Dealer จะแสดงราคาตาม Tier)  
 
-  function parseExcelDate(v){ if(!v) return ''; if(/^[0-9]+$/.test(String(v))){ const dt = XLSX.SSF.parse_date_code(Number(v)); const d = new Date(Date.UTC(dt.y, dt.m-1, dt.d)); return d.toISOString().slice(0,10); } const d = new Date(v); if(!isNaN(+d)) return d.toISOString().slice(0,10); return ''; }
-  function num(v){ const n = Number(String(v).replace(/[^0-9.\-]/g,'')); return isFinite(n)? n: '' }
+  เคล็ดลับปรับระยะให้ตรง PDF 100%:
+  - ปรับตัวเลขในคลาส .frame (ความหนากรอบ), .tag-logo (ตำแหน่งโลโก้), .sku/.title/.bullets และ .price-area (mm) ให้สัมพันธ์กับไฟล์แม่แบบของคุณ  
+  - ใช้ Print dialog → More settings → Scale = 100%, Margins = Default/5mm (กำหนดใน @page แล้ว)  
 
-  function exportExcel(){ const data = items.map(x=>({ 'Item No.':x.sku, 'Description':x.description, 'Details':x.details, 'Normal Price':x.normal_price, 'Promotion Price':x.promo_price, 'Dealer Price T1':x.dealer_price_t1, 'Dealer Price T2':x.dealer_price_t2, 'Dealer Price T3':x.dealer_price_t3, 'Dealer GP% T1':x.dealer_gp_t1, 'Dealer GP% T2':x.dealer_gp_t2, 'Dealer GP% T3':x.dealer_gp_t3, 'Flagship Price':x.flagship_price, 'Marketplace Price':x.marketplace_price, 'Marketplace GP%':x.market_gp, 'Cost':x.cost, 'Expire date':x.expire_date })); const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'PriceTags'); const blob = XLSX.write(wb, {bookType:'xlsx', type:'array'}); downloadBlob(blob, 'proplugin_price_tags.xlsx'); logEvent(currentUser.u,'export_excel', `${items.length} rows`); }
-  function downloadBlob(arrBuf, filename){ const blob = new Blob([arrBuf], {type:'application/octet-stream'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
-
-  /******************* ADMIN *******************/
-  function openAdmin(){ if(!['Host','Admin'].includes(currentUser.r)){ alert('สิทธิ์ไม่พอ'); return; }
-    document.querySelectorAll('.tab').forEach(t=> t.onclick=()=> selectTab(t.dataset.tab)); selectTab('sku'); renderAdminSkuList(); loadTplVarsToInputs(); renderTplPreview(); updateDealerSeg('dealerSeg'); // refresh names on main toolbar
-    // Dealer settings
-    el('labelT1').value = settings.tierLabels.t1; el('labelT2').value=settings.tierLabels.t2; el('labelT3').value=settings.tierLabels.t3; el('defaultTier').value = settings.defaultTier;
-    // logo
-    renderLogoPreview();
-
-    // handlers
-    el('btnSkuSave').onclick = saveSku; el('btnSkuClear').onclick = clearSkuForm;
-    el('btnTplApply').onclick = applyTplVars; el('btnTplPreset').onclick = loadPreset;
-    ['bgA4','bgA5','bgA6','bgACC'].forEach(id=> el(id).onchange = e=> setBgForTemplate(id.replace('bg',''), e.target.files[0]));
-    el('bgOpacity').onchange = ()=>{ settings.bg.opacity = Number(el('bgOpacity').value)||20; save(LS_KEYS.settings, settings); renderTplPreview(); };
-    el('bgPrint').onchange = ()=>{ settings.bg.print = el('bgPrint').checked; save(LS_KEYS.settings, settings); };
-
-    el('logoUpload').onchange = e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=ev=>{ settings.logo=ev.target.result; save(LS_KEYS.settings, settings); renderLogoPreview(); renderTplPreview(); }; rd.readAsDataURL(f); };
-    el('btnLogoClear').onclick = ()=>{ settings.logo=null; save(LS_KEYS.settings, settings); renderLogoPreview(); renderTplPreview(); };
-
-    el('btnDealerSave').onclick = ()=>{ settings.tierLabels.t1 = el('labelT1').value||'Dealer Tier 1'; settings.tierLabels.t2 = el('labelT2').value||'Dealer Tier 2'; settings.tierLabels.t3 = el('labelT3').value||'Dealer Tier 3'; settings.defaultTier = el('defaultTier').value; save(LS_KEYS.settings, settings); renderDealerSeg('dealerSeg'); alert('บันทึก Dealer Settings แล้ว'); };
-
-    renderUserList(); el('btnUserAdd').onclick = saveUser; el('btnUserReset').onclick = ()=>{ if(confirm('รีเซ็ตผู้ใช้เป็นค่าเริ่มต้น?')){ users=defaultUsers.slice(); save(LS_KEYS.users, users); renderUserList(); } };
-
-    renderLogs(); el('btnExportLogs').onclick = exportLogs;
-
-    el('adminModal').classList.add('show'); el('btnAdminClose').onclick = ()=> el('adminModal').classList.remove('show');
-  }
-
-  function selectTab(name){ document.querySelectorAll('.tab').forEach(t=> t.classList.toggle('active', t.dataset.tab===name)); ['sku','tpl','logo','dealer','users','logs'].forEach(id=> el(`panel-${id}`).style.display = id===name? '': 'none'); }
-
-  function saveSku(){ const o = { sku: el('skuSku').value.trim(), description: el('skuName').value.trim(), details: el('skuDetails').value.trim(), normal_price: num(el('skuNP').value), promo_price: num(el('skuPP').value), flagship_price: num(el('skuFS').value), marketplace_price: num(el('skuMP').value), market_gp: el('skuMGP').value.trim(), dealer_price_t1: num(el('skuD1').value), dealer_price_t2: num(el('skuD2').value), dealer_price_t3: num(el('skuD3').value), dealer_gp_t1: el('skuG1').value.trim(), dealer_gp_t2: el('skuG2').value.trim(), dealer_gp_t3: el('skuG3').value.trim(), expire_date: el('skuEX').value, cost: num(el('skuCost').value) }; if(!o.sku){ alert('กรุณาระบุ SKU'); return; } const i = items.findIndex(x=>x.sku===o.sku); if(i>=0) items[i]=o; else items.unshift(o); save(LS_KEYS.items, items); renderAdminSkuList(); renderTable(); logEvent(currentUser.u,'sku_save', `${o.sku}|${o.description}`); clearSkuForm(); }
-  function clearSkuForm(){ ['skuSku','skuName','skuDetails','skuNP','skuPP','skuFS','skuMP','skuMGP','skuD1','skuD2','skuD3','skuG1','skuG2','skuG3','skuEX','skuCost'].forEach(id=> el(id).value=''); }
-  function renderAdminSkuList(){ const rows = items.map(r=>`<tr><td><button class=\"btn\" data-ed=\"${r.sku}\">แก้ไข</button></td><td>${r.sku}</td><td>${r.description||''}</td><td>${currencyTH(r.normal_price)}</td><td>${currencyTH(r.promo_price)}</td><td>${currencyTH(r.dealer_price_t1)}</td><td>${currencyTH(r.dealer_price_t2)}</td><td>${currencyTH(r.dealer_price_t3)}</td><td>${r.expire_date? ddmmyyyy(r.expire_date): '-'}</td><td><button class=\"btn\" data-del=\"${r.sku}\">ลบ</button></td></tr>`).join(''); el('adminSkuList').innerHTML = `<div class=\"table-wrap\"><table><thead><tr><th></th><th>SKU</th><th>ชื่อ</th><th>ปกติ</th><th>โปรฯ</th><th>D1</th><th>D2</th><th>D3</th><th>Expire</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`; el('adminSkuList').querySelectorAll('[data-ed]').forEach(b=> b.onclick=()=>{ const it = items.find(x=>x.sku===b.dataset.ed); if(!it) return; el('skuSku').value=it.sku; el('skuName').value=it.description||''; el('skuDetails').value=it.details||''; el('skuNP').value=it.normal_price; el('skuPP').value=it.promo_price; el('skuFS').value=it.flagship_price; el('skuMP').value=it.marketplace_price; el('skuMGP').value=it.market_gp||''; el('skuD1').value=it.dealer_price_t1; el('skuD2').value=it.dealer_price_t2; el('skuD3').value=it.dealer_price_t3; el('skuG1').value=it.dealer_gp_t1||''; el('skuG2').value=it.dealer_gp_t2||''; el('skuG3').value=it.dealer_gp_t3||''; el('skuEX').value=it.expire_date||''; el('skuCost').value=it.cost||''; }); el('adminSkuList').querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ if(!confirm('ลบรายการนี้?')) return; items = items.filter(x=>x.sku!==b.dataset.del); save(LS_KEYS.items, items); renderAdminSkuList(); renderTable(); logEvent(currentUser.u,'sku_delete', b.dataset.del); }); }
-
-  function loadTplVarsToInputs(){ const v=settings.tplVars; el('var-logo-w').value=v.logoW; el('var-logo-l').value=v.logoL; el('var-sku-top').value=v.skuTop; el('var-sku-right').value=v.skuRight; el('var-exp-b').value=v.expB; el('var-exp-l').value=v.expL; el('var-pr-b').value=v.prB; el('var-pr-r').value=v.prR; el('var-np-b').value=v.npB; el('var-np-r').value=v.npR; el('bgOpacity').value = settings.bg.opacity; el('bgPrint').checked = settings.bg.print; ['A4','A5','A6','ACC'].forEach(T=>{ /* font fields omitted for brevity (ใช้ค่าเริ่มจาก CSS) */ }); }
-
-  function applyTplVars(){ const v=settings.tplVars; v.logoW=num(el('var-logo-w').value)||v.logoW; v.logoL=num(el('var-logo-l').value)||v.logoL; v.skuTop=num(el('var-sku-top').value)||v.skuTop; v.skuRight=num(el('var-sku-right').value)||v.skuRight; v.expB=num(el('var-exp-b').value)||v.expB; v.expL=num(el('var-exp-l').value)||v.expL; v.prB=num(el('var-pr-b').value)||v.prB; v.prR=num(el('var-pr-r').value)||v.prR; v.npB=num(el('var-np-b').value)||v.npB; v.npR=num(el('var-np-r').value)||v.npR; syncVarsToCSS(); save(LS_KEYS.settings, settings); renderTplPreview(); alert('บันทึกเทมเพลตแล้ว'); }
-
-  function loadPreset(){ // ค่าที่จูนให้ใกล้เทมเพลต ProPlugin ตัวอย่าง
-    settings.tplVars = { logoW:26, logoL:8, skuTop:8, skuRight:8, expB:33.8, expL:12, prB:9.8, prR:12, npB:29.2, npR:12 };
-    syncVarsToCSS(); save(LS_KEYS.settings, settings); renderTplPreview(); alert('ใช้ค่า Preset แล้ว');
-  }
-
-  function syncVarsToCSS(){ const v=settings.tplVars; const set=(k,val)=> document.documentElement.style.setProperty(`--${k}`, val); set('logo-w-mm',v.logoW); set('logo-left-mm',v.logoL); set('sku-top-mm',v.skuTop); set('sku-right-mm',v.skuRight); set('expire-bottom-mm',v.expB); set('expire-left-mm',v.expL); set('promo-bottom-mm',v.prB); set('promo-right-mm',v.prR); set('normal-bottom-mm',v.npB); set('normal-right-mm',v.npR); }
-
-  function setBgForTemplate(T, file){ if(!file) return; const rd=new FileReader(); rd.onload=e=>{ const bg = load(LS_KEYS.bg,{A4:null,A5:null,A6:null,ACC:null}); bg[T] = e.target.result; save(LS_KEYS.bg, bg); renderTplPreview(); }; rd.readAsDataURL(file); }
-
-  function renderTplPreview(){ const prev = el('tplPreview'); prev.innerHTML=''; const tag = buildTagDOM(items[0], 'A6', settings.defaultTier, 'Flagship'); prev.appendChild(tag); }
-  function renderLogoPreview(){ const wrap = el('logoPreview'); wrap.innerHTML=''; wrap.appendChild(buildTagDOM(items[0], 'A6', settings.defaultTier, 'Flagship')); }
-
-  function saveUser(){ if(currentUser.r!=='Host'){ alert('เฉพาะ Host'); return } const u = el('userU').value.trim(); const p = el('userP').value.trim(); const r = el('userR').value; if(!u||!p){ alert('กรอกชื่อผู้ใช้/รหัสผ่าน'); return } const i = users.findIndex(x=>x.u===u); const rec = {u,p,r}; if(i>=0) users[i]=rec; else users.push(rec); save(LS_KEYS.users, users); renderUserList(); logEvent(currentUser.u,'user_save', u); }
-  function renderUserList(){ const rows = users.map(u=>`<tr><td>${u.u}</td><td>${u.r}</td><td><button class=\"btn\" data-del=\"${u.u}\">ลบ</button></td></tr>`).join(''); el('userList').innerHTML = `<div class=\"table-wrap\"><table><thead><tr><th>ผู้ใช้</th><th>บทบาท</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`; el('userList').querySelectorAll('[data-del]').forEach(b=> b.onclick=()=>{ if(currentUser.r!=='Host') return; if(confirm('ลบผู้ใช้นี้?')){ users = users.filter(x=>x.u!==b.dataset.del); save(LS_KEYS.users, users); renderUserList(); logEvent(currentUser.u,'user_delete', b.dataset.del);} }); }
-
-  function renderLogs(){ const logs = load(LS_KEYS.logs, []); const rows = logs.map(l=>`<tr><td>${l.ts}</td><td>${l.who}</td><td>${l.action}</td><td>${l.detail||''}</td></tr>`).join(''); el('logList').innerHTML = `<div class=\"table-wrap\"><table><thead><tr><th>เวลา</th><th>ผู้ใช้</th><th>กิจกรรม</th><th>รายละเอียด</th></tr></thead><tbody>${rows}</tbody></table></div>`; }
-  function exportLogs(){ const logs = load(LS_KEYS.logs, []); const csv = ['ts,who,action,detail'].concat(logs.map(l=>`"${l.ts}","${l.who}","${l.action}","${(l.detail||'').replace(/"/g,'\"')}"`)).join('
-'); const blob = new Blob([csv], {type:'text/csv'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='logs.csv'; a.click(); URL.revokeObjectURL(url); }
-
-  /******************* INIT *******************/
-  (function initVars(){ syncVarsToCSS(); })();
+  */
   </script>
-
-  <!--
-  README (สรุปย่อ)
-  -------------------------------------------------------------
-  • วิธีใช้งาน: เปิดไฟล์นี้ (index.html) → ล็อกอิน → นำเข้า Excel (SheetJS) → เลือกช่องทาง/เทมเพลต → เลือก SKU → พิมพ์/Export
-  • บัญชีทดสอบ: host1/host123, admin1/admin123, user3/u3pass (Dealer), user4/u4pass (Marketplace)
-  • Mapping Excel (ไทย/อังกฤษ):
-    Item No.→sku, Description→description, Details→details, Normal Price→normal_price, Promotion Price→promo_price,
-    Dealer Price T1/T2/T3 → dealer_price_t1/t2/t3, Dealer GP% T1/T2/T3 → dealer_gp_t1/t2/t3 (แสดงตามไฟล์ไม่คำนวณ),
-    Flagship Price→flagship_price, Marketplace Price→marketplace_price, Marketplace GP%→market_gp, Cost→cost, Expire date→expire_date
-  • กฎราคา: ช่องทางว่าง=ใช้ราคากลาง; Flagship ใช้ promo→normal; Dealer เลือก Tier; Marketplace แสดงราคา + GP% (ถ้ามี)
-  • Printing: ใช้ @media print วางขนาดแท็กตาม mm จริง (A4:1, A5:2, A6:4, ACC:12 ต่อหน้า A4) ไม่สเกล; สามารถเปิด “พิมพ์รวมพื้นหลัง” ได้ใน Admin > เทมเพลต
-  • Template Calibrator: อัปโหลด PNG ของ A4/A5/A6/ACC (ไฟล์ตัวอย่างของคุณ) → ปรับ Opacity → จูนค่า mm/pt ให้ซ้อนตรงภาพ → ปิด ‘พิมพ์รวมพื้นหลัง’ ถ้าไม่อยากให้ติดพื้นหลังออกไป
-  • Deploy: อัปโหลดไฟล์นี้ขึ้น GitHub Pages/Vercel ได้ทันที (Static Site)
-  -->
 </body>
 </html>
