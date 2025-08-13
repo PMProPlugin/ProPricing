@@ -458,7 +458,8 @@
   const str = s => (s==null? '': String(s));
   const bullets = raw => { if(!raw) return []; return str(raw).replace(/•/g,'
 ').split(/
-||•/g).map(x=>x.trim()).filter(Boolean).slice(0,5); };
+|
+|•/g).map(x=>x.trim()).filter(Boolean).slice(0,5); };
   const save = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
   const load = (k,d)=>{ try{const v=JSON.parse(localStorage.getItem(k)); return v??d;}catch{return d} };
   const logEvent = (who, action, detail='') => { const logs = load(LS_KEYS.logs, []); logs.unshift({ts: dtBKK(), who, action, detail}); save(LS_KEYS.logs, logs); };
