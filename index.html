@@ -218,14 +218,17 @@
       </div>
 
       <!-- Right: live preview (bigger area) -->
-      <div class="p-4 overflow-auto">
-        <div class="text-sm text-zinc-400 mb-2">Live preview of the first selected item</div>
-        <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 grid place-items-center min-h-[720px]"></div>
-      </div>
-    </div>
+  <div class="p-4 overflow-auto flex flex-col min-h-0">
+  <div class="text-sm text-zinc-400 mb-2">Live preview of the first selected item</div>
+  <div
+    id="previewBox"
+    class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 grid place-items-center
+           flex-1 min-h-[360px] max-h-[78vh] overflow-auto">
   </div>
-</div>
-
+  </div>
+  </div>
+  </div>
+  </div>
 <script>
 /* ================= CORE STATE / STORAGE ================= */
 const LS = {
