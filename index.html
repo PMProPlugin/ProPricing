@@ -30,12 +30,11 @@
 <style>
   :root { color-scheme: dark; }
   html,body{ height:100%; background:#0b0b0c }
-  /* subtler scrollbars */
+  /* neat scrollbars */
   ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#222;border-radius:10px}
-  .truncate-2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-  /* Tag text readability */
-  .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-  /* Print */
+  /* single-line ellipsis with hover to show full via title attr */
+  .oneline{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .text-elevate{ text-shadow:0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7) }
   @media print { .no-print{display:none!important} .print-only{display:block} }
 </style>
 </head>
@@ -109,26 +108,32 @@
   <!-- Table -->
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="overflow-auto border border-zinc-800 rounded-2xl">
-      <table class="min-w-[1100px] w-full text-sm">
+      <table class="min-w-[1200px] w-full text-sm">
         <thead class="bg-zinc-900/70 border-b border-zinc-800">
           <tr class="[&>th]:px-3 [&>th]:py-3 text-left">
-            <th>SKU</th>
-            <th>Description</th>
-            <th class="w-72">Details</th>
-            <th id="thCosts" class="hidden">Costs</th>
-            <th>Normal</th>
-            <th>Promotion</th>
-            <th>Promo GP%</th>
-            <th id="thExpire">Expires (Flagship)</th>
-            <th>Marketplace</th>
-            <th>Market GP%</th>
-            <th>Dealer T1</th>
-            <th>GP% T1</th>
-            <th>Dealer T2</th>
-            <th>GP% T2</th>
-            <th>Dealer T3</th>
-            <th>GP% T3</th>
-            <th class="w-24">Actions</th>
+            <th class="whitespace-nowrap">SKU</th>
+            <th class="w-64 whitespace-nowrap">Description</th>
+            <th class="w-64 whitespace-nowrap">Details</th>
+            <th id="thCosts" class="hidden whitespace-nowrap">Costs</th>
+
+            <!-- Flagship -->
+            <th class="col-normal whitespace-nowrap">Normal</th>
+            <th class="col-promo whitespace-nowrap">Promotion</th>
+            <th class="col-expire whitespace-nowrap">Expires (Flagship)</th>
+
+            <!-- Marketplace -->
+            <th class="col-market whitespace-nowrap">Marketplace</th>
+            <th class="col-marketgp whitespace-nowrap">Market GP%</th>
+
+            <!-- Dealer -->
+            <th class="col-t1 whitespace-nowrap">Dealer T1</th>
+            <th class="col-gp1 whitespace-nowrap">GP% T1</th>
+            <th class="col-t2 whitespace-nowrap">Dealer T2</th>
+            <th class="col-gp2 whitespace-nowrap">GP% T2</th>
+            <th class="col-t3 whitespace-nowrap">Dealer T3</th>
+            <th class="col-gp3 whitespace-nowrap">GP% T3</th>
+
+            <th class="w-32 whitespace-nowrap">Actions</th>
           </tr>
         </thead>
         <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
@@ -145,11 +150,12 @@
       <button data-tab="data" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Data</button>
       <button data-tab="logo" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Logo</button>
       <button data-tab="dealer" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Dealer Settings</button>
-      <button data-tab="users" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
+      <button data-tab="users" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
       <button data-tab="templates" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Template Management</button>
       <button data-tab="history" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Usage History</button>
       <div class="absolute bottom-3 left-3 right-3">
-        <button id="btnCloseSettings" class="w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
+        <!-- slightly smaller -->
+        <button id="btnCloseSettings" class="w-full text-sm px-2 py-1.5 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
       </div>
     </aside>
     <section id="settingsContent" class="p-6 overflow-auto"></section>
@@ -188,27 +194,31 @@
 
 <!-- ===================== PRINT MODAL ===================== -->
 <div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
-  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 xl:grid-cols-[420px_1fr]">
-    <div class="flex items-center justify-between p-4 border-b border-zinc-800 xl:border-b-0 xl:border-r">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 xl:grid-cols-[440px_1fr]">
+    <!-- Sticky header inside modal for better fit -->
+    <div class="xl:col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
       <div class="text-xl font-semibold">Print Price Tags</div>
-      <button onclick="togglePrintModal(false)" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+      <button onclick="togglePrintModal(false)" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] h-[calc(100%-56px)] xl:h-full">
+    <div class="grid grid-cols-1 xl:grid-cols-[440px_1fr] h-[calc(100%-64px)]">
       <!-- Left -->
       <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
-        <div class="grid grid-cols-[1fr_auto] gap-2">
-          <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
-          <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
+        <!-- Fixed controls -->
+        <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
+          <div class="grid grid-cols-[1fr_auto] gap-2">
+            <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
+            <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
+          </div>
+
+          <div class="mt-3 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
+            <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
+            <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
+          </div>
+          <div class="text-sm text-zinc-400 mt-2">Select products and set qty per SKU</div>
         </div>
 
-        <div class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
-          <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
-          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
-        </div>
-
-        <div class="text-sm text-zinc-400">Select products and set qty per SKU</div>
-        <div id="printList" class="space-y-2 overflow-auto max-h-[60vh]"></div>
+        <div id="printList" class="space-y-2 pt-2"></div>
         <div id="printSummary" class="text-sm text-zinc-400"></div>
       </div>
 
@@ -224,11 +234,11 @@
 <script>
 /* ================= CORE STATE / STORAGE ================= */
 const LS = {
-  PRODUCTS: 'pp_products_en_v1',
-  USERS: 'pp_users_en_v1',
+  PRODUCTS: 'pp_products_en_v2',
+  USERS: 'pp_users_en_v2',
   LOGO: 'pp_logo_base64',
   TEMPLATES: 'pp_templates_en_v2',
-  LOGS: 'pp_logs_en_v1',
+  LOGS: 'pp_logs_en_v2',
   LASTUSER: 'pp_last_user_en',
   USERS_COST_FLAG: 'pp_flag_users_costs_en'
 };
@@ -236,13 +246,10 @@ const LS = {
 const Channels = ['Flagship','Marketplace','Dealer'];
 
 const defaultUsers = [
-  // Host/Admin can print & see Costs, delete SKUs
   {username:'host',  password:'1234', role:'Host',  channels:[...Channels], canSeeCosts:true,  canPrint:true},
   {username:'admin', password:'1234', role:'Admin', channels:[...Channels], canSeeCosts:true,  canPrint:true},
-  // User1/2 limited to Flagship, can print, no Costs, no Settings
   {username:'user1', password:'1234', role:'User',  channels:['Flagship'], canSeeCosts:false, canPrint:true},
   {username:'user2', password:'1234', role:'User',  channels:['Flagship'], canSeeCosts:false, canPrint:true},
-  // Others: limited channels, view price only, cannot print
   {username:'user3', password:'1234', role:'User',  channels:['Marketplace'], canSeeCosts:false, canPrint:false},
   {username:'user4', password:'1234', role:'User',  channels:['Dealer'], canSeeCosts:false, canPrint:false}
 ];
@@ -251,16 +258,11 @@ const sampleProducts = [{
   sku:'MP-00010',
   description:'iCon Pro Audio GoLive Pro',
   details:'Audio interface for live streaming with remote control\n24-bit/48kHz with onboard DSP (Reverb, EQ, Vocal Tune)\nBuilt-in 5000mAh battery up to 6 hours\nMic input mini-XLR (48V) & 1/4-inch\nBluetooth for music & control',
-  costs:4200,
-  normalPrice:7990,
-  promoPrice:5990,
-  expiresDate:'2099-09-09',
-  marketplacePrice:5990,
-  dealer1:5600,
-  dealer2:5400,
-  dealer3:5200
+  costs:4200, normalPrice:7990, promoPrice:5990, expiresDate:'2099-09-09',
+  marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200
 }];
 
+/* default templates */
 function defaultTemplates(){
   return [
     { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true,
@@ -292,19 +294,16 @@ const fromExcelDate = v => {
   if (typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
   return '';
 };
-// GP% = (Price - Cost) / Cost * 100
 const gpPct = (price,cost)=> (cost>0 ? ((price - (cost||0))/cost)*100 : 0);
 const log = (action,meta='')=>{
   const logs = JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
   logs.unshift({ts:new Date().toISOString(), user:currentUser?.username||'-', action, meta});
   localStorage.setItem(LS.LOGS, JSON.stringify(logs.slice(0,3000)));
 };
+const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
 
 /* ================= APP STATE ================= */
-let currentUser=null;
-let products=[];
-let templates=[];
-let editingIndex=-1;
+let currentUser=null, products=[], templates=[], editingIndex=-1;
 
 function loadState(){
   if(!localStorage.getItem(LS.USERS)) localStorage.setItem(LS.USERS, JSON.stringify(defaultUsers));
@@ -325,40 +324,39 @@ function login(){
   const found = allUsers().find(x=>x.username===u && x.password===p);
   if(!found) return alert('Invalid credentials');
   currentUser=found; localStorage.setItem(LS.LASTUSER,u);
-  $('#loginView').classList.add('hidden');
-  $('#appView').classList.remove('hidden');
+  $('#loginView').classList.add('hidden'); $('#appView').classList.remove('hidden');
   $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
 
-  // Settings visibility
   const isHost = currentUser.role==='Host';
   const isAdmin = currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  $('#btnHistory').classList.toggle('hidden', !(isHost)); // History = Host only
+  $('#btnHistory').classList.toggle('hidden', !isHost); // history = host only
 
   loadState();
   initFiltersForUser();
   renderTable();
   log('login');
 }
-function logout(){
-  currentUser=null; $('#loginPass').value='';
-  $('#appView').classList.add('hidden'); $('#loginView').classList.remove('hidden');
-}
+function logout(){ currentUser=null; $('#loginPass').value=''; $('#appView').classList.add('hidden'); $('#loginView').classList.remove('hidden'); }
 
-/* ================= FILTERS ================= */
+/* ================= FILTERS & COLUMN VISIBILITY ================= */
 function initFiltersForUser(){
   const sel=$('#channelSelect'); sel.innerHTML='';
   currentUser.channels.forEach(ch=>{ const o=document.createElement('option'); o.textContent=ch; sel.appendChild(o); });
-  sel.value=currentUser.channels[0];
-  sel.disabled = currentUser.role==='User';
+  sel.value=currentUser.channels[0]; sel.disabled = currentUser.role==='User';
 
   $('#btnPrintModal').classList.toggle('hidden', !currentUser.canPrint);
   $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
-  updateExpireVisibility();
+  updateColumnVisibility();
 }
-function updateExpireVisibility(){
-  const isFlagship = $('#channelSelect').value==='Flagship';
-  $('#thExpire').classList.toggle('hidden', !isFlagship);
+function updateColumnVisibility(){
+  const ch=$('#channelSelect').value;
+  const show={normal:false,promo:false,expire:false,market:false,marketgp:false,t1:false,gp1:false,t2:false,gp2:false,t3:false,gp3:false};
+  if(ch==='Flagship'){ show.normal=show.promo=show.expire=true; }
+  if(ch==='Marketplace'){ show.market=show.marketgp=true; }
+  if(ch==='Dealer'){ show.t1=show.gp1=show.t2=show.gp2=show.t3=show.gp3=true; }
+  const map={ 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
+  Object.entries(map).forEach(([cls,v])=> $$('.'+cls).forEach(el=>el.classList.toggle('hidden',!v)));
 }
 
 /* ================= TABLE ================= */
@@ -380,38 +378,47 @@ function filteredProducts(){
 }
 function renderTable(){
   const body=$('#productBody'); body.innerHTML='';
-  const isFlagship = $('#channelSelect').value==='Flagship';
   const showCosts = (currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role));
   const canEdit = ['Host','Admin'].includes(currentUser.role);
 
   filteredProducts().forEach(p=>{
     const tr=document.createElement('tr');
     tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
-    const gpPromo = gpPct(p.promoPrice, p.costs);
+
     const gpM = gpPct(p.marketplacePrice, p.costs);
     const gp1 = gpPct(p.dealer1, p.costs);
     const gp2 = gpPct(p.dealer2, p.costs);
     const gp3 = gpPct(p.dealer3, p.costs);
+
+    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
+
     tr.innerHTML = `
-      <td class="px-3 py-3 font-mono">${p.sku}</td>
-      <td class="px-3 py-3">${p.description}</td>
-      <td class="px-3 py-3 text-zinc-300"><div class="truncate-2 whitespace-pre-line">${p.details||''}</div></td>
-      <td class="px-3 py-3 ${showCosts?'':'hidden'}">${p.costs?money(p.costs):'-'}</td>
-      <td class="px-3 py-3">${p.normalPrice?money(p.normalPrice):'-'}</td>
-      <td class="px-3 py-3">${p.promoPrice?money(p.promoPrice):'-'}</td>
-      <td class="px-3 py-3">${gpPromo.toFixed(1)}%</td>
-      <td class="px-3 py-3 ${isFlagship?'':'hidden'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
-      <td class="px-3 py-3">${p.marketplacePrice?money(p.marketplacePrice):'-'}</td>
-      <td class="px-3 py-3">${gpM.toFixed(1)}%</td>
-      <td class="px-3 py-3">${p.dealer1?money(p.dealer1):'-'}</td>
-      <td class="px-3 py-3">${gp1.toFixed(1)}%</td>
-      <td class="px-3 py-3">${p.dealer2?money(p.dealer2):'-'}</td>
-      <td class="px-3 py-3">${gp2.toFixed(1)}%</td>
-      <td class="px-3 py-3">${p.dealer3?money(p.dealer3):'-'}</td>
-      <td class="px-3 py-3">${gp3.toFixed(1)}%</td>
+      <td class="px-3 py-3 oneline" title="${p.sku}">${p.sku}</td>
+      <td class="px-3 py-3 oneline" title="${p.description}"><div class="oneline" style="max-width:16rem">${p.description}</div></td>
+      <td class="px-3 py-3 oneline" title="${detailsOneLine}"><div class="oneline" style="max-width:18rem">${detailsOneLine}</div></td>
+
+      <td class="px-3 py-3 ${showCosts?'':'hidden'} oneline" title="${p.costs?money(p.costs):'-'}">${p.costs?money(p.costs):'-'}</td>
+
+      <td class="px-3 py-3 col-normal oneline" title="${p.normalPrice?money(p.normalPrice):'-'}">${p.normalPrice?money(p.normalPrice):'-'}</td>
+      <td class="px-3 py-3 col-promo oneline"  title="${p.promoPrice?money(p.promoPrice):'-'}">${p.promoPrice?money(p.promoPrice):'-'}</td>
+      <td class="px-3 py-3 col-expire oneline" title="${p.expiresDate?toDateInput(p.expiresDate):'-'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
+
+      <td class="px-3 py-3 col-market oneline"   title="${p.marketplacePrice?money(p.marketplacePrice):'-'}">${p.marketplacePrice?money(p.marketplacePrice):'-'}</td>
+      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
+
+      <td class="px-3 py-3 col-t1 oneline"  title="${p.dealer1?money(p.dealer1):'-'}">${p.dealer1?money(p.dealer1):'-'}</td>
+      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t2 oneline"  title="${p.dealer2?money(p.dealer2):'-'}">${p.dealer2?money(p.dealer2):'-'}</td>
+      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t3 oneline"  title="${p.dealer3?money(p.dealer3):'-'}">${p.dealer3?money(p.dealer3):'-'}</td>
+      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
+
       <td class="px-3 py-3">
-        ${canEdit? `<button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
-        <button title="Delete" class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>` : '-'}
+        ${canEdit? `
+          <div class="flex items-center gap-2">
+            <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
+            <button title="Delete" class="px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>
+          </div>` : '-'}
       </td>
     `;
     body.appendChild(tr);
@@ -424,9 +431,11 @@ function renderTable(){
       products = products.filter(x=>x.sku!==sku);
       localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
       log('delete_sku', sku);
-      renderTable();
+      renderTable(); updateColumnVisibility();
     }
   });
+
+  updateColumnVisibility();
 }
 
 /* ================= EDITOR ================= */
@@ -445,17 +454,11 @@ $('#btnSaveEd').addEventListener('click', ()=>{
   if(editingIndex<0) return;
   const p=products[editingIndex];
   Object.assign(p,{
-    sku:$('#edSku').value.trim(),
-    description:$('#edDesc').value.trim(),
-    details:$('#edDetails').value.trim(),
-    expiresDate:$('#edExpire').value||'',
-    costs:parseFloat($('#edCosts').value)||0,
-    normalPrice:parseFloat($('#edNormal').value)||0,
-    promoPrice:parseFloat($('#edPromo').value)||0,
-    marketplacePrice:parseFloat($('#edMarket').value)||0,
-    dealer1:parseFloat($('#edT1').value)||0,
-    dealer2:parseFloat($('#edT2').value)||0,
-    dealer3:parseFloat($('#edT3').value)||0
+    sku:$('#edSku').value.trim(), description:$('#edDesc').value.trim(), details:$('#edDetails').value.trim(),
+    expiresDate:$('#edExpire').value||'', costs:parseFloat($('#edCosts').value)||0,
+    normalPrice:parseFloat($('#edNormal').value)||0, promoPrice:parseFloat($('#edPromo').value)||0,
+    marketplacePrice:parseFloat($('#edMarket').value)||0, dealer1:parseFloat($('#edT1').value)||0,
+    dealer2:parseFloat($('#edT2').value)||0, dealer3:parseFloat($('#edT3').value)||0
   });
   localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
   closeEditor(); renderTable(); log('edit_product', p.sku);
@@ -471,6 +474,7 @@ function openSettings(tab){
   $('#settingsPanel').classList.remove('hidden');
   renderSettings(tab);
 }
+
 function renderSettings(tab){
   const box=$('#settingsContent');
   $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
@@ -478,8 +482,6 @@ function renderSettings(tab){
 
   const isHost=currentUser.role==='Host';
   const isAdmin=currentUser.role==='Admin';
-
-  // Hide tabs the role shouldn't access (labels remain in DOM but disabled above)
   $$('.only-host').forEach(el=>el.classList.toggle('hidden', !isHost));
   $$('.only-host-admin').forEach(el=>el.classList.toggle('hidden', !(isHost||isAdmin)));
 
@@ -492,13 +494,13 @@ function renderSettings(tab){
         <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
           <div class="font-semibold mb-2">Import (.xlsx)</div>
           <input id="fileImport" type="file" accept=".xlsx,.xls" class="w-full">
-          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Market GP% (ignored on import), J Dealer T1, K GP% T1 (ignored), L Dealer T2, M GP% T2 (ignored), N Dealer T3, O GP% T3 (ignored)</p>
+          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Market GP% (ignored), J Dealer T1, K GP% T1 (ignored), L Dealer T2, M GP% T2 (ignored), N Dealer T3, O GP% T3 (ignored)</p>
           <button id="btnDoImport" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import</button>
         </div>
         <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
           <div class="font-semibold mb-2">Export (.xlsx)</div>
           <button id="btnExport" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Excel</button>
-          <p class="text-xs text-zinc-400 mt-2">Export colors: D = light green, F & G = yellow. GP% columns are auto-calculated (Promo, Market, T1–T3).</p>
+          <p class="text-xs text-zinc-400 mt-2">Export colors: D = light green, F & G = yellow. All GP% auto-calculated (including Promotion GP% in last column).</p>
         </div>
       </div>
     `;
@@ -554,12 +556,34 @@ function renderSettings(tab){
   }
 
   if(tab==='users'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Host/Admin only.</div>'; return; }
     const list=allUsers();
     box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">User Management</div>
+      <div class="flex items-center justify-between">
+        <div class="text-2xl font-semibold mb-2">User Management</div>
+        <button id="btnAddUser" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Add User</button>
+      </div>
+
+      <div id="addUserBox" class="hidden p-4 mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+        <div class="grid md:grid-cols-2 gap-3">
+          <input id="nuName" placeholder="username" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+          <input id="nuPass" placeholder="password" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+          <select id="nuRole" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+            <option>User</option><option>Admin</option><option>Host</option>
+          </select>
+          <div class="flex items-center gap-4">
+            <label class="text-sm"><input type="checkbox" id="nuSeeCosts"> See Costs</label>
+            <label class="text-sm"><input type="checkbox" id="nuCanPrint" checked> Can Print</label>
+          </div>
+          <div class="md:col-span-2">
+            ${Channels.map(ch=>`<label class="mr-3 text-sm"><input type="checkbox" class="nuCh" value="${ch}" ${ch==='Flagship'?'checked':''}> ${ch}</label>`).join('')}
+          </div>
+        </div>
+        <div class="mt-3"><button id="nuCreate" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Create</button></div>
+      </div>
+
       <div class="overflow-auto border border-zinc-800 rounded-2xl">
-        <table class="min-w-[800px] w-full text-sm">
+        <table class="min-w-[900px] w-full text-sm">
           <thead class="bg-zinc-900/70 border-b border-zinc-800">
             <tr class="[&>th]:px-3 [&>th]:py-2 text-left">
               <th>User</th><th>Role</th><th>Channels</th><th>See Costs</th><th>Can Print</th><th>Password</th><th></th>
@@ -569,6 +593,16 @@ function renderSettings(tab){
         </table>
       </div>
     `;
+    $('#btnAddUser').onclick=()=>$('#addUserBox').classList.toggle('hidden');
+    $('#nuCreate').onclick=()=>{
+      const name=$('#nuName').value.trim(); const pass=$('#nuPass').value.trim(); if(!name||!pass) return alert('Username & password required');
+      if(allUsers().some(u=>u.username===name)) return alert('Username already exists');
+      const role=$('#nuRole').value; const canSee=$('#nuSeeCosts').checked; const canPrint=$('#nuCanPrint').checked;
+      const chs=$$('.nuCh').filter(x=>x.checked).map(x=>x.value); if(!chs.length) return alert('Select at least one channel');
+      const list=allUsers(); list.push({username:name,password:pass,role,channels:chs,canSeeCosts:canSee,canPrint});
+      setUsers(list); log('add_user',name); openSettings('users'); alert('User created');
+    };
+
     const tbody=$('#userRows'); tbody.innerHTML='';
     list.forEach((u,i)=>{
       const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
@@ -585,7 +619,10 @@ function renderSettings(tab){
         <td class="px-3 py-2"><input type="checkbox" data-cost="${i}" ${u.canSeeCosts?'checked':''}></td>
         <td class="px-3 py-2"><input type="checkbox" data-print="${i}" ${u.canPrint?'checked':''}></td>
         <td class="px-3 py-2"><input type="text" data-pass="${i}" value="${u.password}" class="w-28 px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700"></td>
-        <td class="px-3 py-2"><button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu="${i}">Save</button></td>
+        <td class="px-3 py-2">
+          <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu="${i}">Save</button>
+          <button class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-delu="${i}">❌</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -599,6 +636,13 @@ function renderSettings(tab){
       setUsers(list);
       if(currentUser.username===u.username){ currentUser=u; initFiltersForUser(); renderTable(); }
       log('update_user',u.username); alert('Saved.');
+    });
+    $$('button[data-delu]').forEach(b=>b.onclick=()=>{
+      const i=+b.getAttribute('data-delu'); const list=allUsers(); const u=list[i];
+      if(u.username==='host') return alert('Cannot delete the default host account.');
+      if(confirm(`Delete user "${u.username}"?`)){
+        list.splice(i,1); setUsers(list); log('delete_user',u.username); openSettings('users');
+      }
     });
   }
 
@@ -615,7 +659,7 @@ function renderSettings(tab){
           </label>
         </div>
       </div>
-      <div class="text-sm text-zinc-400 mb-3">User-uploaded templates will never show the company logo.</div>
+      <div class="text-sm text-zinc-400 mb-3">User-uploaded templates never show the company logo.</div>
       <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
     `;
     const listBox=$('#tplList'); listBox.innerHTML='';
@@ -649,8 +693,7 @@ function renderSettings(tab){
     $$('button[data-savtpl]').forEach(b=>b.onclick=()=>{
       const i=+b.getAttribute('data-savtpl'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
       ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-        t.styles[k]=t.styles[k]||{};
-        t.styles[k].fs=parseInt($(`input[data-fs="${i}|${k}"]`).value)||14;
+        t.styles[k]=t.styles[k]||{}; t.styles[k].fs=parseInt($(`input[data-fs="${i}|${k}"]`).value)||14;
         t.styles[k].color=$(`input[data-color="${i}|${k}"]`).value||'#ffffff';
         t.styles[k].mt=parseInt($(`input[data-mt="${i}|${k}"]`).value)||0;
       });
@@ -669,14 +712,9 @@ function renderSettings(tab){
     };
     $('#tplUpload').onchange=async(e)=>{
       const f=e.target.files[0]; if(!f) return;
-      try{
-        const txt=await f.text(); const obj=JSON.parse(txt);
-        if(!obj.id) obj.id='user-'+Math.random().toString(36).slice(2,8);
-        obj.showLogo=false; // never show logo on uploaded
-        const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES));
-        arr.push(obj); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr;
-        log('upload_template',obj.name||obj.id); openSettings('templates'); alert('Template uploaded.');
-      }catch(err){ alert('Invalid JSON template.'); }
+      try{ const txt=await f.text(); const obj=JSON.parse(txt); if(!obj.id) obj.id='user-'+Math.random().toString(36).slice(2,8);
+        obj.showLogo=false; const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); arr.push(obj); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; log('upload_template',obj.name||obj.id); openSettings('templates'); alert('Template uploaded.'); }
+      catch{ alert('Invalid JSON template.'); }
     };
   }
 
@@ -697,9 +735,7 @@ function renderSettings(tab){
   }
 }
 
-async function fileToBase64(f){
-  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
-}
+async function fileToBase64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); }); }
 
 /* ================= IMPORT / EXPORT ================= */
 async function doImport(){
@@ -712,17 +748,10 @@ async function doImport(){
   for(let i=start;i<rows.length;i++){
     const r=rows[i]; if(!(r[0]||'').toString().trim()) continue;
     newItems.push({
-      sku:(r[0]||'').toString().trim(),
-      description:(r[1]||'').toString().trim(),
-      details:(r[2]||'').toString().trim(),
-      costs:parseFloat(r[3]||0)||0,
-      normalPrice:parseFloat(r[4]||0)||0,
-      promoPrice:parseFloat(r[5]||0)||0,
-      expiresDate:fromExcelDate(r[6]||''),
-      marketplacePrice:parseFloat(r[7]||0)||0,
-      dealer1:parseFloat(r[9]||0)||0,
-      dealer2:parseFloat(r[11]||0)||0,
-      dealer3:parseFloat(r[13]||0)||0
+      sku:(r[0]||'').toString().trim(), description:(r[1]||'').toString().trim(), details:(r[2]||'').toString().trim(),
+      costs:parseFloat(r[3]||0)||0, normalPrice:parseFloat(r[4]||0)||0, promoPrice:parseFloat(r[5]||0)||0,
+      expiresDate:fromExcelDate(r[6]||''), marketplacePrice:parseFloat(r[7]||0)||0, dealer1:parseFloat(r[9]||0)||0,
+      dealer2:parseFloat(r[11]||0)||0, dealer3:parseFloat(r[13]||0)||0
     });
   }
   if(!newItems.length) return alert('No data found');
@@ -743,7 +772,7 @@ async function doExport(){
       p.dealer1, +gpPct(p.dealer1,p.costs).toFixed(2),
       p.dealer2, +gpPct(p.dealer2,p.costs).toFixed(2),
       p.dealer3, +gpPct(p.dealer3,p.costs).toFixed(2),
-      +gpPct(p.promoPrice,p.costs).toFixed(2) // Promotion GP% (extra column)
+      +gpPct(p.promoPrice,p.costs).toFixed(2)
     ];
     sh.cell(`A${r}`).value(row);
   });
@@ -757,18 +786,10 @@ async function doExport(){
   log('export_excel', `${products.length} rows`);
 }
 
-/* ================= PRINT WORKFLOW ================= */
-// Open modal -> select SKUs (checklist) -> quantities -> choose template -> open new tab
+/* ================= PRINT FLOW ================= */
 function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
+$('#btnPrintModal').onclick=()=>{ if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown(); const items=filteredProducts(); renderPreview(items[0], templates[0]); togglePrintModal(true); };
 
-$('#btnPrintModal').onclick=()=>{
-  if(!currentUser.canPrint) return;
-  buildPrintList(); // from filteredProducts()
-  fillTemplateDropdown();
-  const items=filteredProducts();
-  renderPreview(items[0], templates[0]);
-  togglePrintModal(true);
-};
 function buildPrintList(){
   const box=$('#printList'); box.innerHTML='';
   const items=filteredProducts();
@@ -781,8 +802,8 @@ function buildPrintList(){
         <input type="checkbox" data-sel="${p.sku}">
       </label>
       <div class="flex-1">
-        <div class="font-medium">${p.sku}</div>
-        <div class="text-xs text-zinc-400 truncate">${p.description}</div>
+        <div class="font-medium oneline" title="${p.sku}">${p.sku}</div>
+        <div class="text-xs text-zinc-400 oneline" title="${p.description}">${ellip(p.description, 46)}</div>
       </div>
       <div class="flex items-center gap-1">
         <span class="text-xs text-zinc-400">Qty</span>
@@ -798,7 +819,7 @@ function buildPrintList(){
     const q=$('#printSearch').value.toLowerCase();
     $$('#printList > div').forEach(div=>{
       const sku=div.querySelector('[data-sel]').getAttribute('data-sel').toLowerCase();
-      const desc=div.querySelector('.truncate').textContent.toLowerCase();
+      const desc=div.querySelector('.text-xs').getAttribute('title').toLowerCase();
       div.style.display = (!q || sku.includes(q) || desc.includes(q)) ? '' : 'none';
     });
   };
@@ -813,29 +834,16 @@ function updatePrintSummary(){
 function fillTemplateDropdown(){
   const dd=$('#printTemplate'); dd.innerHTML='';
   templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
-  dd.onchange=()=>{
-    const first = filteredProducts()[0]; renderPreview(first, templates.find(t=>t.id===dd.value));
-  };
+  dd.onchange=()=>{ const first=filteredProducts()[0]; renderPreview(first, templates.find(t=>t.id===dd.value)); };
 }
 function renderPreview(item, tpl){
-  const box=$('#previewBox'); box.innerHTML='';
-  if(!item) return box.innerHTML='<div class="text-zinc-500">No items</div>';
-  box.appendChild(buildTagElement(item,tpl,true));
+  const box=$('#previewBox'); box.innerHTML=''; if(!item) return box.innerHTML='<div class="text-zinc-500">No items</div>'; box.appendChild(buildTagElement(item,tpl,true));
 }
-$('#btnOpenPrint').onclick=()=>{
-  const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
-  if(!picks.length) return alert('Select at least one SKU.');
-  const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
-                  .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
-  const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
-  openPrintTab(list,tpl);
-};
 
 function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
 
 function renderTagInnerHTML(p,tpl){
-  // contrast helpers (semi-transparent pads)
   const padTop = tpl.kind==='ACC' ? '4mm' : '10mm';
   if(tpl.kind==='ACC'){
     const s=tpl.styles;
@@ -887,7 +895,6 @@ function openPrintTab(list,tpl){
   const logo=localStorage.getItem(LS.LOGO)||'';
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
 
-  // per-sheet and tag sizes (in mm) — tuned to match provided PDFs
   let perSheet, tagW, tagH, pad='8mm', logoW='28mm';
   if(tpl.kind==='A4'){ perSheet=1; tagW='210mm'; tagH='297mm'; pad='10mm'; logoW='32mm'; }
   else if(tpl.kind==='A5'){ perSheet=2; tagW='148mm'; tagH='210mm'; }
@@ -934,9 +941,9 @@ $('#btnLogin').onclick=login;
 $('#btnLogout').onclick=()=>{ log('logout'); logout(); };
 
 ['#searchInput','#dateStart','#dateEnd'].forEach(s=>$(s).addEventListener('input', renderTable));
-$('#channelSelect').addEventListener('change', ()=>{ updateExpireVisibility(); renderTable(); });
+$('#channelSelect').addEventListener('change', ()=>{ updateColumnVisibility(); renderTable(); });
 
-/* Costs visibility propagation if global Dealer setting turns on for Users */
+/* Costs visibility propagation if global flag enables for Users */
 const observer=new MutationObserver(()=>{
   const flag=JSON.parse(localStorage.getItem(LS.USERS_COST_FLAG)||'false');
   if(currentUser && currentUser.role==='User' && flag){
