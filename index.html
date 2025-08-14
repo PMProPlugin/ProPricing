@@ -1,1097 +1,956 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ระบบจัดการป้ายราคา • ProPlugin</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ProPlugin • Price Tag Manager</title>
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Kanit','Prompt','system-ui','sans-serif'] },
-          colors: { brand: { red: '#E11D2E', dark: '#0f0f10' } }
-        }
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Kanit','Prompt','system-ui','sans-serif'] },
+        colors: { brand: { dark:'#0b0b0c', red:'#E11D2E' } },
+        boxShadow: { soft: '0 6px 18px rgba(0,0,0,.25)' }
       }
     }
-  </script>
+  }
+</script>
 
-  <!-- SheetJS (import) + XlsxPopulate (export) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
+<!-- SheetJS + XlsxPopulate -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
 
-  <style>
-    :root{ color-scheme: dark; }
-    html,body{ height:100%; background:#0b0b0c; }
-    /* Scrollbar subtle */
-    ::-webkit-scrollbar{height:8px;width:8px}
-    ::-webkit-scrollbar-thumb{background:#2b2b2f;border-radius:8px}
-    /* Checkbox nice big */
-    input[type="checkbox"]{ width:18px; height:18px }
-    /* Truncate helper */
-    .truncate-2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
-    .print-only{ display:none }
-    @media print{ .no-print{ display:none !important } .print-only{ display:block } }
-  </style>
+<style>
+  :root { color-scheme: dark; }
+  html,body{ height:100%; background:#0b0b0c }
+  /* subtler scrollbars */
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#222;border-radius:10px}
+  .truncate-2{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  /* Tag text readability */
+  .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+  /* Print */
+  @media print { .no-print{display:none!important} .print-only{display:block} }
+</style>
 </head>
 
 <body class="text-white font-sans">
-  <!-- LOGIN -->
-  <section id="loginView" class="min-h-screen grid place-items-center">
-    <div class="w-full max-w-md bg-zinc-900/70 rounded-2xl shadow-xl p-8 border border-zinc-800">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="w-10 h-10 rounded-lg bg-brand.red/90 grid place-items-center font-extrabold">P</div>
-        <div class="text-2xl font-semibold tracking-wide">ProPlugin • ระบบจัดการป้ายราคา</div>
-      </div>
-      <div class="space-y-3">
-        <label class="block text-sm/5 text-zinc-400">ชื่อผู้ใช้</label>
-        <input id="loginUser" class="w-full px-4 py-3 rounded-xl bg-zinc-800/80 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="เช่น host, admin, user1" />
-        <label class="block text-sm/5 text-zinc-400">รหัสผ่าน</label>
-        <input id="loginPass" type="password" class="w-full px-4 py-3 rounded-xl bg-zinc-800/80 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="••••••••" />
-        <button id="btnLogin" class="mt-6 w-full py-3 rounded-xl bg-brand.red hover:bg-red-600 font-semibold">เข้าสู่ระบบ</button>
-        <p class="text-xs text-zinc-500 mt-3">ตัวอย่าง: <span class="font-mono">host/1234</span>, <span class="font-mono">admin/1234</span>, <span class="font-mono">user1/1234</span></p>
-      </div>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="loginView" class="min-h-screen grid place-items-center">
+  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">P</div>
+      <div class="text-2xl font-semibold">ProPlugin • Price Tag Manager</div>
     </div>
-  </section>
-
-  <!-- APP -->
-  <section id="appView" class="hidden min-h-screen">
-    <!-- Topbar -->
-    <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
-      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-        <div class="flex items-center gap-3">
-          <div id="logoBox" class="w-10 h-10 rounded-lg bg-zinc-100 grid place-items-center text-brand.dark font-black overflow-hidden select-none">
-            <span id="logoFallback">P</span>
-            <img id="logoImg" class="hidden w-full h-full object-contain" alt="logo">
-          </div>
-          <div class="text-lg sm:text-2xl font-semibold tracking-wide">ProPlugin • ป้ายราคา</div>
-          <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
-        </div>
-
-        <div class="ml-auto flex items-center gap-2">
-          <button id="btnSettings" class="hidden px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm">Settings</button>
-          <button id="btnHistory" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm">ประวัติ</button>
-          <button id="btnLogout" class="px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm">ออกจากระบบ</button>
-        </div>
-      </div>
-      <!-- Filters -->
-      <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col gap-3">
-        <div class="flex items-center gap-3">
-          <div class="relative flex-1">
-            <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-900/60 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="ค้นหา (SKU / ชื่อสินค้า)" />
-            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500">⌘K</div>
-          </div>
-
-          <select id="channelSelect" class="px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-700">
-            <option>Flagship</option>
-            <option>Marketplace</option>
-            <option>Dealer T1</option>
-            <option>Dealer T2</option>
-            <option>Dealer T3</option>
-          </select>
-
-          <div class="flex items-center gap-2">
-            <label class="text-sm text-zinc-400">เริ่ม</label>
-            <input id="dateStart" type="date" class="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700">
-            <label class="text-sm text-zinc-400">ถึง</label>
-            <input id="dateEnd" type="date" class="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700">
-          </div>
-
-          <button id="btnPrintModal" class="px-4 py-3 rounded-xl bg-brand.red hover:bg-red-600 font-semibold">พิมพ์ป้ายราคา</button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Table -->
-    <main class="max-w-7xl mx-auto px-4 py-6">
-      <div class="overflow-auto border border-zinc-800 rounded-xl">
-        <table class="min-w-[900px] w-full text-sm">
-          <thead class="bg-zinc-900/70 border-b border-zinc-800">
-            <tr class="[&>th]:px-3 [&>th]:py-3 text-left">
-              <th class="w-10"><input id="checkAll" type="checkbox"></th>
-              <th>SKU</th>
-              <th>ชื่อสินค้า</th>
-              <th class="w-64">รายละเอียด</th>
-              <th id="thCosts" class="hidden">Costs</th>
-              <th>ราคาปกติ</th>
-              <th>ราคาโปรโมชัน</th>
-              <th id="thExpire" class="">วันหมดโปร (Flagship)</th>
-              <th>ราคา Marketplace</th>
-              <th>GP% Market</th>
-              <th>Dealer T1</th>
-              <th>GP% T1</th>
-              <th>Dealer T2</th>
-              <th>GP% T2</th>
-              <th>Dealer T3</th>
-              <th>GP% T3</th>
-              <th class="w-24">แก้ไข</th>
-            </tr>
-          </thead>
-          <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
-        </table>
-      </div>
-    </main>
-  </section>
-
-  <!-- SETTINGS PANEL (Host/Admin only) -->
-  <div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
-    <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
-      <!-- Left Menu -->
-      <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
-        <div class="text-sm text-zinc-400 px-2">เมนู Settings</div>
-        <button data-tab="data" class="set-tab w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">จัดการข้อมูล</button>
-        <button data-tab="logo" class="set-tab w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">จัดการโลโก้</button>
-        <button data-tab="dealer" class="set-tab w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">ตั้งค่า Dealer</button>
-        <button data-tab="users" class="set-tab host-only w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">จัดการผู้ใช้งาน</button>
-        <button data-tab="templates" class="set-tab host-only w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">จัดการเทมเพลต</button>
-        <button data-tab="history" class="set-tab w-full text-left px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700">ประวัติการใช้งาน</button>
-        <div class="absolute bottom-3 left-3 right-3">
-          <button id="btnCloseSettings" class="w-full px-3 py-2 rounded-lg bg-brand.red hover:bg-red-600">ปิด Settings</button>
-        </div>
-      </aside>
-      <!-- Right Content -->
-      <section id="settingsContent" class="p-6 overflow-auto"></section>
-    </div>
+    <label class="text-sm text-zinc-400">Username</label>
+    <input id="loginUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="host / admin / user1 …" />
+    <label class="text-sm text-zinc-400 mt-4 block">Password</label>
+    <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="••••••••" />
+    <button id="btnLogin" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
+    <p class="text-xs text-zinc-500 mt-3">Examples: <span class="font-mono">host/1234</span>, <span class="font-mono">admin/1234</span>, <span class="font-mono">user1/1234</span></p>
   </div>
+</section>
 
-  <!-- PRODUCT EDITOR (Host/Admin) -->
-  <div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
-    <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
-      <div class="flex items-center justify-between p-4 border-b border-zinc-800">
-        <div class="text-xl font-semibold">แก้ไขข้อมูลสินค้า</div>
-        <button onclick="closeEditor()" class="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700">ปิด</button>
+<!-- ===================== APP ===================== -->
+<section id="appView" class="hidden min-h-screen">
+  <!-- Topbar -->
+  <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div id="logoBox" class="w-10 h-10 rounded-xl bg-zinc-100 text-brand.dark font-black grid place-items-center overflow-hidden select-none">
+          <span id="logoFallback">P</span>
+          <img id="logoImg" class="hidden w-full h-full object-contain" alt="logo">
+        </div>
+        <div class="text-xl sm:text-2xl font-semibold tracking-wide">Price Tags</div>
+        <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
       </div>
-      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
-        <div class="space-y-4">
-          <div><label class="text-sm text-zinc-400">SKU</label><input id="edSku" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">ชื่อสินค้า (Description)</label><input id="edDesc" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">รายละเอียด (Details)</label><textarea id="edDetails" rows="6" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></textarea></div>
-          <div><label class="text-sm text-zinc-400">วันหมดโปร (Expires Date)</label><input id="edExpire" type="date" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
+
+      <div class="ml-auto flex items-center gap-2">
+        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Settings</button>
+        <button id="btnHistory" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">History</button>
+        <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col gap-3">
+      <div class="flex flex-col lg:flex-row gap-3">
+        <div class="relative flex-1">
+          <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="Search (SKU / Product Name)" />
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">⌘K</div>
         </div>
-        <div class="space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div><label class="text-sm text-zinc-400">Costs</label><input id="edCosts" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-            <div><label class="text-sm text-zinc-400">ราคาปกติ</label><input id="edNormal" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-            <div><label class="text-sm text-zinc-400">ราคาโปรโมชัน</label><input id="edPromo" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-            <div><label class="text-sm text-zinc-400">ราคา Marketplace</label><input id="edMarket" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-            <div><label class="text-sm text-zinc-400">Dealer T1</label><input id="edT1" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-            <div><label class="text-sm text-zinc-400">Dealer T2</label><input id="edT2" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-            <div><label class="text-sm text-zinc-400">Dealer T3</label><input id="edT3" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700"></div>
-          </div>
-          <button id="btnSaveEd" class="w-full mt-2 py-3 rounded-xl bg-brand.red hover:bg-red-600 font-semibold">บันทึก</button>
+
+        <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-zinc-950 border border-zinc-700">
+          <option>Flagship</option>
+          <option>Marketplace</option>
+          <option>Dealer</option>
+        </select>
+
+        <!-- Single consolidated date-range box -->
+        <div class="px-3 py-2 rounded-2xl bg-zinc-950 border border-zinc-700 flex items-center gap-2">
+          <span class="text-sm text-zinc-400">Date range</span>
+          <input id="dateStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+          <span class="text-zinc-500">→</span>
+          <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
         </div>
+
+        <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Table -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="overflow-auto border border-zinc-800 rounded-2xl">
+      <table class="min-w-[1100px] w-full text-sm">
+        <thead class="bg-zinc-900/70 border-b border-zinc-800">
+          <tr class="[&>th]:px-3 [&>th]:py-3 text-left">
+            <th>SKU</th>
+            <th>Description</th>
+            <th class="w-72">Details</th>
+            <th id="thCosts" class="hidden">Costs</th>
+            <th>Normal</th>
+            <th>Promotion</th>
+            <th>Promo GP%</th>
+            <th id="thExpire">Expires (Flagship)</th>
+            <th>Marketplace</th>
+            <th>Market GP%</th>
+            <th>Dealer T1</th>
+            <th>GP% T1</th>
+            <th>Dealer T2</th>
+            <th>GP% T2</th>
+            <th>Dealer T3</th>
+            <th>GP% T3</th>
+            <th class="w-24">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
+      </table>
+    </div>
+  </main>
+</section>
+
+<!-- ===================== SETTINGS ===================== -->
+<div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
+  <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
+    <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
+      <div class="text-sm text-zinc-400 px-2">Settings</div>
+      <button data-tab="data" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Data</button>
+      <button data-tab="logo" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Logo</button>
+      <button data-tab="dealer" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Dealer Settings</button>
+      <button data-tab="users" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
+      <button data-tab="templates" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Template Management</button>
+      <button data-tab="history" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Usage History</button>
+      <div class="absolute bottom-3 left-3 right-3">
+        <button id="btnCloseSettings" class="w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
+      </div>
+    </aside>
+    <section id="settingsContent" class="p-6 overflow-auto"></section>
+  </div>
+</div>
+
+<!-- ===================== EDITOR ===================== -->
+<div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b border-zinc-800">
+      <div class="text-xl font-semibold">Edit Product</div>
+      <button onclick="closeEditor()" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+    </div>
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
+      <div class="space-y-4">
+        <div><label class="text-sm text-zinc-400">SKU</label><input id="edSku" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Description</label><input id="edDesc" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Details</label><textarea id="edDetails" rows="6" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></textarea></div>
+        <div><label class="text-sm text-zinc-400">Expires Date</label><input id="edExpire" type="date" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+      </div>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-sm text-zinc-400">Costs</label><input id="edCosts" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Normal Price</label><input id="edNormal" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Promotion Price</label><input id="edPromo" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Marketplace Price</label><input id="edMarket" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Dealer T1</label><input id="edT1" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Dealer T2</label><input id="edT2" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Dealer T3</label><input id="edT3" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        </div>
+        <button id="btnSaveEd" class="w-full mt-2 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Save</button>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- PRINT MODAL -->
-  <div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
-    <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-[380px_1fr]">
-      <div class="flex items-center justify-between p-4 border-b border-zinc-800 lg:border-b-0 lg:border-r">
-        <div class="text-xl font-semibold">พิมพ์ป้ายราคา</div>
-        <button onclick="togglePrintModal(false)" class="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700">ปิด</button>
+<!-- ===================== PRINT MODAL ===================== -->
+<div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-1 xl:grid-cols-[420px_1fr]">
+    <div class="flex items-center justify-between p-4 border-b border-zinc-800 xl:border-b-0 xl:border-r">
+      <div class="text-xl font-semibold">Print Price Tags</div>
+      <button onclick="togglePrintModal(false)" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] h-[calc(100%-56px)] xl:h-full">
+      <!-- Left -->
+      <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
+        <div class="grid grid-cols-[1fr_auto] gap-2">
+          <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
+          <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
+        </div>
+
+        <div class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
+          <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
+          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
+        </div>
+
+        <div class="text-sm text-zinc-400">Select products and set qty per SKU</div>
+        <div id="printList" class="space-y-2 overflow-auto max-h-[60vh]"></div>
+        <div id="printSummary" class="text-sm text-zinc-400"></div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-[380px_1fr] h-[calc(100%-56px)] lg:h-full">
-        <!-- Left: list + template -->
-        <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
-          <div>
-            <label class="text-sm text-zinc-400">เลือกเทมเพลต</label>
-            <select id="printTemplate" class="w-full mt-1 px-3 py-2 rounded bg-zinc-900 border border-zinc-700">
-              <!-- filled by JS -->
-            </select>
-          </div>
-          <div class="text-sm text-zinc-400">รายการที่เลือก (ระบุจำนวนต่อ SKU)</div>
-          <div id="printList" class="space-y-2 overflow-auto max-h-[55vh]"></div>
-          <button id="btnOpenPrint" class="w-full mt-2 py-3 rounded-xl bg-brand.red hover:bg-red-600 font-semibold">เปิดหน้า Print</button>
-        </div>
-        <!-- Right: live preview -->
-        <div class="p-4 overflow-auto">
-          <div class="text-sm text-zinc-400 mb-2">ตัวอย่างตัวแรกจากรายการที่เลือก</div>
-          <div id="previewBox" class="bg-zinc-900 rounded-xl border border-zinc-800 p-4 grid place-items-center min-h-[380px]"></div>
-        </div>
+      <!-- Right: live preview -->
+      <div class="p-4 overflow-auto">
+        <div class="text-sm text-zinc-400 mb-2">Live preview of the first selected item</div>
+        <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 p-4 grid place-items-center min-h-[420px]"></div>
       </div>
     </div>
   </div>
+</div>
 
-  <script>
-  /***********************
-   * STORAGE & CONSTANTS *
-   ***********************/
-  const LS_KEYS = {
-    PRODUCTS: 'pp_products_v3',
-    USERS: 'pp_users_v3',
-    LOGO: 'pp_logo_base64',
-    TEMPLATES: 'pp_templates_v2',
-    LOGS: 'pp_logs_v2',
-    LASTUSER: 'pp_last_user'
-  };
+<script>
+/* ================= CORE STATE / STORAGE ================= */
+const LS = {
+  PRODUCTS: 'pp_products_en_v1',
+  USERS: 'pp_users_en_v1',
+  LOGO: 'pp_logo_base64',
+  TEMPLATES: 'pp_templates_en_v2',
+  LOGS: 'pp_logs_en_v1',
+  LASTUSER: 'pp_last_user_en',
+  USERS_COST_FLAG: 'pp_flag_users_costs_en'
+};
 
-  const Channels = ['Flagship','Marketplace','Dealer T1','Dealer T2','Dealer T3'];
+const Channels = ['Flagship','Marketplace','Dealer'];
 
-  const defaultUsers = [
-    {username:'host', password:'1234', role:'Host', channels:[...Channels], canSeeCosts:true},
-    {username:'admin', password:'1234', role:'Admin', channels:[...Channels], canSeeCosts:true},
-    {username:'user1', password:'1234', role:'User', channels:['Flagship'], canSeeCosts:false},
-    {username:'user2', password:'1234', role:'User', channels:['Marketplace'], canSeeCosts:false},
-    {username:'user3', password:'1234', role:'User', channels:['Dealer T1','Dealer T2'], canSeeCosts:false},
-    {username:'user4', password:'1234', role:'User', channels:['Dealer T3'], canSeeCosts:false},
+const defaultUsers = [
+  // Host/Admin can print & see Costs, delete SKUs
+  {username:'host',  password:'1234', role:'Host',  channels:[...Channels], canSeeCosts:true,  canPrint:true},
+  {username:'admin', password:'1234', role:'Admin', channels:[...Channels], canSeeCosts:true,  canPrint:true},
+  // User1/2 limited to Flagship, can print, no Costs, no Settings
+  {username:'user1', password:'1234', role:'User',  channels:['Flagship'], canSeeCosts:false, canPrint:true},
+  {username:'user2', password:'1234', role:'User',  channels:['Flagship'], canSeeCosts:false, canPrint:true},
+  // Others: limited channels, view price only, cannot print
+  {username:'user3', password:'1234', role:'User',  channels:['Marketplace'], canSeeCosts:false, canPrint:false},
+  {username:'user4', password:'1234', role:'User',  channels:['Dealer'], canSeeCosts:false, canPrint:false}
+];
+
+const sampleProducts = [{
+  sku:'MP-00010',
+  description:'iCon Pro Audio GoLive Pro',
+  details:'Audio interface for live streaming with remote control\n24-bit/48kHz with onboard DSP (Reverb, EQ, Vocal Tune)\nBuilt-in 5000mAh battery up to 6 hours\nMic input mini-XLR (48V) & 1/4-inch\nBluetooth for music & control',
+  costs:4200,
+  normalPrice:7990,
+  promoPrice:5990,
+  expiresDate:'2099-09-09',
+  marketplacePrice:5990,
+  dealer1:5600,
+  dealer2:5400,
+  dealer3:5200
+}];
+
+function defaultTemplates(){
+  return [
+    { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true,
+      styles:{ sku:{fs:16,color:'#ffffff',mt:0}, description:{fs:30,color:'#ffffff',mt:0},
+        details:{fs:14,color:'#ffffff',mt:0}, price:{fs:72,color:'#ffffff',mt:0},
+        oldPrice:{fs:20,color:'#ff4d4f',mt:0}, expire:{fs:13,color:'#ffffff',mt:0} } },
+    { id:'t-a5',  name:'A5 (2 per sheet)', kind:'A5',  showLogo:true,
+      styles:{ sku:{fs:14,color:'#ffffff',mt:0}, description:{fs:26,color:'#ffffff',mt:0},
+        details:{fs:13,color:'#ffffff',mt:0}, price:{fs:60,color:'#ffffff',mt:0},
+        oldPrice:{fs:18,color:'#ff4d4f',mt:0}, expire:{fs:12,color:'#ffffff',mt:0} } },
+    { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true,
+      styles:{ sku:{fs:12,color:'#ffffff',mt:0}, description:{fs:22,color:'#ffffff',mt:0},
+        details:{fs:12,color:'#ffffff',mt:0}, price:{fs:48,color:'#ffffff',mt:0},
+        oldPrice:{fs:16,color:'#ff4d4f',mt:0}, expire:{fs:11,color:'#ffffff',mt:0} } },
+    { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true,
+      styles:{ sku:{fs:11,color:'#ffffff',mt:2}, description:{fs:15,color:'#ffffff',mt:0, align:'center'},
+        price:{fs:22,color:'#ffffff',mt:0}, oldPrice:{fs:12,color:'#B91C1C',mt:0}, expire:{fs:10,color:'#ffffff',mt:0} } }
   ];
+}
 
-  // Default sample product in case no data
-  const sampleProducts = [
-    {
-      sku:'MP-00010',
-      description:'iCon Pro Audio GoLive Pro',
-      details:'ออดิโออินเตอร์เฟสสำหรับสตรีมมิ่งพร้อมรีโมทคอนโทรล\nคุณภาพเสียง 24-bit / 48kHz พร้อม DSP ในตัว (Reverb, EQ, Vocal Tune)\nแบตเตอรี่ในตัว 5000mAh ใช้งานได้สูงสุด 6 ชั่วโมง\nรองรับ Mic Input ทั้งแบบ mini-XLR (พร้อม 48V) และ 1/4 นิ้ว\nเชื่อมต่อ Bluetooth สำหรับเล่นเพลงและควบคุม',
-      costs:4200,
-      normalPrice:7990,
-      promoPrice:5990,
-      expiresDate:'2099-09-09',
-      marketplacePrice:5990,
-      dealer1:5600,
-      dealer2:5400,
-      dealer3:5200
+/* ================= UTILITIES ================= */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const money = n => isFinite(n) ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
+const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
+const fromExcelDate = v => {
+  if (v instanceof Date) return v.toISOString().slice(0,10);
+  if (typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400*1000)); return d.toISOString().slice(0,10); }
+  if (typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  return '';
+};
+// GP% = (Price - Cost) / Cost * 100
+const gpPct = (price,cost)=> (cost>0 ? ((price - (cost||0))/cost)*100 : 0);
+const log = (action,meta='')=>{
+  const logs = JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
+  logs.unshift({ts:new Date().toISOString(), user:currentUser?.username||'-', action, meta});
+  localStorage.setItem(LS.LOGS, JSON.stringify(logs.slice(0,3000)));
+};
+
+/* ================= APP STATE ================= */
+let currentUser=null;
+let products=[];
+let templates=[];
+let editingIndex=-1;
+
+function loadState(){
+  if(!localStorage.getItem(LS.USERS)) localStorage.setItem(LS.USERS, JSON.stringify(defaultUsers));
+  products = JSON.parse(localStorage.getItem(LS.PRODUCTS)||'null') || sampleProducts;
+  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
+  templates = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'null') || defaultTemplates();
+  localStorage.setItem(LS.TEMPLATES, JSON.stringify(templates));
+  const base64 = localStorage.getItem(LS.LOGO);
+  if(base64){ $('#logoImg').src=base64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden'); }
+}
+
+/* ================= AUTH ================= */
+function allUsers(){ return JSON.parse(localStorage.getItem(LS.USERS)); }
+function setUsers(u){ localStorage.setItem(LS.USERS, JSON.stringify(u)); }
+
+function login(){
+  const u=$('#loginUser').value.trim(); const p=$('#loginPass').value;
+  const found = allUsers().find(x=>x.username===u && x.password===p);
+  if(!found) return alert('Invalid credentials');
+  currentUser=found; localStorage.setItem(LS.LASTUSER,u);
+  $('#loginView').classList.add('hidden');
+  $('#appView').classList.remove('hidden');
+  $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
+
+  // Settings visibility
+  const isHost = currentUser.role==='Host';
+  const isAdmin = currentUser.role==='Admin';
+  $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
+  $('#btnHistory').classList.toggle('hidden', !(isHost)); // History = Host only
+
+  loadState();
+  initFiltersForUser();
+  renderTable();
+  log('login');
+}
+function logout(){
+  currentUser=null; $('#loginPass').value='';
+  $('#appView').classList.add('hidden'); $('#loginView').classList.remove('hidden');
+}
+
+/* ================= FILTERS ================= */
+function initFiltersForUser(){
+  const sel=$('#channelSelect'); sel.innerHTML='';
+  currentUser.channels.forEach(ch=>{ const o=document.createElement('option'); o.textContent=ch; sel.appendChild(o); });
+  sel.value=currentUser.channels[0];
+  sel.disabled = currentUser.role==='User';
+
+  $('#btnPrintModal').classList.toggle('hidden', !currentUser.canPrint);
+  $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
+  updateExpireVisibility();
+}
+function updateExpireVisibility(){
+  const isFlagship = $('#channelSelect').value==='Flagship';
+  $('#thExpire').classList.toggle('hidden', !isFlagship);
+}
+
+/* ================= TABLE ================= */
+function filteredProducts(){
+  const q=$('#searchInput').value.trim().toLowerCase();
+  const ds=$('#dateStart').value, de=$('#dateEnd').value;
+  const isFlagship = $('#channelSelect').value==='Flagship';
+  return products.filter(p=>{
+    const hit = !q || p.sku.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+    let dateOk = true;
+    if(isFlagship && (ds||de)){
+      const ex = p.expiresDate ? new Date(p.expiresDate) : null;
+      if(!ex) dateOk=false;
+      if(ds && ex < new Date(ds)) dateOk=false;
+      if(de && ex > new Date(de+'T23:59:59')) dateOk=false;
     }
-  ];
+    return hit && dateOk;
+  });
+}
+function renderTable(){
+  const body=$('#productBody'); body.innerHTML='';
+  const isFlagship = $('#channelSelect').value==='Flagship';
+  const showCosts = (currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role));
+  const canEdit = ['Host','Admin'].includes(currentUser.role);
 
-  // Default templates (A5, A6, Acc tag). user templates will set showLogo:false automatically.
-  function defaultTemplates(){
-    return [
-      {
-        id:'t-a5', name:'A5 (2 ต่อแผ่น)', kind:'A5', showLogo:true,
-        styles:{
-          sku:{fs:14,color:'#ffffff',mt:0},
-          description:{fs:26,color:'#ffffff',mt:0},
-          details:{fs:13,color:'#ffffff',mt:0},
-          price:{fs:62,color:'#ffffff',mt:0},
-          oldPrice:{fs:18,color:'#ff4d4f',mt:0},
-          expire:{fs:13,color:'#ffffff',mt:0}
-        }
-      },
-      {
-        id:'t-a6', name:'A6 (4 ต่อแผ่น)', kind:'A6', showLogo:true,
-        styles:{
-          sku:{fs:12,color:'#ffffff',mt:0},
-          description:{fs:22,color:'#ffffff',mt:0},
-          details:{fs:12,color:'#ffffff',mt:0},
-          price:{fs:52,color:'#ffffff',mt:0},
-          oldPrice:{fs:16,color:'#ff4d4f',mt:0},
-          expire:{fs:12,color:'#ffffff',mt:0}
-        }
-      },
-      {
-        id:'t-acc', name:'Accessories Tag (12 ต่อแผ่น)', kind:'ACC', showLogo:true,
-        styles:{
-          sku:{fs:11,color:'#ffffff',mt:2},
-          description:{fs:14,color:'#ffffff',mt:0, align:'center'},
-          price:{fs:22,color:'#ffffff',mt:0},
-          oldPrice:{fs:12,color:'#ff4d4f',mt:0},
-          expire:{fs:10,color:'#ffffff',mt:0}
-        }
-      }
-    ];
-  }
-
-  /************
-   * UTILITIES
-   ************/
-  const $ = (sel,root=document)=>root.querySelector(sel);
-  const $$ = (sel,root=document)=>Array.from(root.querySelectorAll(sel));
-  const fmtMoney = n => isFinite(n) ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
-  const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
-  const fromExcelDate = v => {
-    // Excel date number to yyyy-mm-dd (SheetJS sometimes gives Date)
-    if (v instanceof Date) return v.toISOString().slice(0,10);
-    if (typeof v==='number') {
-      const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-      return d.toISOString().slice(0,10);
-    }
-    if (typeof v==='string' && v.match(/^\d{4}-\d{2}-\d{2}$/)) return v;
-    return '';
-  };
-  const gp = (price,costs)=> (price>0 ? (price - (costs||0)) / price : 0);
-  const log = (action,meta='')=>{
-    const logs = JSON.parse(localStorage.getItem(LS_KEYS.LOGS)||'[]');
-    logs.unshift({ts:new Date().toISOString(), user:currentUser?.username||'-', action, meta});
-    localStorage.setItem(LS_KEYS.LOGS, JSON.stringify(logs.slice(0,3000)));
-  };
-
-  /****************
-   * APP STATE
-   ****************/
-  let currentUser = null;
-  let products = [];
-  let templates = [];
-  let editingIndex = -1;
-
-  function loadState(){
-    // users
-    if(!localStorage.getItem(LS_KEYS.USERS)){
-      localStorage.setItem(LS_KEYS.USERS, JSON.stringify(defaultUsers));
-    }
-    // products
-    products = JSON.parse(localStorage.getItem(LS_KEYS.PRODUCTS)||'null') || sampleProducts;
-    localStorage.setItem(LS_KEYS.PRODUCTS, JSON.stringify(products));
-    // templates
-    templates = JSON.parse(localStorage.getItem(LS_KEYS.TEMPLATES)||'null') || defaultTemplates();
-    localStorage.setItem(LS_KEYS.TEMPLATES, JSON.stringify(templates));
-    // logo show
-    const base64 = localStorage.getItem(LS_KEYS.LOGO);
-    if (base64){
-      $('#logoImg').src = base64;
-      $('#logoImg').classList.remove('hidden');
-      $('#logoFallback').classList.add('hidden');
-    }
-  }
-
-  /****************
-   * AUTH
-   ****************/
-  function users(){ return JSON.parse(localStorage.getItem(LS_KEYS.USERS)); }
-  function setUsers(u){ localStorage.setItem(LS_KEYS.USERS, JSON.stringify(u)); }
-
-  function login(){
-    const u = $('#loginUser').value.trim();
-    const p = $('#loginPass').value;
-    const found = users().find(x=>x.username===u && x.password===p);
-    if(!found){ alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'); return; }
-    currentUser = found;
-    localStorage.setItem(LS_KEYS.LASTUSER, u);
-    $('#loginView').classList.add('hidden');
-    $('#appView').classList.remove('hidden');
-    $('#roleBadge').textContent = `${currentUser.role} • ${currentUser.username}`;
-    if(['Host','Admin'].includes(currentUser.role)){ $('#btnSettings').classList.remove('hidden'); }
-    if(currentUser.role==='Host'){ $$('.host-only').forEach(b=>b.classList.remove('hidden')); }
-    else { $$('.host-only').forEach(b=>b.classList.add('hidden')); }
-    loadState();
-    initFiltersForUser();
-    renderTable();
-    log('login');
-  }
-
-  function logout(){
-    currentUser=null;
-    $('#loginPass').value='';
-    $('#appView').classList.add('hidden');
-    $('#loginView').classList.remove('hidden');
-  }
-
-  /****************
-   * FILTERS / UI
-   ****************/
-  function initFiltersForUser(){
-    // Channel restriction
-    const sel = $('#channelSelect');
-    sel.innerHTML='';
-    currentUser.channels.forEach(ch=>{
-      const o = document.createElement('option'); o.textContent=ch; sel.appendChild(o);
-    });
-    sel.value=currentUser.channels[0];
-    sel.disabled = currentUser.role==='User';
-
-    // Costs visibility
-    $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
-
-    // Expire column visibility (Flagship only)
-    updateExpireVisibility();
-  }
-
-  function updateExpireVisibility(){
-    const isFlagship = $('#channelSelect').value==='Flagship';
-    $('#thExpire').classList.toggle('hidden', !isFlagship);
-    // hide/show per row in renderTable
-  }
-
-  // Search shortcut
-  window.addEventListener('keydown',e=>{
-    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }
+  filteredProducts().forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
+    const gpPromo = gpPct(p.promoPrice, p.costs);
+    const gpM = gpPct(p.marketplacePrice, p.costs);
+    const gp1 = gpPct(p.dealer1, p.costs);
+    const gp2 = gpPct(p.dealer2, p.costs);
+    const gp3 = gpPct(p.dealer3, p.costs);
+    tr.innerHTML = `
+      <td class="px-3 py-3 font-mono">${p.sku}</td>
+      <td class="px-3 py-3">${p.description}</td>
+      <td class="px-3 py-3 text-zinc-300"><div class="truncate-2 whitespace-pre-line">${p.details||''}</div></td>
+      <td class="px-3 py-3 ${showCosts?'':'hidden'}">${p.costs?money(p.costs):'-'}</td>
+      <td class="px-3 py-3">${p.normalPrice?money(p.normalPrice):'-'}</td>
+      <td class="px-3 py-3">${p.promoPrice?money(p.promoPrice):'-'}</td>
+      <td class="px-3 py-3">${gpPromo.toFixed(1)}%</td>
+      <td class="px-3 py-3 ${isFlagship?'':'hidden'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
+      <td class="px-3 py-3">${p.marketplacePrice?money(p.marketplacePrice):'-'}</td>
+      <td class="px-3 py-3">${gpM.toFixed(1)}%</td>
+      <td class="px-3 py-3">${p.dealer1?money(p.dealer1):'-'}</td>
+      <td class="px-3 py-3">${gp1.toFixed(1)}%</td>
+      <td class="px-3 py-3">${p.dealer2?money(p.dealer2):'-'}</td>
+      <td class="px-3 py-3">${gp2.toFixed(1)}%</td>
+      <td class="px-3 py-3">${p.dealer3?money(p.dealer3):'-'}</td>
+      <td class="px-3 py-3">${gp3.toFixed(1)}%</td>
+      <td class="px-3 py-3">
+        ${canEdit? `<button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
+        <button title="Delete" class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>` : '-'}
+      </td>
+    `;
+    body.appendChild(tr);
   });
 
-  /****************
-   * TABLE RENDER
-   ****************/
-  function filteredProducts(){
-    const q = $('#searchInput').value.trim().toLowerCase();
-    const ds = $('#dateStart').value;
-    const de = $('#dateEnd').value;
-    const isFlagship = $('#channelSelect').value==='Flagship';
-    return products.filter(p=>{
-      const hit = !q || p.sku.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
-      let dateOk = true;
-      if(isFlagship && (ds||de)){
-        const ex = p.expiresDate ? new Date(p.expiresDate) : null;
-        if(!ex) dateOk=false;
-        if(ds && ex < new Date(ds)) dateOk=false;
-        if(de && ex > new Date(de+'T23:59:59')) dateOk=false;
-      }
-      return hit && dateOk;
+  $$('button[data-edit]').forEach(b=>b.onclick=()=>openEditor(b.getAttribute('data-edit')));
+  $$('button[data-del]').forEach(b=>b.onclick=()=>{
+    const sku=b.getAttribute('data-del');
+    if(confirm(`Delete SKU ${sku}? This cannot be undone.`)){
+      products = products.filter(x=>x.sku!==sku);
+      localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
+      log('delete_sku', sku);
+      renderTable();
+    }
+  });
+}
+
+/* ================= EDITOR ================= */
+function openEditor(sku){
+  if(!['Host','Admin'].includes(currentUser.role)) return;
+  editingIndex = products.findIndex(x=>x.sku===sku);
+  const p=products[editingIndex];
+  $('#edSku').value=p.sku; $('#edDesc').value=p.description; $('#edDetails').value=p.details||'';
+  $('#edExpire').value=toDateInput(p.expiresDate);
+  $('#edCosts').value=p.costs||''; $('#edNormal').value=p.normalPrice||''; $('#edPromo').value=p.promoPrice||'';
+  $('#edMarket').value=p.marketplacePrice||''; $('#edT1').value=p.dealer1||''; $('#edT2').value=p.dealer2||''; $('#edT3').value=p.dealer3||'';
+  $('#editorModal').classList.remove('hidden');
+}
+function closeEditor(){ $('#editorModal').classList.add('hidden'); }
+$('#btnSaveEd').addEventListener('click', ()=>{
+  if(editingIndex<0) return;
+  const p=products[editingIndex];
+  Object.assign(p,{
+    sku:$('#edSku').value.trim(),
+    description:$('#edDesc').value.trim(),
+    details:$('#edDetails').value.trim(),
+    expiresDate:$('#edExpire').value||'',
+    costs:parseFloat($('#edCosts').value)||0,
+    normalPrice:parseFloat($('#edNormal').value)||0,
+    promoPrice:parseFloat($('#edPromo').value)||0,
+    marketplacePrice:parseFloat($('#edMarket').value)||0,
+    dealer1:parseFloat($('#edT1').value)||0,
+    dealer2:parseFloat($('#edT2').value)||0,
+    dealer3:parseFloat($('#edT3').value)||0
+  });
+  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
+  closeEditor(); renderTable(); log('edit_product', p.sku);
+});
+
+/* ================= SETTINGS ================= */
+$('#btnSettings').onclick=()=>openSettings('data');
+$('#btnCloseSettings').onclick=()=>$('#settingsPanel').classList.add('hidden');
+$$('.set-tab').forEach(b=>b.onclick=()=>openSettings(b.dataset.tab));
+
+function openSettings(tab){
+  if(!['Host','Admin'].includes(currentUser.role)) return;
+  $('#settingsPanel').classList.remove('hidden');
+  renderSettings(tab);
+}
+function renderSettings(tab){
+  const box=$('#settingsContent');
+  $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
+  const btn=$(`.set-tab[data-tab="${tab}"]`); if(btn) btn.classList.add('ring-2','ring-brand.red');
+
+  const isHost=currentUser.role==='Host';
+  const isAdmin=currentUser.role==='Admin';
+
+  // Hide tabs the role shouldn't access (labels remain in DOM but disabled above)
+  $$('.only-host').forEach(el=>el.classList.toggle('hidden', !isHost));
+  $$('.only-host-admin').forEach(el=>el.classList.toggle('hidden', !(isHost||isAdmin)));
+
+  if(tab==='data'){
+    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Manage Data</div>
+      <div class="text-zinc-400 mb-4">Import / Export Excel (A–O columns)</div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Import (.xlsx)</div>
+          <input id="fileImport" type="file" accept=".xlsx,.xls" class="w-full">
+          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Market GP% (ignored on import), J Dealer T1, K GP% T1 (ignored), L Dealer T2, M GP% T2 (ignored), N Dealer T3, O GP% T3 (ignored)</p>
+          <button id="btnDoImport" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import</button>
+        </div>
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Export (.xlsx)</div>
+          <button id="btnExport" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Excel</button>
+          <p class="text-xs text-zinc-400 mt-2">Export colors: D = light green, F & G = yellow. GP% columns are auto-calculated (Promo, Market, T1–T3).</p>
+        </div>
+      </div>
+    `;
+    $('#btnDoImport').onclick=doImport;
+    $('#btnExport').onclick=doExport;
+  }
+
+  if(tab==='logo'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const base64 = localStorage.getItem(LS.LOGO)||'';
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Manage Logo</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Upload logo</div>
+          <input type="file" id="logoFile" accept="image/*">
+          <p class="text-xs text-zinc-400 mt-2">PNG/JPG/SVG. Used on default templates (user templates never show logo).</p>
+          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save logo</button>
+          <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Remove</button>
+        </div>
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Preview</div>
+          <div class="h-40 w-40 bg-white rounded-xl overflow-hidden grid place-items-center p-2">
+            ${base64?`<img src="${base64}" class="max-h-full max-w-full object-contain">`:'<div class="text-zinc-800 text-4xl font-black">P</div>'}
+          </div>
+        </div>
+      </div>
+    `;
+    $('#btnSaveLogo').onclick=async()=>{
+      const f=$('#logoFile').files[0]; if(!f) return alert('Choose a file.');
+      const b64=await fileToBase64(f); localStorage.setItem(LS.LOGO,b64);
+      $('#logoImg').src=b64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden');
+      log('update_logo'); openSettings('logo');
+    };
+    $('#btnRemoveLogo').onclick=()=>{ localStorage.removeItem(LS.LOGO); $('#logoImg').classList.add('hidden'); $('#logoFallback').classList.remove('hidden'); log('remove_logo'); openSettings('logo'); }
+  }
+
+  if(tab==='dealer'){
+    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
+    const flag = JSON.parse(localStorage.getItem(LS.USERS_COST_FLAG)||'false');
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Dealer Settings</div>
+      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+        <label class="flex items-center gap-3">
+          <input id="optShowCostsUsers" type="checkbox" class="accent-brand.red"> <span>Allow Users to see "Costs" column</span>
+        </label>
+        <p class="text-xs text-zinc-500 mt-2">Host/Admin always see Costs regardless of this setting.</p>
+        <button id="btnSaveDealer" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save</button>
+      </div>
+    `;
+    $('#optShowCostsUsers').checked=!!flag;
+    $('#btnSaveDealer').onclick=()=>{ localStorage.setItem(LS.USERS_COST_FLAG, JSON.stringify($('#optShowCostsUsers').checked)); alert('Saved'); log('save_dealer_setting',$('#optShowCostsUsers').checked); };
+  }
+
+  if(tab==='users'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const list=allUsers();
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">User Management</div>
+      <div class="overflow-auto border border-zinc-800 rounded-2xl">
+        <table class="min-w-[800px] w-full text-sm">
+          <thead class="bg-zinc-900/70 border-b border-zinc-800">
+            <tr class="[&>th]:px-3 [&>th]:py-2 text-left">
+              <th>User</th><th>Role</th><th>Channels</th><th>See Costs</th><th>Can Print</th><th>Password</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </div>
+    `;
+    const tbody=$('#userRows'); tbody.innerHTML='';
+    list.forEach((u,i)=>{
+      const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
+      tr.innerHTML=`
+        <td class="px-3 py-2">${u.username}</td>
+        <td class="px-3 py-2">
+          <select data-role="${i}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700">
+            ${['Host','Admin','User'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
+          </select>
+        </td>
+        <td class="px-3 py-2">
+          ${Channels.map(ch=>`<label class="mr-2"><input type="checkbox" data-ch="${i}|${ch}" ${u.channels.includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>`).join('')}
+        </td>
+        <td class="px-3 py-2"><input type="checkbox" data-cost="${i}" ${u.canSeeCosts?'checked':''}></td>
+        <td class="px-3 py-2"><input type="checkbox" data-print="${i}" ${u.canPrint?'checked':''}></td>
+        <td class="px-3 py-2"><input type="text" data-pass="${i}" value="${u.password}" class="w-28 px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700"></td>
+        <td class="px-3 py-2"><button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu="${i}">Save</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    $$('button[data-saveu]').forEach(b=>b.onclick=()=>{
+      const i=+b.getAttribute('data-saveu'); const list=allUsers(); const u=list[i];
+      u.role=$(`select[data-role="${i}"]`).value;
+      u.canSeeCosts=$(`input[data-cost="${i}"]`).checked;
+      u.canPrint=$(`input[data-print="${i}"]`).checked;
+      u.password=$(`input[data-pass="${i}"]`).value;
+      u.channels=Channels.filter(ch=> $(`input[data-ch="${i}|${ch}"]`).checked );
+      setUsers(list);
+      if(currentUser.username===u.username){ currentUser=u; initFiltersForUser(); renderTable(); }
+      log('update_user',u.username); alert('Saved.');
     });
   }
 
-  function rowGPs(p){
-    return {
-      gpMarket: gp(p.marketplacePrice, p.costs),
-      gp1: gp(p.dealer1, p.costs),
-      gp2: gp(p.dealer2, p.costs),
-      gp3: gp(p.dealer3, p.costs),
+  if(tab==='templates'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const list=JSON.parse(localStorage.getItem(LS.TEMPLATES));
+    box.innerHTML=`
+      <div class="flex items-center justify-between">
+        <div class="text-2xl font-semibold mb-2">Template Management</div>
+        <div class="flex items-center gap-2">
+          <button id="btnNewTpl" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">New template</button>
+          <label class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700 cursor-pointer hover:bg-zinc-800">
+            <input type="file" id="tplUpload" accept="application/json" class="hidden"> Upload JSON
+          </label>
+        </div>
+      </div>
+      <div class="text-sm text-zinc-400 mb-3">User-uploaded templates will never show the company logo.</div>
+      <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
+    `;
+    const listBox=$('#tplList'); listBox.innerHTML='';
+    list.forEach((t,i)=>{
+      const card=document.createElement('div');
+      card.className='p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
+      card.innerHTML=`
+        <div class="font-semibold">${t.name}</div>
+        <div class="text-xs text-zinc-400 mb-3">${t.kind} ${t.showLogo?'• shows logo':'• no logo'}</div>
+        <div class="grid grid-cols-2 gap-3">
+          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
+            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+              <div class="text-xs text-zinc-400 mb-1">${k}</div>
+              <label class="text-xs">Font size</label>
+              <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k]?.fs||14}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
+              <label class="text-xs">Color</label>
+              <input type="color" data-color="${i}|${k}" value="${t.styles[k]?.color||'#ffffff'}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
+              <label class="text-xs">Top margin (px)</label>
+              <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k]?.mt||0}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+            </div>
+          `).join('')}
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <label class="flex items-center gap-2 text-sm ${['t-a4','t-a5','t-a6','t-acc'].includes(t.id)?'':'hidden'}"><input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> Show logo (default templates only)</label>
+          ${['t-a4','t-a5','t-a6','t-acc'].includes(t.id) ? '<span class="text-xs text-zinc-500">(cannot delete)</span>' : `<button class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del="${i}">Delete</button>`}
+        </div>
+        <button class="mt-3 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savtpl="${i}">Save template</button>
+      `;
+      listBox.appendChild(card);
+    });
+    $$('button[data-savtpl]').forEach(b=>b.onclick=()=>{
+      const i=+b.getAttribute('data-savtpl'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
+      ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
+        t.styles[k]=t.styles[k]||{};
+        t.styles[k].fs=parseInt($(`input[data-fs="${i}|${k}"]`).value)||14;
+        t.styles[k].color=$(`input[data-color="${i}|${k}"]`).value||'#ffffff';
+        t.styles[k].mt=parseInt($(`input[data-mt="${i}|${k}"]`).value)||0;
+      });
+      if(['t-a4','t-a5','t-a6','t-acc'].includes(t.id)){ t.showLogo=$(`input[data-logo="${i}"]`).checked; }
+      localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; log('save_template',t.name); alert('Template saved');
+    });
+    $$('button[data-del]').forEach(b=>b.onclick=()=>{
+      const i=+b.getAttribute('data-del'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
+      if(confirm('Delete this template?')){ arr.splice(i,1); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; log('delete_template', t.name); openSettings('templates'); }
+    });
+    $('#btnNewTpl').onclick=()=>{
+      const nm=prompt('Template name'); if(!nm) return;
+      const id='user-'+Math.random().toString(36).slice(2,8);
+      const tpl={id,name:nm,kind:'ACC',showLogo:false,styles:{sku:{fs:12,color:'#fff',mt:0},description:{fs:16,color:'#fff',mt:0},details:{fs:12,color:'#fff',mt:0},price:{fs:22,color:'#fff',mt:0},oldPrice:{fs:12,color:'#B91C1C',mt:0},expire:{fs:10,color:'#fff',mt:0}}};
+      const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); arr.push(tpl); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; log('create_template',nm); openSettings('templates');
+    };
+    $('#tplUpload').onchange=async(e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      try{
+        const txt=await f.text(); const obj=JSON.parse(txt);
+        if(!obj.id) obj.id='user-'+Math.random().toString(36).slice(2,8);
+        obj.showLogo=false; // never show logo on uploaded
+        const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES));
+        arr.push(obj); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr;
+        log('upload_template',obj.name||obj.id); openSettings('templates'); alert('Template uploaded.');
+      }catch(err){ alert('Invalid JSON template.'); }
     };
   }
 
-  function renderTable(){
-    const body = $('#productBody');
-    body.innerHTML='';
-    const isFlagship = $('#channelSelect').value==='Flagship';
-    const showCosts = (currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role));
-    const items = filteredProducts();
-
-    items.forEach((p,idx)=>{
-      const g = rowGPs(p);
-      const tr = document.createElement('tr');
-      tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
-      tr.innerHTML = `
-        <td class="px-3 py-3"><input type="checkbox" data-sku="${p.sku}" class="row-check"></td>
-        <td class="px-3 py-3 font-mono">${p.sku}</td>
-        <td class="px-3 py-3">${p.description}</td>
-        <td class="px-3 py-3 text-zinc-300"><div class="truncate-2 whitespace-pre-line">${p.details||''}</div></td>
-        <td class="px-3 py-3 ${showCosts?'':'hidden'}">${p.costs?fmtMoney(p.costs):'-'}</td>
-        <td class="px-3 py-3">${p.normalPrice?fmtMoney(p.normalPrice):'-'}</td>
-        <td class="px-3 py-3">${p.promoPrice?fmtMoney(p.promoPrice):'-'}</td>
-        <td class="px-3 py-3 ${isFlagship?'':'hidden'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
-        <td class="px-3 py-3">${p.marketplacePrice?fmtMoney(p.marketplacePrice):'-'}</td>
-        <td class="px-3 py-3">${(g.gpMarket*100).toFixed(1)}%</td>
-        <td class="px-3 py-3">${p.dealer1?fmtMoney(p.dealer1):'-'}</td>
-        <td class="px-3 py-3">${(g.gp1*100).toFixed(1)}%</td>
-        <td class="px-3 py-3">${p.dealer2?fmtMoney(p.dealer2):'-'}</td>
-        <td class="px-3 py-3">${(g.gp2*100).toFixed(1)}%</td>
-        <td class="px-3 py-3">${p.dealer3?fmtMoney(p.dealer3):'-'}</td>
-        <td class="px-3 py-3">${(g.gp3*100).toFixed(1)}%</td>
-        <td class="px-3 py-3">
-          ${(['Host','Admin'].includes(currentUser.role))? `<button class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs" data-edit="${p.sku}">แก้ไข</button>` : ''}
-        </td>
-      `;
-      body.appendChild(tr);
-    });
-
-    // Edit & check events
-    $$('button[data-edit]').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const sku = b.getAttribute('data-edit');
-        openEditor(sku);
-      });
-    });
-  }
-
-  /****************
-   * EDITOR
-   ****************/
-  function openEditor(sku){
-    editingIndex = products.findIndex(x=>x.sku===sku);
-    const p = products[editingIndex];
-    $('#edSku').value = p.sku;
-    $('#edDesc').value = p.description;
-    $('#edDetails').value = p.details||'';
-    $('#edExpire').value = toDateInput(p.expiresDate);
-    $('#edCosts').value = p.costs||'';
-    $('#edNormal').value = p.normalPrice||'';
-    $('#edPromo').value = p.promoPrice||'';
-    $('#edMarket').value = p.marketplacePrice||'';
-    $('#edT1').value = p.dealer1||'';
-    $('#edT2').value = p.dealer2||'';
-    $('#edT3').value = p.dealer3||'';
-    $('#editorModal').classList.remove('hidden');
-  }
-  function closeEditor(){ $('#editorModal').classList.add('hidden'); }
-  $('#btnSaveEd').addEventListener('click', ()=>{
-    if(editingIndex<0) return;
-    const p = products[editingIndex];
-    Object.assign(p,{
-      sku: $('#edSku').value.trim(),
-      description: $('#edDesc').value.trim(),
-      details: $('#edDetails').value.trim(),
-      expiresDate: $('#edExpire').value || '',
-      costs: parseFloat($('#edCosts').value)||0,
-      normalPrice: parseFloat($('#edNormal').value)||0,
-      promoPrice: parseFloat($('#edPromo').value)||0,
-      marketplacePrice: parseFloat($('#edMarket').value)||0,
-      dealer1: parseFloat($('#edT1').value)||0,
-      dealer2: parseFloat($('#edT2').value)||0,
-      dealer3: parseFloat($('#edT3').value)||0
-    });
-    localStorage.setItem(LS_KEYS.PRODUCTS, JSON.stringify(products));
-    closeEditor();
-    renderTable();
-    log('edit_product', p.sku);
-  });
-
-  /****************
-   * SETTINGS
-   ****************/
-  $('#btnSettings').addEventListener('click', ()=>openSettings('data'));
-  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
-  $$('.set-tab').forEach(btn=>{
-    btn.addEventListener('click', ()=> openSettings(btn.dataset.tab));
-  });
-
-  function openSettings(tab){
-    if(!['Host','Admin'].includes(currentUser.role)){ return; }
-    $('#settingsPanel').classList.remove('hidden');
-    renderSettings(tab);
-  }
-
-  function renderSettings(tab){
-    const box = $('#settingsContent');
-    // highlight
-    $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
-    const btn = $(`.set-tab[data-tab="${tab}"]`); if(btn) btn.classList.add('ring-2','ring-brand.red');
-
-    if(tab==='data'){
-      box.innerHTML = `
-        <div class="text-2xl font-semibold mb-2">จัดการข้อมูล</div>
-        <div class="text-zinc-400 mb-4">นำเข้าหรือส่งออกไฟล์ Excel ตามโครงสร้างคอลัมน์ A-O</div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40">
-            <div class="font-semibold mb-2">นำเข้าข้อมูล (Excel)</div>
-            <input id="fileImport" type="file" accept=".xlsx,.xls" class="w-full">
-            <p class="text-xs text-zinc-400 mt-2">คอลัมน์ต้องเรียงดังนี้: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Marketplace GP% (ไม่อ่าน), J Dealer T1, K GP% T1 (ไม่อ่าน), L Dealer T2, M GP% T2 (ไม่อ่าน), N Dealer T3, O GP% T3 (ไม่อ่าน)</p>
-            <button id="btnDoImport" class="mt-4 px-4 py-2 rounded bg-brand.red hover:bg-red-600">นำเข้า</button>
-          </div>
-          <div class="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40">
-            <div class="font-semibold mb-2">ส่งออกข้อมูล (Excel)</div>
-            <button id="btnExport" class="px-4 py-2 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">ส่งออก .xlsx</button>
-            <p class="text-xs text-zinc-400 mt-2">ในไฟล์ส่งออก คอลัมน์ D จะพื้นหลังเขียวอ่อน และ F,G พื้นหลังเหลือง พร้อมคำนวณค่า GP% ให้อัตโนมัติ</p>
-          </div>
-        </div>
-      `;
-      $('#btnDoImport').addEventListener('click', doImport);
-      $('#btnExport').addEventListener('click', doExport);
-    }
-
-    if(tab==='logo'){
-      const base64 = localStorage.getItem(LS_KEYS.LOGO)||'';
-      box.innerHTML = `
-        <div class="text-2xl font-semibold mb-2">จัดการโลโก้</div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40">
-            <div class="font-semibold mb-2">อัปโหลดโลโก้</div>
-            <input type="file" id="logoFile" accept="image/*">
-            <p class="text-xs text-zinc-400 mt-2">รองรับ PNG/SVG/JPG • ใช้แสดงบนป้ายของเทมเพลตเริ่มต้น</p>
-            <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded bg-brand.red hover:bg-red-600">บันทึกโลโก้</button>
-            <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">ลบโลโก้</button>
-          </div>
-          <div class="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40">
-            <div class="font-semibold mb-2">ตัวอย่าง</div>
-            <div class="h-40 w-40 bg-white rounded-lg overflow-hidden grid place-items-center p-2">
-              ${base64 ? `<img src="${base64}" class="max-h-full max-w-full object-contain">` : '<div class="text-zinc-800 text-4xl font-black">P</div>'}
-            </div>
-          </div>
-        </div>
-      `;
-      $('#btnSaveLogo').addEventListener('click', async ()=>{
-        const f = $('#logoFile').files[0];
-        if(!f) return alert('กรุณาเลือกไฟล์');
-        const b64 = await fileToBase64(f);
-        localStorage.setItem(LS_KEYS.LOGO, b64);
-        $('#logoImg').src=b64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden');
-        log('update_logo');
-        openSettings('logo');
-      });
-      $('#btnRemoveLogo').addEventListener('click', ()=>{
-        localStorage.removeItem(LS_KEYS.LOGO);
-        $('#logoImg').classList.add('hidden'); $('#logoFallback').classList.remove('hidden');
-        log('remove_logo'); openSettings('logo');
-      });
-    }
-
-    if(tab==='dealer'){
-      box.innerHTML = `
-        <div class="text-2xl font-semibold mb-2">ตั้งค่า Dealer</div>
-        <p class="text-zinc-400 mb-4">ตัวเลือกทั่วไปเกี่ยวกับการแสดงผลสำหรับช่องทาง Dealer</p>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="p-4 rounded-xl border border-zinc-800 bg-zinc-900/40">
-            <label class="flex items-center gap-3">
-              <input id="optShowCostsUsers" type="checkbox" class="accent-brand.red">
-              <span>ให้ผู้ใช้ (User) สามารถเห็นคอลัมน์ Costs ได้</span>
-            </label>
-            <p class="text-xs text-zinc-500 mt-2">* Host ยังสามารถกำหนดรายบุคคลได้ที่เมนู "จัดการผู้ใช้งาน"</p>
-            <button id="btnSaveDealer" class="mt-4 px-4 py-2 rounded bg-brand.red hover:bg-red-600">บันทึก</button>
-          </div>
-        </div>
-      `;
-      // read current flag from localStorage
-      const flag = JSON.parse(localStorage.getItem('pp_flag_users_costs')||'false');
-      $('#optShowCostsUsers').checked = !!flag;
-      $('#btnSaveDealer').addEventListener('click', ()=>{
-        localStorage.setItem('pp_flag_users_costs', JSON.stringify($('#optShowCostsUsers').checked));
-        log('save_dealer_setting', $('#optShowCostsUsers').checked);
-        alert('บันทึกแล้ว');
-      });
-    }
-
-    if(tab==='users'){
-      if(currentUser.role!=='Host'){ box.innerHTML='<div class="text-zinc-400">เฉพาะ Host เท่านั้น</div>'; return; }
-      const list = users();
-      box.innerHTML = `
-        <div class="text-2xl font-semibold mb-2">จัดการผู้ใช้งาน (Host เท่านั้น)</div>
-        <div class="overflow-auto border border-zinc-800 rounded-xl">
-          <table class="min-w-[700px] w-full text-sm">
-            <thead class="bg-zinc-900/70 border-b border-zinc-800">
-              <tr class="[&>th]:px-3 [&>th]:py-2 text-left">
-                <th>ผู้ใช้</th><th>บทบาท</th><th>ช่องทางที่เข้าถึง</th><th>เห็น Costs</th><th>รหัสผ่าน</th><th></th>
-              </tr>
-            </thead>
-            <tbody id="userRows"></tbody>
-          </table>
-        </div>
-      `;
-      const tbody = $('#userRows');
-      tbody.innerHTML = '';
-      list.forEach((u,i)=>{
-        const tr = document.createElement('tr');
-        tr.className='border-b border-zinc-800';
-        tr.innerHTML = `
-          <td class="px-3 py-2">${u.username}</td>
-          <td class="px-3 py-2">
-            <select data-role="${i}" class="px-2 py-1 rounded bg-zinc-900 border border-zinc-700">
-              ${['Host','Admin','User'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
-            </select>
-          </td>
-          <td class="px-3 py-2">
-            ${Channels.map(ch=>`
-              <label class="mr-2"><input type="checkbox" data-ch="${i}|${ch}" ${u.channels.includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>
-            `).join('')}
-          </td>
-          <td class="px-3 py-2"><input type="checkbox" data-cost="${i}" ${u.canSeeCosts?'checked':''}></td>
-          <td class="px-3 py-2"><input type="text" data-pass="${i}" value="${u.password}" class="w-28 px-2 py-1 rounded bg-zinc-900 border border-zinc-700"></td>
-          <td class="px-3 py-2"><button class="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs" data-saveu="${i}">บันทึก</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-      $$('button[data-saveu]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const i = +b.getAttribute('data-saveu');
-          const list = users();
-          const u = list[i];
-          u.role = $(`select[data-role="${i}"]`).value;
-          u.canSeeCosts = $(`input[data-cost="${i}"]`).checked;
-          u.password = $(`input[data-pass="${i}"]`).value;
-          u.channels = Channels.filter(ch=> $(`input[data-ch="${i}|${ch}"]`).checked );
-          setUsers(list);
-          if(currentUser.username===u.username){ currentUser=u; initFiltersForUser(); renderTable(); }
-          log('update_user', u.username);
-          alert('บันทึกผู้ใช้แล้ว');
-        });
-      });
-    }
-
-    if(tab==='templates'){
-      if(currentUser.role!=='Host'){ box.innerHTML='<div class="text-zinc-400">เฉพาะ Host เท่านั้น</div>'; return; }
-      const list = JSON.parse(localStorage.getItem(LS_KEYS.TEMPLATES));
-      box.innerHTML = `
-        <div class="flex items-center justify-between">
-          <div class="text-2xl font-semibold mb-2">จัดการเทมเพลต (Host เท่านั้น)</div>
-          <button id="btnNewTpl" class="px-3 py-2 rounded bg-brand.red hover:bg-red-600">เพิ่มเทมเพลตใหม่</button>
-        </div>
-        <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
-      `;
-      const listBox = $('#tplList');
-      listBox.innerHTML = '';
-      list.forEach((t,i)=>{
-        const card = document.createElement('div');
-        card.className='p-4 rounded-xl border border-zinc-800 bg-zinc-900/40';
-        card.innerHTML = `
-          <div class="font-semibold">${t.name}</div>
-          <div class="text-xs text-zinc-400 mb-3">${t.kind} ${t.showLogo? '• แสดงโลโก้' : '• ไม่แสดงโลโก้'}</div>
-          <div class="grid grid-cols-2 gap-3">
-            ${['sku','description','details','price','oldPrice','expire'].map(k=>`
-              <div class="p-3 rounded-lg bg-zinc-900 border border-zinc-800">
-                <div class="text-xs text-zinc-400 mb-1">${k}</div>
-                <label class="text-xs">ขนาด</label>
-                <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k]?.fs||14}" class="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-800 mb-1">
-                <label class="text-xs">สี</label>
-                <input type="color" data-color="${i}|${k}" value="${t.styles[k]?.color||'#ffffff'}" class="w-full h-8 rounded bg-zinc-950 border border-zinc-800 mb-1">
-                <label class="text-xs">ระยะบน (px)</label>
-                <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k]?.mt||0}" class="w-full px-2 py-1 rounded bg-zinc-950 border border-zinc-800">
-              </div>
-            `).join('')}
-          </div>
-          <div class="mt-3 flex items-center justify-between">
-            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> แสดงโลโก้ (เฉพาะเทมเพลตเริ่มต้น)</label>
-            ${['t-a5','t-a6','t-acc'].includes(t.id) ? 
-              '<span class="text-xs text-zinc-500">(ลบไม่ได้)</span>' :
-              `<button class="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700" data-del="${i}">ลบ</button>`
-            }
-          </div>
-          <button class="mt-3 w-full px-3 py-2 rounded bg-brand.red hover:bg-red-600" data-savtpl="${i}">บันทึกเทมเพลต</button>
-        `;
-        listBox.appendChild(card);
-      });
-      // bindings
-      $$('button[data-savtpl]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const i = +b.getAttribute('data-savtpl'); const arr = JSON.parse(localStorage.getItem(LS_KEYS.TEMPLATES));
-          const t = arr[i];
-          ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-            t.styles[k] = t.styles[k] || {};
-            t.styles[k].fs = parseInt($(`input[data-fs="${i}|${k}"]`).value)||14;
-            t.styles[k].color = $(`input[data-color="${i}|${k}"]`).value||'#ffffff';
-            t.styles[k].mt = parseInt($(`input[data-mt="${i}|${k}"]`).value)||0;
-          });
-          // allow toggle showLogo only for default ids
-          if(['t-a5','t-a6','t-acc'].includes(t.id)){
-            t.showLogo = $(`input[data-logo="${i}"]`).checked;
-          }
-          localStorage.setItem(LS_KEYS.TEMPLATES, JSON.stringify(arr));
-          templates = arr;
-          log('save_template', t.name);
-          alert('บันทึกเทมเพลตแล้ว');
-        });
-      });
-      $$('button[data-del]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const i = +b.getAttribute('data-del'); const arr = JSON.parse(localStorage.getItem(LS_KEYS.TEMPLATES));
-          const t = arr[i];
-          if(['t-a5','t-a6','t-acc'].includes(t.id)) return;
-          if(confirm('ลบเทมเพลตนี้หรือไม่?')){
-            arr.splice(i,1); localStorage.setItem(LS_KEYS.TEMPLATES, JSON.stringify(arr)); templates=arr; log('delete_template', t.name); openSettings('templates');
-          }
-        });
-      });
-      $('#btnNewTpl').addEventListener('click', ()=>{
-        const nm = prompt('ตั้งชื่อเทมเพลตใหม่');
-        if(!nm) return;
-        const id = 'user-' + Math.random().toString(36).slice(2,8);
-        const tpl = {id, name:nm, kind:'ACC', showLogo:false, styles:{
-          sku:{fs:12,color:'#ffffff',mt:0}, description:{fs:16,color:'#ffffff',mt:0}, details:{fs:12,color:'#ffffff',mt:0},
-          price:{fs:22,color:'#ffffff',mt:0}, oldPrice:{fs:12,color:'#ff4d4f',mt:0}, expire:{fs:10,color:'#ffffff',mt:0}
-        }};
-        const arr = JSON.parse(localStorage.getItem(LS_KEYS.TEMPLATES)); arr.push(tpl);
-        localStorage.setItem(LS_KEYS.TEMPLATES, JSON.stringify(arr)); templates=arr; log('create_template', nm); openSettings('templates');
-      });
-    }
-
-    if(tab==='history'){
-      const logs = JSON.parse(localStorage.getItem(LS_KEYS.LOGS)||'[]');
-      box.innerHTML = `
-        <div class="text-2xl font-semibold mb-2">ประวัติการใช้งาน</div>
-        <div class="text-sm text-zinc-400 mb-3">ล่าสุด ${logs.length} รายการ</div>
-        <div class="max-h-[65vh] overflow-auto border border-zinc-800 rounded-xl">
-          <table class="min-w-[700px] w-full text-sm">
-            <thead class="bg-zinc-900/70 border-b border-zinc-800">
-              <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>เวลา</th><th>ผู้ใช้</th><th>การทำงาน</th><th>รายละเอียด</th></tr>
-            </thead>
-            <tbody>${logs.map(l=>`
-              <tr class="border-b border-zinc-800"><td class="px-3 py-2">${new Date(l.ts).toLocaleString('th-TH')}</td><td class="px-3 py-2">${l.user}</td><td class="px-3 py-2">${l.action}</td><td class="px-3 py-2 text-zinc-400">${l.meta||''}</td></tr>
-            `).join('')}</tbody>
-          </table>
-        </div>
-      `;
-    }
-  }
-
-  async function fileToBase64(file){
-    return new Promise((res,rej)=>{
-      const r = new FileReader();
-      r.onload = ()=>res(r.result);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
-  }
-
-  /****************
-   * IMPORT
-   ****************/
-  async function doImport(){
-    const fi = $('#fileImport');
-    if(!fi.files[0]){ alert('กรุณาเลือกไฟล์'); return; }
-    const data = await fi.files[0].arrayBuffer();
-    const wb = XLSX.read(data, {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-    // Expect header line or data directly. Find first data row where column A not empty (skip header).
-    const start = rows.findIndex(r => (r[0]||'').toString().trim() && (r[0]||'')!=='SKU');
-    const newItems = [];
-    for(let i=start;i<rows.length;i++){
-      const r = rows[i];
-      if(!(r[0]||'').toString().trim()) continue;
-      const item = {
-        sku: (r[0]||'').toString().trim(),
-        description: (r[1]||'').toString().trim(),
-        details: (r[2]||'').toString().trim(),
-        costs: parseFloat(r[3]||0)||0,
-        normalPrice: parseFloat(r[4]||0)||0,
-        promoPrice: parseFloat(r[5]||0)||0,
-        expiresDate: fromExcelDate(r[6]||''),
-        marketplacePrice: parseFloat(r[7]||0)||0,
-        // r[8] ignored (Marketplace GP%)
-        dealer1: parseFloat(r[9]||0)||0,
-        // r[10] ignored
-        dealer2: parseFloat(r[11]||0)||0,
-        // r[12] ignored
-        dealer3: parseFloat(r[13]||0)||0,
-        // r[14] ignored
-      };
-      newItems.push(item);
-    }
-    if(!newItems.length){ alert('ไม่พบข้อมูล'); return; }
-    products = newItems;
-    localStorage.setItem(LS_KEYS.PRODUCTS, JSON.stringify(products));
-    renderTable();
-    log('import_excel', `${newItems.length} rows`);
-    alert('นำเข้าข้อมูลสำเร็จ: ' + newItems.length + ' รายการ');
-  }
-
-  /****************
-   * EXPORT
-   ****************/
-  async function doExport(){
-    const wb = await XlsxPopulate.fromBlankAsync();
-    const sh = wb.sheet(0).name('PriceData');
-
-    const header = ['SKU','Description','Details','Costs','Normal Price','Promotion Price','Expires Date','Marketplace Price','Marketplace GP%','Dealer Price Tier 1','GP% T1','Dealer Price Tier 2','GP% T2','Dealer Price Tier 3','GP% T3'];
-    sh.cell('A1').value([header]);
-    sh.row(1).style({bold:true});
-
-    // fills
-    const lightGreen = 'FFCCFFCC'; // a light green
-    const yellow = 'FFFFFF99';
-
-    products.forEach((p,i)=>{
-      const r = 2+i;
-      const row = [
-        p.sku, p.description, p.details, p.costs, p.normalPrice, p.promoPrice, p.expiresDate?toDateInput(p.expiresDate):'',
-        p.marketplacePrice, +(gp(p.marketplacePrice,p.costs)*100).toFixed(2),
-        p.dealer1, +(gp(p.dealer1,p.costs)*100).toFixed(2),
-        p.dealer2, +(gp(p.dealer2,p.costs)*100).toFixed(2),
-        p.dealer3, +(gp(p.dealer3,p.costs)*100).toFixed(2)
-      ];
-      sh.cell(`A${r}`).value(row);
-    });
-
-    // Color fills
-    sh.range(`D2:D${products.length+1}`).style({fill:lightGreen});
-    sh.range(`F2:F${products.length+1}`).style({fill:yellow});
-    sh.range(`G2:G${products.length+1}`).style({fill:yellow});
-
-    // width
-    const ws = [12,28,50,12,14,16,16,16,14,14,12,14,12,14,12];
-    ws.forEach((w,i)=> sh.column(i+1).width(w));
-
-    const blob = await wb.outputAsync();
-    const url = URL.createObjectURL(new Blob([blob],{type:'application/octet-stream'}));
-    const a = document.createElement('a'); a.href=url; a.download='price_data_export.xlsx';
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    log('export_excel', `${products.length} rows`);
-  }
-
-  /****************
-   * PRINT FLOW
-   ****************/
-  function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
-
-  $('#btnPrintModal').addEventListener('click', ()=>{
-    const selected = $$('.row-check:checked').map(c=>c.getAttribute('data-sku'));
-    if(!selected.length) { alert('โปรดเลือกสินค้าก่อน'); return; }
-    const list = selected.map(sku=> products.find(p=>p.sku===sku) ).filter(Boolean);
-    // build left list
-    const box = $('#printList'); box.innerHTML='';
-    list.forEach((p,i)=>{
-      const row = document.createElement('div');
-      row.className='flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-lg p-2';
-      row.innerHTML = `
-        <div class="flex-1">
-          <div class="font-medium">${p.sku}</div>
-          <div class="text-xs text-zinc-400 truncate">${p.description}</div>
-        </div>
-        <input type="number" min="1" value="1" data-qty="${p.sku}" class="w-20 px-2 py-1 rounded bg-zinc-950 border border-zinc-800">
-      `;
-      box.appendChild(row);
-    });
-
-    // template dropdown
-    const dd = $('#printTemplate'); dd.innerHTML='';
-    templates.forEach(t=>{
-      const o = document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o);
-    });
-
-    // preview
-    dd.onchange = ()=> renderPreview(list[0], templates.find(t=>t.id===dd.value));
-    renderPreview(list[0], templates[0]);
-
-    // open
-    $('#btnOpenPrint').onclick = ()=> openPrintTab(list.map(p=>({p,qty: parseInt($(`input[data-qty="${p.sku}"]`).value)||1})), templates.find(t=>t.id===dd.value));
-    togglePrintModal(true);
-  });
-
-  function renderPreview(item, tpl){
-    const box = $('#previewBox'); box.innerHTML='';
-    if(!item) return box.innerHTML = '<div class="text-zinc-500">ไม่มีรายการ</div>';
-    const el = buildTagElement(item, tpl, true);
-    box.appendChild(el);
-  }
-
-  function openPrintTab(list, tpl){
-    const newWin = window.open('', '_blank');
-    const logo = localStorage.getItem(LS_KEYS.LOGO)||'';
-    const totalItems = [];
-    list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) totalItems.push(p); });
-
-    // determine grid per template
-    let gridCSS='', tagCSS='', tplKind = tpl.kind;
-    if(tplKind==='A5'){
-      gridCSS = `
-        .sheet{ display:grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 100%; gap:0; page-break-after: always; }
-        .tag{ width:148mm; height:210mm; }
-      `;
-    } else if(tplKind==='A6'){
-      gridCSS = `
-        .sheet{ display:grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap:0; page-break-after: always; }
-        .tag{ width:105mm; height:148mm; }
-      `;
-    } else {
-      // ACC: 12 per sheet (2x6)
-      gridCSS = `
-        .sheet{ display:grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap:0; page-break-after: always; }
-        .tag{ width:99mm; height:49.5mm; }
-      `;
-    }
-
-    const style = `
-      <style>
-        @page{ size: A4; margin: 8mm }
-        body{ background:#000; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Kanit', 'Prompt', sans-serif; }
-        .tag{ box-sizing:border-box; padding: ${tplKind==='ACC' ? '6mm' : '8mm'}; color:#fff; }
-        .logo{ position:absolute; right:8mm; top:6mm; width:${tplKind==='ACC'?'20mm':'28mm'}; }
-        .card{ position: relative; background:#0b0b0c; border-radius: 10px; width:100%; height:100%; border: 2px solid #1f1f22; overflow:hidden }
-        .sheet{ width: 100%; height: calc(297mm - 16mm); }
-        ${gridCSS}
-        .bullet{ display:flex; gap:6px; }
-        .bullet:before{ content:'•'; }
-        .strike{ text-decoration: line-through; }
-        .acc{ background:#000; border: 1px solid #222 }
-      </style>
+  if(tab==='history'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const logs=JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Usage History</div>
+      <div class="max-h-[65vh] overflow-auto border border-zinc-800 rounded-2xl">
+        <table class="min-w-[700px] w-full text-sm">
+          <thead class="bg-zinc-900/70 border-b border-zinc-800">
+            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+          </thead>
+          <tbody>${logs.map(l=>`<tr class="border-b border-zinc-800"><td class="px-3 py-2">${new Date(l.ts).toLocaleString('th-TH')}</td><td class="px-3 py-2">${l.user}</td><td class="px-3 py-2">${l.action}</td><td class="px-3 py-2 text-zinc-400">${l.meta||''}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
     `;
-
-    // Build pages
-    const perSheet = (tplKind==='A5') ? 2 : (tplKind==='A6'? 4 : 12);
-    const pages = [];
-    for(let i=0;i<totalItems.length;i+=perSheet){
-      pages.push(totalItems.slice(i, i+perSheet));
-    }
-
-    const logoTag = (tpl.showLogo && logo) ? `<img src="${logo}" class="logo">` : (tpl.showLogo ? `<div class="logo" style="color:#fff;font-weight:800">P</div>` : '');
-
-    const body = pages.map(pg=>{
-      const inner = pg.map(p=>{
-        return `
-          <div class="tag ${tplKind==='ACC'?'acc':''}">
-            <div class="card">
-              ${logoTag}
-              ${renderTagInnerHTML(p, tpl)}
-            </div>
-          </div>
-        `;
-      }).join('');
-      return `<div class="sheet">${inner}</div>`;
-    }).join('');
-
-    newWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>พิมพ์ป้ายราคา</title>${style}</head><body>${body}</body></html>`);
-    newWin.document.close();
-    log('open_print', `${totalItems.length} tags, tpl=${tpl.name}`);
   }
+}
 
-  function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${(o.mt||0)}px;`; }
+async function fileToBase64(f){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
+}
 
-  function renderTagInnerHTML(p,tpl){
-    if(tpl.kind==='ACC'){
-      const s = tpl.styles;
-      return `
-        <div style="position:absolute;left:8mm;top:6mm;${styleInline(s.sku)}">${p.sku}</div>
-        <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;${styleInline(s.description)}">
-          ${truncateMiddle(p.description, 42)}
-        </div>
-        <div style="position:absolute;left:8mm;bottom:6mm;${styleInline(s.expire)}">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-        <div style="position:absolute;right:8mm;bottom:6mm;text-align:right">
-          <div style="${styleInline(s.oldPrice)}" class="strike">${fmtMoney(p.normalPrice)}.-</div>
-          <div style="font-weight:800;${styleInline(s.price)}">${fmtMoney(p.promoPrice)}.-</div>
-        </div>
-      `;
-    }
-    // A5/A6
-    const s = tpl.styles;
-    const bullets = (p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`<div class="bullet" style="${styleInline(s.details)}">${t}</div>`).join('');
+/* ================= IMPORT / EXPORT ================= */
+async function doImport(){
+  const fi=$('#fileImport'); if(!fi.files[0]) return alert('Choose a file');
+  const data=await fi.files[0].arrayBuffer();
+  const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  const start=rows.findIndex(r=> (r[0]||'').toString().trim() && (r[0]||'')!=='SKU');
+  const newItems=[];
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i]; if(!(r[0]||'').toString().trim()) continue;
+    newItems.push({
+      sku:(r[0]||'').toString().trim(),
+      description:(r[1]||'').toString().trim(),
+      details:(r[2]||'').toString().trim(),
+      costs:parseFloat(r[3]||0)||0,
+      normalPrice:parseFloat(r[4]||0)||0,
+      promoPrice:parseFloat(r[5]||0)||0,
+      expiresDate:fromExcelDate(r[6]||''),
+      marketplacePrice:parseFloat(r[7]||0)||0,
+      dealer1:parseFloat(r[9]||0)||0,
+      dealer2:parseFloat(r[11]||0)||0,
+      dealer3:parseFloat(r[13]||0)||0
+    });
+  }
+  if(!newItems.length) return alert('No data found');
+  products=newItems; localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); renderTable(); log('import_excel', `${newItems.length} rows`);
+  alert('Imported: '+newItems.length+' rows');
+}
+async function doExport(){
+  const wb=await XlsxPopulate.fromBlankAsync(); const sh=wb.sheet(0).name('PriceData');
+  const header=['SKU','Description','Details','Costs','Normal Price','Promotion Price','Expires Date','Marketplace Price','Marketplace GP%','Dealer Price Tier 1','GP% T1','Dealer Price Tier 2','GP% T2','Dealer Price Tier 3','GP% T3','Promotion GP%'];
+  sh.cell('A1').value([header]); sh.row(1).style({bold:true});
+  const lightGreen='FFCCFFCC', yellow='FFFFFF99';
+
+  products.forEach((p,i)=>{
+    const r=2+i;
+    const row=[
+      p.sku,p.description,p.details,p.costs,p.normalPrice,p.promoPrice,p.expiresDate?toDateInput(p.expiresDate):'',
+      p.marketplacePrice, +gpPct(p.marketplacePrice,p.costs).toFixed(2),
+      p.dealer1, +gpPct(p.dealer1,p.costs).toFixed(2),
+      p.dealer2, +gpPct(p.dealer2,p.costs).toFixed(2),
+      p.dealer3, +gpPct(p.dealer3,p.costs).toFixed(2),
+      +gpPct(p.promoPrice,p.costs).toFixed(2) // Promotion GP% (extra column)
+    ];
+    sh.cell(`A${r}`).value(row);
+  });
+  sh.range(`D2:D${products.length+1}`).style({fill:lightGreen});
+  sh.range(`F2:G${products.length+1}`).style({fill:yellow});
+  const widths=[12,28,50,12,14,16,16,16,14,14,12,14,12,14,12,14];
+  widths.forEach((w,i)=>sh.column(i+1).width(w));
+  const blob=await wb.outputAsync();
+  const url=URL.createObjectURL(new Blob([blob],{type:'application/octet-stream'}));
+  const a=document.createElement('a'); a.href=url; a.download='price_data_export.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  log('export_excel', `${products.length} rows`);
+}
+
+/* ================= PRINT WORKFLOW ================= */
+// Open modal -> select SKUs (checklist) -> quantities -> choose template -> open new tab
+function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
+
+$('#btnPrintModal').onclick=()=>{
+  if(!currentUser.canPrint) return;
+  buildPrintList(); // from filteredProducts()
+  fillTemplateDropdown();
+  const items=filteredProducts();
+  renderPreview(items[0], templates[0]);
+  togglePrintModal(true);
+};
+function buildPrintList(){
+  const box=$('#printList'); box.innerHTML='';
+  const items=filteredProducts();
+  const frag=document.createDocumentFragment();
+  items.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-2';
+    row.innerHTML=`
+      <label class="flex items-center gap-2 w-6">
+        <input type="checkbox" data-sel="${p.sku}">
+      </label>
+      <div class="flex-1">
+        <div class="font-medium">${p.sku}</div>
+        <div class="text-xs text-zinc-400 truncate">${p.description}</div>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-zinc-400">Qty</span>
+        <input type="number" min="1" value="1" data-qty="${p.sku}" class="w-20 px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+      </div>
+    `;
+    frag.appendChild(row);
+  });
+  box.appendChild(frag);
+  $('#printCheckAll').checked=false;
+  $('#printCheckAll').onchange=()=> $$('#printList input[type="checkbox"]').forEach(c=>c.checked=$('#printCheckAll').checked);
+  $('#printSearch').oninput=()=>{
+    const q=$('#printSearch').value.toLowerCase();
+    $$('#printList > div').forEach(div=>{
+      const sku=div.querySelector('[data-sel]').getAttribute('data-sel').toLowerCase();
+      const desc=div.querySelector('.truncate').textContent.toLowerCase();
+      div.style.display = (!q || sku.includes(q) || desc.includes(q)) ? '' : 'none';
+    });
+  };
+  updatePrintSummary();
+  $$('#printList input').forEach(i=>i.oninput=updatePrintSummary);
+}
+function updatePrintSummary(){
+  const selected=$$('#printList input[type="checkbox"]:checked');
+  let count=0; selected.forEach(c=>{ const sku=c.getAttribute('data-sel'); const qty=parseInt($(`[data-qty="${sku}"]`).value)||0; count+=qty; });
+  $('#printSummary').textContent = `${selected.length} SKUs selected • ${count} tags total`;
+}
+function fillTemplateDropdown(){
+  const dd=$('#printTemplate'); dd.innerHTML='';
+  templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
+  dd.onchange=()=>{
+    const first = filteredProducts()[0]; renderPreview(first, templates.find(t=>t.id===dd.value));
+  };
+}
+function renderPreview(item, tpl){
+  const box=$('#previewBox'); box.innerHTML='';
+  if(!item) return box.innerHTML='<div class="text-zinc-500">No items</div>';
+  box.appendChild(buildTagElement(item,tpl,true));
+}
+$('#btnOpenPrint').onclick=()=>{
+  const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
+  if(!picks.length) return alert('Select at least one SKU.');
+  const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
+                  .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
+  const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
+  openPrintTab(list,tpl);
+};
+
+function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
+function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
+
+function renderTagInnerHTML(p,tpl){
+  // contrast helpers (semi-transparent pads)
+  const padTop = tpl.kind==='ACC' ? '4mm' : '10mm';
+  if(tpl.kind==='ACC'){
+    const s=tpl.styles;
     return `
-      <div style="padding:10mm">
-        <div style="${styleInline(s.sku)};opacity:.8" class="text-right">${p.sku}</div>
-        <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2">${p.description}<span style="opacity:.6">...</span></div>
-        <div class="mt-3 space-y-1">${bullets}</div>
-        <div class="mt-4 flex items-end justify-between">
-          <div style="${styleInline(s.expire)}">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-          <div class="text-right">
-            <div style="${styleInline(s.oldPrice)}" class="strike">${fmtMoney(p.normalPrice)}.-</div>
-            <div style="font-weight:900;${styleInline(s.price)}">${fmtMoney(p.promoPrice)}.-</div>
-          </div>
+      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
+      <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:${padTop} 8mm;" class="text-elevate">
+        <div style="${styleInline(s.description)};max-width:100%">${truncateMiddle(p.description, 44)}</div>
+      </div>
+      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
+        <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+        <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+      </div>
+    `;
+  }
+  const s=tpl.styles;
+  const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
+    <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
+  return `
+    <div style="padding:10mm">
+      <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
+      <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
+      <div class="mt-3 space-y-1">${bullets}</div>
+      <div class="mt-4 flex items-end justify-between">
+        <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+        <div class="text-right">
+          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
         </div>
       </div>
-    `;
+    </div>
+  `;
+}
+function buildTagElement(p,tpl,preview=false){
+  const wrap=document.createElement('div');
+  wrap.className='w-full grid place-items-center';
+  const kindClass = tpl.kind==='A4'?'w-[420px] h-[600px]': tpl.kind==='A5'?'w-[320px] h-[470px]': tpl.kind==='A6'?'w-[260px] h-[360px]':'w-[330px] h-[165px]';
+  wrap.innerHTML=`
+    <div class="relative ${tpl.kind==='ACC'?'bg-black':'bg-brand.dark'} border border-zinc-800 rounded-2xl overflow-hidden ${kindClass}">
+      ${tpl.showLogo ? (localStorage.getItem(LS.LOGO) ? `<img src="${localStorage.getItem(LS.LOGO)}" class="absolute right-3 top-3 w-16">` : `<div class="absolute right-3 top-3 w-16 text-white font-black text-xl text-right">P</div>`) : ''}
+      <div class="${tpl.kind==='ACC'?'bg-gradient-to-b from-black/30 to-black/40':''}" style="width:100%;height:100%">${renderTagInnerHTML(p,tpl)}</div>
+    </div>
+  `;
+  return wrap;
+}
+
+function openPrintTab(list,tpl){
+  const w=window.open('','_blank');
+  const logo=localStorage.getItem(LS.LOGO)||'';
+  const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
+
+  // per-sheet and tag sizes (in mm) — tuned to match provided PDFs
+  let perSheet, tagW, tagH, pad='8mm', logoW='28mm';
+  if(tpl.kind==='A4'){ perSheet=1; tagW='210mm'; tagH='297mm'; pad='10mm'; logoW='32mm'; }
+  else if(tpl.kind==='A5'){ perSheet=2; tagW='148mm'; tagH='210mm'; }
+  else if(tpl.kind==='A6'){ perSheet=4; tagW='105mm'; tagH='148mm'; }
+  else { perSheet=12; tagW='99mm'; tagH='49.5mm'; pad='6mm'; logoW='20mm'; }
+
+  const style=`
+    <style>
+      @page { size: A4; margin: 8mm; }
+      html,body{ background:#000; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Kanit','Prompt',sans-serif; }
+      .sheet{ width:100%; height: calc(297mm - 16mm); display:grid; gap:0; page-break-after:always; }
+      .tag{ width:${tagW}; height:${tagH}; padding:${pad}; box-sizing:border-box; }
+      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background:${tpl.kind==='ACC'?'#000':'#0b0b0c'}; color:#fff; }
+      .logo{ position:absolute; right:8mm; top:6mm; width:${logoW}; }
+      ${tpl.kind==='A4' ? `.sheet{ grid-template-columns: 1fr; grid-auto-rows: 1fr; }` : ''}
+      ${tpl.kind==='A5' ? `.sheet{ grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; }` : ''}
+      ${tpl.kind==='A6' ? `.sheet{ grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; }` : ''}
+      ${tpl.kind==='ACC'? `.sheet{ grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; } .card{ border:1px solid #222; }`:''}
+      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+    </style>
+  `;
+
+  const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
+  const logoTag = (tpl.showLogo && logo) ? `<img src="${logo}" class="logo">` : (tpl.showLogo ? `<div class="logo" style="color:#fff;font-weight:800">P</div>` : '');
+
+  const body = pages.map(pg=>{
+    const inner=pg.map(p=>`
+      <div class="tag">
+        <div class="card">
+          ${logoTag}
+          ${renderTagInnerHTML(p,tpl)}
+        </div>
+      </div>`).join('');
+    return `<div class="sheet">${inner}</div>`;
+  }).join('');
+
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
+  w.document.close();
+  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
+}
+
+/* ================= EVENTS ================= */
+$('#btnLogin').onclick=login;
+$('#btnLogout').onclick=()=>{ log('logout'); logout(); };
+
+['#searchInput','#dateStart','#dateEnd'].forEach(s=>$(s).addEventListener('input', renderTable));
+$('#channelSelect').addEventListener('change', ()=>{ updateExpireVisibility(); renderTable(); });
+
+/* Costs visibility propagation if global Dealer setting turns on for Users */
+const observer=new MutationObserver(()=>{
+  const flag=JSON.parse(localStorage.getItem(LS.USERS_COST_FLAG)||'false');
+  if(currentUser && currentUser.role==='User' && flag){
+    currentUser.canSeeCosts=true; $('#thCosts').classList.remove('hidden');
   }
+});
+observer.observe(document.body,{childList:true,subtree:true});
 
-  function buildTagElement(p, tpl, preview=false){
-    const wrap = document.createElement('div');
-    wrap.className='w-full grid place-items-center';
-    const kindClass = tpl.kind==='A5'?'w-[320px] h-[470px]': tpl.kind==='A6' ? 'w-[260px] h-[360px]' : 'w-[330px] h-[165px]';
-    wrap.innerHTML = `
-      <div class="relative ${tpl.kind==='ACC'?'bg-black':'bg-brand.dark'} border border-zinc-800 rounded-xl overflow-hidden ${kindClass}">
-        ${tpl.showLogo ? (localStorage.getItem(LS_KEYS.LOGO) ? `<img src="${localStorage.getItem(LS_KEYS.LOGO)}" class="absolute right-3 top-3 w-16">` : `<div class="absolute right-3 top-3 w-16 text-white font-black text-xl text-right">P</div>`) : ''}
-        ${renderTagInnerHTML(p,tpl)}
-      </div>
-    `;
-    return wrap;
-  }
+/* ================= STARTUP ================= */
+loadState();
+const last=localStorage.getItem(LS.LASTUSER)||''; if(last) $('#loginUser').value=last;
 
-  function truncateMiddle(str, max){
-    if(!str) return '';
-    if(str.length<=max) return str;
-    const half=Math.floor((max-3)/2);
-    return str.slice(0,half)+'...'+str.slice(-half);
-  }
-
-  /****************
-   * EVENTS
-   ****************/
-  $('#btnLogin').addEventListener('click', login);
-  $('#btnLogout').addEventListener('click', ()=>{ log('logout'); logout(); });
-
-  $('#searchInput').addEventListener('input', renderTable);
-  $('#channelSelect').addEventListener('change', ()=>{ updateExpireVisibility(); renderTable(); });
-  $('#dateStart').addEventListener('change', renderTable);
-  $('#dateEnd').addEventListener('change', renderTable);
-  $('#checkAll').addEventListener('change', e=> { $$('.row-check').forEach(c=>c.checked=e.target.checked); });
-
-  $('#btnHistory').addEventListener('click', ()=> openSettings('history'));
-
-  // Costs visibility affected by Dealer global flag
-  const observer = new MutationObserver(()=>{
-    const flag = JSON.parse(localStorage.getItem('pp_flag_users_costs')||'false');
-    if(currentUser && currentUser.role==='User' && flag){
-      currentUser.canSeeCosts = true;
-      $('#thCosts').classList.remove('hidden');
-    }
-  });
-  observer.observe(document.body,{childList:true,subtree:true});
-
-  /****************
-   * STARTUP
-   ****************/
-  loadState();
-  const last = localStorage.getItem(LS_KEYS.LASTUSER)||'';
-  if(last){ $('#loginUser').value=last; }
-
-  </script>
+/* Keyboard focus */
+window.addEventListener('keydown',e=>{ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
+</script>
 </body>
 </html>
