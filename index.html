@@ -81,11 +81,12 @@
     <!-- Filters -->
     <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col gap-3">
       <div class="flex flex-col lg:flex-row gap-3">
-        <div class="relative flex-1">
-          <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-950 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="Search (SKU / Product Name)" />
-          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">⌘K</div>
-        </div>
-
+<div class="relative flex-1">
+  <input id="searchInput"
+    class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand.red"
+    placeholder="Search (SKU / Product Name)" />
+  <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">🔎</div>
+</div>
         <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-zinc-950 border border-zinc-700">
           <option>Flagship</option>
           <option>Marketplace</option>
@@ -199,8 +200,7 @@
       <div class="text-xl font-semibold">Print Price Tags</div>
       <button onclick="togglePrintModal(false)" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
     </div>
-
-    <div class="grid grid-cols-1 xl:grid-cols-[480px_1fr] h-[calc(100%-64px)]">
+<div class="grid grid-cols-1 xl:grid-cols-[480px_1fr] h-[calc(100%-64px)] min-h-0">
       <!-- Left -->
       <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
         <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
@@ -220,7 +220,7 @@
       </div>
 
 <!-- Right: live preview (fills the pane) -->
-<div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4">
+<div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
   <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
 <div id="previewBox"
      class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
@@ -944,6 +944,8 @@ function renderPreview(item,tpl){
   holder.style.position='relative';
   holder.appendChild(node);
   box.appendChild(holder);
+  const ro = new ResizeObserver(() => fit());
+  ro.observe(box);
 
   function fit(){
     const availW=box.clientWidth;
