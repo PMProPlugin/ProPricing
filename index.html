@@ -219,10 +219,13 @@
         <div id="printSummary" class="text-sm text-zinc-400"></div>
       </div>
 
-      <!-- Right: live preview (fills the pane) -->
-      <div class="p-4 flex flex-col h-full min-h-0">
-        <div class="text-sm text-zinc-400 mb-2">Live preview of the first selected item</div>
-        <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 min-h-0 relative flex items-center justify-center"></div>
+<!-- Right: live preview (fills the pane) -->
+<div class="relative flex flex-col h-full min-h-0 min-w-0 p-4">
+  <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
+  <div
+    id="previewBox"
+    class="flex-1 min-h-0 min-w-0 w-full h-full bg-zinc-900 rounded-2xl border border-zinc-800 relative flex items-center justify-center overflow-hidden">
+  </div>
       </div>
     </div>
   </div>
