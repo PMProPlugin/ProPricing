@@ -66,7 +66,6 @@
       </div>
       <div class="ml-auto flex items-center gap-2">
         <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Settings</button>
-        <button id="btnHistory" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">History</button>
         <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
       </div>
     </div>
@@ -295,7 +294,6 @@ function login(){
   $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
   const isHost=currentUser.role==='Host', isAdmin=currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  $('#btnHistory').classList.toggle('hidden', !isHost);
   loadState();
   initFiltersForUser();
   applyDealerNamesToUI();
