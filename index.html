@@ -998,8 +998,8 @@ function fillTemplateDropdown(){
 
 /* ---------- Live Preview: fit-to-pane + observer ---------- */
 function baseSize(kind){
-  if(kind==='A4') return {w:744,h:1052};  // ~1:1.414
-  if(kind==='A5') return {w:1052,h:744};  // TRUE A5 landscape (อัตราส่วนเดียวกับ A4 แต่กลับด้าน)
+  if(kind==='A4') return {w:744,h:1052};  // A4: {w:744,h:1052}  → A5 = A4 / √2  (คงสัดส่วน 1:√2 และแนวตั้ง)
+  if(kind==='A5') return {w:526, h:744};  // 744/√2≈526, 1052/√2≈744 → portrait A5
   if(kind==='A6') return {w:522,h:372};
   return {w:640,h:320}; // ACC ~ 2:1
 }
@@ -1091,41 +1091,53 @@ function openPrintTab(list,tpl){
   if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
 
   const logo=localStorage.getItem(LS.LOGO)||'';
+  let pageSize = 'A4'; // default is A4 portrait, จะสลับเป็น 'A4 landscape' ตอนเป็น A5
   let pageSize = 'A4'; // default
   let cols=1, rows=1, pad='8mm', logoW='28mm';
   if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; logoW='32mm'; }
-  else if(tpl.kind==='A5'){ cols=1; rows=1; pad='10mm'; pageSize='A5 landscape'; }
+  else if(tpl.kind==='A5'){ 
+  cols = 2;           // วาง 2 ป้ายเคียงกัน
+  rows = 1;           // 1 แถว
+  pad  = '10mm';
+  pageSize = 'A4 landscape';  // แผ่นพิมพ์เป็น A4 แนวนอน
+}
   else if(tpl.kind==='A6'){ cols=2; rows=2; }
   else { cols=2; rows=6; pad='6mm'; logoW='20mm'; }
 
-  const style=`
+const style=`
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     @page { size: ${pageSize}; margin: 8mm; }
-    html,body{ background:#000; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Kanit','Prompt',sans-serif; }
+    html,body{
+      background:#000;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      font-family:'Kanit','Prompt',sans-serif;
+    }
 
-    /* กำหนดขนาด .sheet ให้ตรงกับขนาดกระดาษจริง */
-    ${pageSize==='A5 landscape'
+    /* ขนาดแผ่นพิมพ์ตาม pageSize */
+    ${pageSize==='A4 landscape'
       ? `
+        /* A4 แนวนอน: กว้าง 297mm สูง 210mm */
         .sheet{
-          width: calc(210mm - 16mm);   /* A5 แนวนอน: กว้าง 210mm */
-          height: calc(148.5mm - 16mm);/* A5 แนวนอน: สูง 148.5mm */
+          width:  calc(297mm - 16mm);
+          height: calc(210mm - 16mm);
           margin: 0 auto;
           display: grid;
-          grid-template-columns: repeat(${cols}, 1fr);
-          grid-template-rows: repeat(${rows}, 1fr);
+          grid-template-columns: repeat(${cols}, 1fr); /* 2 คอลัมน์สำหรับ A5 */
+          grid-template-rows:    repeat(${rows}, 1fr); /* 1 แถว */
           gap: 0;
           page-break-after: always;
         }
       `
       : `
+        /* A4 แนวตั้ง (กรณีอื่น ๆ เช่น A4/A6 ตามเดิม) */
         .sheet{
-          width: calc(210mm - 16mm);   /* A4 แนวตั้ง (เดิม) */
+          width:  calc(210mm - 16mm);
           height: calc(297mm - 16mm);
           margin: 0 auto;
           display: grid;
           grid-template-columns: repeat(${cols}, 1fr);
-          grid-template-rows: repeat(${rows}, 1fr);
+          grid-template-rows:    repeat(${rows}, 1fr);
           gap: 0;
           page-break-after: always;
         }
@@ -1133,11 +1145,16 @@ function openPrintTab(list,tpl){
     }
 
     .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; }
-    .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background:${tpl.kind==='ACC'?'#000':'#0b0b0c'}; color:#fff; }
+    .card{
+      position:relative; width:100%; height:100%;
+      border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
+      background:${tpl.kind==='ACC'?'#000':'#0b0b0c'}; color:#fff;
+    }
     .logo{ position:absolute; right:8mm; top:6mm; width:${logoW}; }
     .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
   </style>
 `;
+
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
   const logoTag = (tpl.showLogo && logo) ? `<img src="${logo}" class="logo">` : (tpl.showLogo ? `<div class="logo" style="color:#fff;font-weight:800">P</div>` : '');
