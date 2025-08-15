@@ -71,8 +71,7 @@
         <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
       </div>
       <div class="ml-auto flex items-center gap-2">
-        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">⚙️</button>
-        <button id="btnHistory" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm hidden">History</button>
+        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Settings</button>
         <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
       </div>
     </div>
@@ -395,7 +394,6 @@ function login(){
   const isHost = currentUser.role==='Host';
   const isAdmin = currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  $('#btnHistory').classList.toggle('hidden', !isHost);
 
   loadState();
   initFiltersForUser();
@@ -836,6 +834,9 @@ function renderSettings(tab){
         <div class="text-2xl font-semibold mb-2">Template Management</div>
         <div class="flex items-center gap-2">
            <button id="btnNewTpl" class="px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">New Blank Template</button>
+           <label class="px-3 py-2 rounded-2xl bg-brand-red hover:bg-red-600 border border-red-700 cursor-pointer">
+            <input type="file" id="tplUpload" accept="image/png, image/jpeg" class="hidden"> Upload New Image
+          </label>
         </div>
       </div>
       <div class="text-sm text-zinc-400 mb-3">All templates are fully customizable.</div>
@@ -924,7 +925,7 @@ function renderSettings(tab){
             const arr = JSON.parse(localStorage.getItem(LS.TEMPLATES));
             const t = arr[i];
             t.imageData = await fileToBase64(f);
-            t.kind = 'IMAGE'; // Ensure kind is set to IMAGE
+            if (!t.kind || t.kind !== 'IMAGE') t.kind = 'IMAGE';
             localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr));
             templates = arr;
             autoSyncSchedule();
@@ -940,7 +941,28 @@ function renderSettings(tab){
       tpl.id = id;
       tpl.name = nm;
       tpl.imageData = null;
+      tpl.kind = 'A6'; // Reset kind for blank template
       const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); arr.push(tpl); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('create_template',nm); openSettings('templates');
+    };
+
+    $('#tplUpload').onchange=async(e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      const nm = prompt('Enter a name for this new image template:');
+      if (!nm) return;
+      try{
+        const imageData = await fileToBase64(f);
+        const id = 'user-img-' + Math.random().toString(36).slice(2, 8);
+        const newTemplate = { ...JSON.parse(JSON.stringify(defaultTemplates()[2])), id, name: nm, kind: 'IMAGE', imageData, showLogo: false };
+        const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES));
+        arr.push(newTemplate);
+        localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr));
+        templates=arr; autoSyncSchedule();
+        log('upload_image_template', nm);
+        openSettings('templates');
+        alert('Image template uploaded successfully.');
+      }
+      catch(err){ alert('Failed to upload image template. Error: ' + err.message); }
+      e.target.value = ''; // Reset file input
     };
   }
 
@@ -1158,6 +1180,21 @@ function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
 
 function renderTagInnerHTML(p,tpl){
+    if(tpl.kind==='ACC'){
+        const s=tpl.styles;
+        return `
+        <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
+        <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
+            <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${truncateMiddle(p.description, 44)}</div>
+        </div>
+        <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+        <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
+            <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+            <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+        </div>
+        `;
+    }
+
     const s=tpl.styles;
     const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
         <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
