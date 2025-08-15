@@ -834,7 +834,7 @@ function renderSettings(tab){
         <div class="text-2xl font-semibold mb-2">Template Management</div>
         <div class="flex items-center gap-2">
            <button id="btnNewTpl" class="px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">New Blank Template</button>
-           <label class="px-3 py-2 rounded-2xl bg-brand-red hover:bg-red-600 border border-red-700 cursor-pointer">
+           <label class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 cursor-pointer">
             <input type="file" id="tplUpload" accept="image/png, image/jpeg" class="hidden"> Upload New Image
           </label>
         </div>
@@ -895,29 +895,30 @@ function renderSettings(tab){
       `;
       listBox.appendChild(card);
     });
-
-    $$('button[data-savtpl]').forEach(b=>b.onclick=()=>{
+    
+    // --- RE-ATTACH ALL EVENT LISTENERS WITHIN THIS SCOPE ---
+    $$('#settingsContent button[data-savtpl]').forEach(b=>b.onclick=()=>{
       const i=+b.getAttribute('data-savtpl'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
-      t.name = $(`input[data-name="${i}"]`).value.trim() || 'Untitled Template';
+      t.name = $(`#settingsContent input[data-name="${i}"]`).value.trim() || 'Untitled Template';
       ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-        t.styles[k]=t.styles[k]||{}; t.styles[k].fs=parseInt($(`input[data-fs="${i}|${k}"]`).value)||14;
-        t.styles[k].color=$(`input[data-color="${i}|${k}"]`).value||'#ffffff';
-        t.styles[k].mt=parseInt($(`input[data-mt="${i}|${k}"]`).value)||0;
+        t.styles[k]=t.styles[k]||{}; t.styles[k].fs=parseInt($(`#settingsContent input[data-fs="${i}|${k}"]`).value)||14;
+        t.styles[k].color=$(`#settingsContent input[data-color="${i}|${k}"]`).value||'#ffffff';
+        t.styles[k].mt=parseInt($(`#settingsContent input[data-mt="${i}|${k}"]`).value)||0;
       });
-      t.showLogo=$(`input[data-logo="${i}"]`).checked;
+      t.showLogo=$(`#settingsContent input[data-logo="${i}"]`).checked;
       t.logoStyles = t.logoStyles || {};
-      t.logoStyles.size = parseInt($(`input[data-logosize="${i}"]`).value) || 64;
-      t.logoStyles.margin = parseInt($(`input[data-logomargin="${i}"]`).value) || 10;
+      t.logoStyles.size = parseInt($(`#settingsContent input[data-logosize="${i}"]`).value) || 64;
+      t.logoStyles.margin = parseInt($(`#settingsContent input[data-logomargin="${i}"]`).value) || 10;
       
       localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('save_template',t.name); alert('Template saved');
     });
 
-    $$('button[data-del]').forEach(b=>b.onclick=()=>{
+    $$('#settingsContent button[data-del]').forEach(b=>b.onclick=()=>{
       const i=+b.getAttribute('data-del'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
       if(confirm(`Delete template "${t.name}"?`)){ arr.splice(i,1); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('delete_template', t.name); openSettings('templates'); }
     });
     
-    $$('input[data-img]').forEach(input => {
+    $$('#settingsContent input[data-img]').forEach(input => {
         input.onchange = async (e) => {
             const i = +e.target.getAttribute('data-img');
             const f = e.target.files[0];
@@ -934,7 +935,7 @@ function renderSettings(tab){
         };
     });
 
-    $('#btnNewTpl').onclick=()=>{
+    $('#settingsContent #btnNewTpl').onclick=()=>{
       const nm=prompt('New blank template name:'); if(!nm) return;
       const id='user-'+Math.random().toString(36).slice(2,8);
       const tpl = JSON.parse(JSON.stringify(defaultTemplates()[2])); // Clone A6 template
@@ -945,7 +946,7 @@ function renderSettings(tab){
       const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); arr.push(tpl); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('create_template',nm); openSettings('templates');
     };
 
-    $('#tplUpload').onchange=async(e)=>{
+    $('#settingsContent #tplUpload').onchange=async(e)=>{
       const f=e.target.files[0]; if(!f) return;
       const nm = prompt('Enter a name for this new image template:');
       if (!nm) return;
