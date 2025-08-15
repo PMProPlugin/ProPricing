@@ -1119,11 +1119,9 @@ function baseSize(kind){
 }
 function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
-function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a default
+function renderTagInnerHTML(p,tpl){
     if(tpl.kind==='ACC'){
         const s=tpl.styles;
-        // ACC template uses absolute positioning, which is fine.
-        // The padding was on the container, which is now removed.
         return `
         <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
         <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
@@ -1136,14 +1134,11 @@ function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a de
         </div>
         `;
     }
-
     const s=tpl.styles;
     const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
         <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
-    
-    // Use the passed 'pad' variable for padding instead of hardcoded '10mm'
     return `
-        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${pad}; display:flex; flex-direction:column;">
+        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:10mm; display:flex; flex-direction:column;">
             <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
             <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
             <div class="mt-3 space-y-1">${bullets}</div>
@@ -1214,56 +1209,29 @@ function renderPreview(item,tpl){
 function openPrintTab(list,tpl){
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
   if(!items.length){ alert('Select at least one SKU.'); return; }
-
   const w=window.open('', '_blank');
   if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
-
   const logo=localStorage.getItem(LS.LOGO)||'';
   let cols=1, rows=1, pad='8mm', pageSize='A4';
-
-  if(tpl.kind === 'IMAGE') {
-    cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4';
-  }
+  if(tpl.kind === 'IMAGE') { cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4'; }
   else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
   else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
   else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
   else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
-
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
       @page { size: ${pageSize}; margin: 8mm; }
-      html,body{
-        background:#fff;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        font-family:'Kanit','Prompt',sans-serif;
-      }
-      .sheet{
-        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
-        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
-        margin: 0 auto; display: grid;
-        grid-template-columns: repeat(${cols}, 1fr);
-        grid-template-rows:    repeat(${rows}, 1fr);
-        gap: 0; page-break-after: always;
-      }
-      /* REMOVED padding from .tag to allow background to fill the space */
-      .tag{ width:100%; height:100%; box-sizing:border-box; }
-      .card{
-        position:relative; width:100%; height:100%;
-        border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
-        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
-        color:#fff;
-        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
-        background-size: cover; background-position: center;
-      }
+      html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; }
+      .sheet{ width: ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'}; height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'}; margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; }
+      .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; }
+      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
       .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
     </style>
   `;
-
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-  
   const body = pages.map(pg=>{
     const inner=pg.map(p=>{
       let logoTag = '';
@@ -1272,16 +1240,14 @@ function openPrintTab(list,tpl){
         const logoMargin = tpl.logoStyles?.margin || 10;
         logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
       }
-      // Pass the 'pad' variable to the rendering function
-      const content = renderTagInnerHTML(p, tpl, pad);
+      const content = renderTagInnerHTML(p, tpl);
       return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
     }).join('');
     return `<div class="sheet">${inner}</div>`;
   }).join('');
-
-  w.document.write(\`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>\${style}</head><body>\${body}</body></html>\`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
   w.document.close();
-  log('open_print', \`\${items.length} tags, tpl=\${tpl.name}\`);
+  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
 }
 
 /* ================= EVENTS BINDING ================= */
