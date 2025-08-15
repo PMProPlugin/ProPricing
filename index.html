@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ProPlugin • ProPricing</title>
 
-<!-- Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -23,64 +21,9 @@
   }
 </script>
 
-<!-- SheetJS + XlsxPopulate -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
 
-
-<!-- Firebase (Compat SDK) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>
-  // TODO: Replace with your Firebase project config (Project settings > General)
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "1:000000000000:web:0000000000000000"
-  };
-  try{
-    firebase.initializeApp(firebaseConfig);
-  }catch(e){ /* ignore if already initialized */ }
-  const db = firebase.firestore();
-
-  async function cloudGetHost(){
-    try{
-      const snap = await db.collection('config').doc('host').get();
-      return snap.exists ? snap.data() : null;
-    }catch(e){ console.error('cloudGetHost', e); return null; }
-  }
-  async function cloudSaveHost(hostUser){
-    try{ await db.collection('config').doc('host').set(hostUser, { merge:true }); }
-    catch(e){ console.error('cloudSaveHost', e); }
-  }
-  async function cloudGetState(){
-    try{
-      const snap = await db.collection('app').doc('state').get();
-      return snap.exists ? snap.data() : null;
-    }catch(e){ console.error('cloudGetState', e); return null; }
-  }
-  async function cloudSaveState(){
-    try{
-      if (typeof getAppState === 'function'){
-        const state = getAppState();
-        await db.collection('app').doc('state').set(state, { merge:true });
-      }
-    }catch(e){ console.error('cloudSaveState', e); }
-  }
-  async function cloudHydrateLocalIfEmpty(){
-    try{
-      if (typeof allUsers === 'function' && typeof setAppState === 'function'){
-        if(allUsers().length===0){
-          const state = await cloudGetState();
-          if(state){ setAppState(state); }
-        }
-      }
-    }catch(e){ console.error('cloudHydrateLocalIfEmpty', e); }
-  }
-</script>
 <style>
   :root { color-scheme: dark; }
   html,body{ height:100%; background:#0b0b0c }
@@ -93,7 +36,6 @@
 
 <body class="text-white font-sans">
 
-<!-- ===================== SETUP (FIRST TIME) ===================== -->
 <section id="setupView" class="hidden min-h-screen grid place-items-center">
   <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
     <div class="flex items-center gap-3 mb-6">
@@ -114,7 +56,6 @@
   </div>
 </section>
 
-<!-- ===================== LOGIN ===================== -->
 <section id="loginView" class="hidden min-h-screen grid place-items-center">
   <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
     <div class="flex items-center gap-3 mb-6">
@@ -133,9 +74,7 @@
 </section>
 
 
-<!-- ===================== APP ===================== -->
 <section id="appView" class="hidden min-h-screen">
-  <!-- Topbar -->
   <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
       <div class="flex items-center gap-3">
@@ -152,7 +91,6 @@
       </div>
     </div>
 
-    <!-- Filters -->
     <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col gap-3">
       <div class="flex flex-col lg:flex-row gap-3">
         <div class="relative flex-1">
@@ -174,7 +112,6 @@
     </div>
   </header>
 
-  <!-- Table -->
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="overflow-auto border border-zinc-800 rounded-2xl">
       <table class="min-w-[1200px] w-full text-sm">
@@ -185,16 +122,13 @@
             <th class="w-64">Details</th>
             <th id="thCosts" class="hidden">Costs</th>
 
-            <!-- Flagship -->
             <th class="col-normal">Normal</th>
             <th class="col-promo">Promotion</th>
             <th class="col-expire">Expire Date</th>
 
-            <!-- Marketplace -->
             <th class="col-market">Marketplace</th>
             <th class="col-marketgp">Market GP%</th>
 
-            <!-- Dealer -->
             <th class="col-t1"><span id="lblT1">Dealer T1</span></th>
             <th class="col-gp1">GP% T1</th>
             <th class="col-t2"><span id="lblT2">Dealer T2</span></th>
@@ -208,12 +142,10 @@
         <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
       </table>
     </div>
-    <!-- Pagination -->
     <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
   </main>
 </section>
 
-<!-- ===================== SETTINGS (with Cloud Sync) ===================== -->
 <div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
   <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
     <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
@@ -233,7 +165,6 @@
   </div>
 </div>
 
-<!-- ===================== EDITOR ===================== -->
 <div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
   <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
     <div class="flex items-center justify-between p-4 border-b border-zinc-800">
@@ -263,17 +194,13 @@
   </div>
 </div>
 
-<!-- ===================== PRINT MODAL (Horizontal, full preview) ===================== -->
 <div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
-  <!-- OUTER GRID: header + content rows; two columns always -->
   <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl grid grid-rows-[auto_1fr] grid-cols-[480px_1fr] min-h-0">
-    <!-- Header spans two columns -->
     <div class="col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
       <div class="text-xl font-semibold">Print Price Tags</div>
       <button id="btnClosePrintModal" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
     </div>
 
-    <!-- Left column: list -->
     <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
       <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
         <div class="grid grid-cols-[1fr_auto] gap-2">
@@ -290,7 +217,6 @@
       <div id="printSummary" class="text-sm text-zinc-400"></div>
     </div>
 
-    <!-- Right column: live preview fills available space -->
     <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
       <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
       <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
@@ -411,6 +337,10 @@ function setAppState(data){
 }
 
 /* ================= CLOUD SYNC (GitHub Gist) ================= */
+// FIX 2: ส่วนนี้คือฟังก์ชันสำหรับ Sync ข้อมูลออนไลน์ผ่าน GitHub Gist
+// ข้อมูลทั้งหมด (สินค้า, user, logo) จะถูกบันทึกและโหลดผ่านฟีเจอร์นี้
+// การทำงานของ LocalStorage จะแยกตามเบราว์เซอร์และอุปกรณ์เป็นเรื่องปกติ
+// หากต้องการให้ข้อมูลตรงกันในหลายๆ ที่ ต้องใช้ฟีเจอร์นี้ในการ Save/Load
 async function gistRequest(method, path, body, token){
   if(!token) throw new Error('GitHub Token is required for this operation.');
   const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
@@ -451,31 +381,18 @@ function allUsers(){
   try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
   catch { return []; }
 }
-function setUsers(u){ localStorage.setItem(LS.USERS, JSON.stringify(u)); try{ if(typeof cloudSaveState==='function') cloudSaveState(); }catch(e){} }
+function setUsers(u){
+  localStorage.setItem(LS.USERS, JSON.stringify(u));
+}
 async function login(){
   const u=$('#loginUser').value.trim();
   const p=$('#loginPass').value;
   const pHash = await hashPassword(p);
-
-  let found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
-  if(!found && u==='host'){
-    try{
-      const host = await cloudGetHost();
-      if(host && host.passwordHash===pHash){
-        setUsers([host]);
-        found = host;
-      }
-    }catch(e){ console.error('login cloud host', e); }
-  }
+  const found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
   if(!found) return alert('Invalid credentials');
 
   currentUser=found;
   localStorage.setItem(LS.LASTUSER, u);
-  try{
-    const state = await cloudGetState();
-    if(state && typeof setAppState==='function'){ setAppState(state); }
-  }catch(e){ console.error('login cloud state', e); }
-
   $('#loginView').classList.add('hidden');
   $('#appView').classList.remove('hidden');
   $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
@@ -484,7 +401,7 @@ async function login(){
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
   loadState();
   initFiltersForUser();
-  renderColToggles();
+  applyDealerNamesToUI();
   renderTable();
   log('login');
 }
@@ -1034,6 +951,7 @@ function renderSettings(tab){
           <ul class="list-disc pl-6 text-sm text-zinc-400 space-y-1">
             <li>Your GitHub Token is used for the request and then discarded. It is never stored in the browser.</li>
             <li>After creating a new Gist, its ID will be saved locally for future use.</li>
+            <li><b>Workflow:</b> 1. Save data from your main device. 2. Load data on other devices to sync.</li>
           </ul>
         </div>
       </div>
@@ -1054,7 +972,9 @@ function renderSettings(tab){
     $('#cloudLoad').onclick=async()=>{
       const token = $('#cloudToken').value.trim();
       const gistId = $('#cloudGistId').value.trim();
-      try { await cloudLoad(gistId, token); } catch(e){ alert(e.message); }
+      if(confirm('This will overwrite all local data. Continue?')){
+        try { await cloudLoad(gistId, token); } catch(e){ alert(e.message); }
+      }
     };
   }
   if(tab==='history'){
@@ -1186,11 +1106,11 @@ function baseSize(kind){
 }
 function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
-function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a default
+
+/* FIX 1: แก้ไขฟังก์ชัน renderTagInnerHTML ให้รับค่า padding และจัดการโครงสร้าง HTML ให้ดีขึ้น */
+function renderTagInnerHTML(p, tpl, pad = '10mm'){
+    const s = tpl.styles;
     if(tpl.kind==='ACC'){
-        const s=tpl.styles;
-        // ACC template uses absolute positioning, which is fine.
-        // The padding was on the container, which is now removed.
         return `
         <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
         <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
@@ -1204,31 +1124,11 @@ function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a de
         `;
     }
 
-    const s=tpl.styles;
     const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
         <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
     
-    // Use the passed 'pad' variable for padding instead of hardcoded '10mm'
     return `
         <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${pad}; display:flex; flex-direction:column;">
-            <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
-            <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
-            <div class="mt-3 space-y-1">${bullets}</div>
-            <div class="mt-auto flex items-end justify-between">
-                <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-                <div class="text-right">
-                <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-                <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-    const s=tpl.styles;
-    const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
-        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
-    return `
-        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:10mm; display:flex; flex-direction:column;">
             <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
             <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
             <div class="mt-3 space-y-1">${bullets}</div>
@@ -1296,7 +1196,7 @@ function renderPreview(item,tpl){
   fit();
   const ro = new ResizeObserver(()=>fit()); ro.observe(box);
 }
-function openPrintTab(list, tpl){
+function openPrintTab(list,tpl){
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
   if(!items.length){ alert('Select at least one SKU.'); return; }
 
@@ -1304,75 +1204,128 @@ function openPrintTab(list, tpl){
   if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
 
   const logo=localStorage.getItem(LS.LOGO)||'';
-  let cols=1, rows=1, pageSize='A4', landscape=false;
+  let cols=1, rows=1, pad='8mm', pageSize='A4';
 
-  if(tpl.kind === 'IMAGE'){ cols=2; rows=2; pageSize='A4'; }
-  else if(tpl.kind==='A4'){ cols=1; rows=1; pageSize='A4'; }
-  else if(tpl.kind==='A5'){ cols=2; rows=1; pageSize='A4'; landscape=true; }
-  else if(tpl.kind==='A6'){ cols=2; rows=2; pageSize='A4'; }
-  else { cols=2; rows=6; pageSize='A4'; }
-
-  const fullW = landscape ? '297mm' : '210mm';
-  const fullH = landscape ? '210mm' : '297mm';
+  if(tpl.kind === 'IMAGE') {
+    cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4';
+  }
+  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
+  else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
+  else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
+  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
 
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-      @page { size: ${landscape ? 'A4 landscape' : 'A4'}; margin: 0; }
+      @page { size: ${pageSize}; margin: 8mm; }
       html,body{
-        height:100%;
-        margin:0;
+        background:#fff;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
         font-family:'Kanit','Prompt',sans-serif;
-        background:#fff;
       }
       .sheet{
-        width:${fullW}; height:${fullH};
-        margin:0;
-        display:grid;
+        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
+        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
+        margin: 0 auto; display: grid;
         grid-template-columns: repeat(${cols}, 1fr);
-        grid-template-rows: repeat(${rows}, 1fr);
-        gap:0;
-        page-break-after:always;
-        position:relative;
+        grid-template-rows:    repeat(${rows}, 1fr);
+        gap: 0; page-break-after: always;
       }
-      .tag{ position:relative; width:100%; height:100%; }
-      .card{ position:absolute; inset:0; color:#fff; overflow:hidden; }
-      .card > img.bg{
-        position:absolute; inset:0; width:100%; height:100%;
-        object-fit:cover; object-position:center;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      /* FIX 1: ลบ padding ออกจาก .tag เพื่อให้ .card (ที่มี background) ขยายได้เต็มพื้นที่ */
+      .tag{ width:100%; height:100%; box-sizing:border-box; }
+      .card{
+        position:relative; width:100%; height:100%;
+        border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
+        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
+        color:#fff;
+        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
+        background-size: cover; background-position: center;
       }
       .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-      @media screen {
-        body{ background:#e5e7eb; }
-        .sheet{ box-shadow:0 0 0 1px #d1d5db inset; }
-      }
     </style>
   `;
 
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-
+  
   const body = pages.map(pg=>{
     const inner=pg.map(p=>{
-      const bgImg = tpl.imageData ? `<img class="bg" alt="" src="${tpl.imageData}">` : '';
       let logoTag = '';
       if(tpl.showLogo && logo) {
         const logoSize = tpl.logoStyles?.size || 64;
         const logoMargin = tpl.logoStyles?.margin || 10;
-        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
+        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
       }
-      const content = renderTagInnerHTML(p, tpl);
-      return `<div class="tag"><div class="card">${bgImg}${logoTag}${content}</div></div>`;
+      const content = renderTagInnerHTML(p, tpl, pad);
+      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
     }).join('');
     return `<div class="sheet">${inner}</div>`;
   }).join('');
 
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
+  w.document.write(\`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>\${style}</head><body>\${body}</body></html>\`);
   w.document.close();
-  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
+  log('open_print', \`\${items.length} tags, tpl=\${tpl.name}\`);
+}
+
+/* ================= EVENTS BINDING ================= */
+function bindEvents() {
+  $('#btnCreateHost').addEventListener('click', async () => {
+    const pass = $('#setupPass').value;
+    const confirmPass = $('#setupPassConfirm').value;
+    if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
+    if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
+    const passwordHash = await hashPassword(pass);
+    const hostUser = {
+        username: 'host', passwordHash, role: 'Host',
+        channels: [...Channels], canSeeCosts: true, canPrint: true
+    };
+    setUsers([hostUser]);
+    $('#setupView').classList.add('hidden');
+    $('#loginView').classList.remove('hidden');
+    alert('Host account created successfully. Please log in.');
+  });
+  $('#btnLogin').addEventListener('click', login);
+  $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (!$('#loginView').classList.contains('hidden')) login();
+      if (!$('#setupView').classList.contains('hidden')) $('#btnCreateHost').click();
+    }
+  });
+  $('#btnNewProduct').addEventListener('click', () => openEditor());
+  $('#btnSettings').addEventListener('click',()=>openSettings('data'));
+  $('#btnPrintModal').addEventListener('click', () => {
+    if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown();
+    renderPreview(filteredProducts()[0], templates[0]); togglePrintModal(true);
+  });
+  ['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
+  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
+  $$('.set-tab').forEach(b=>b.addEventListener('click', ()=>openSettings(b.dataset.tab)));
+  $('#btnCloseEditor').addEventListener('click', closeEditor);
+  $('#btnSaveEd').addEventListener('click', saveEditor);
+  $('#btnClosePrintModal').addEventListener('click', () => togglePrintModal(false));
+  $('#btnOpenPrint').addEventListener('click', () => {
+    const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
+    const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
+                    .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
+    const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
+    openPrintTab(list,tpl);
+  });
+  window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
+}
+
+/* ================= STARTUP ================= */
+function init() {
+  bindEvents();
+  const users = allUsers();
+  if (users.length === 0) {
+    $('#setupView').classList.remove('hidden');
+  } else {
+    $('#loginView').classList.remove('hidden');
+    const last=localStorage.getItem(LS.LASTUSER)||'';
+    if(last) $('#loginUser').value=last;
+  }
 }
 
 init();
@@ -1380,4 +1333,3 @@ init();
 
 </body>
 </html>
-
