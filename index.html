@@ -72,7 +72,6 @@
       </div>
       <div class="ml-auto flex items-center gap-2">
         <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Settings</button>
-        <button id="btnHistory" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm hidden">History</button>
         <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
       </div>
     </div>
@@ -385,7 +384,6 @@ function login(){
   const isHost = currentUser.role==='Host';
   const isAdmin = currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  $('#btnHistory').classList.toggle('hidden', !isHost);
 
   loadState();
   initFiltersForUser();
@@ -750,15 +748,6 @@ function renderSettings(tab){
           <label class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700 cursor-pointer hover:bg-zinc-800">
             <input type="file" id="tplUpload" accept="application/json" class="hidden"> Upload JSON
           </label>
-          <select id="tplImgKind" class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700">
-            <option value="A4">A4</option>
-            <option value="A5">A5</option>
-            <option value="A6">A6</option>
-            <option value="ACC">ACC</option>
-          </select>
-          <label class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700 cursor-pointer hover:bg-zinc-800">
-            <input type="file" id="tplUploadImg" accept="image/png,image/jpeg" class="hidden"> Upload PNG/JPG
-          </label>
         </div>
       </div>
       <div class="text-sm text-zinc-400 mb-3">User-uploaded templates never show the company logo.</div>
@@ -818,28 +807,6 @@ function renderSettings(tab){
         obj.showLogo=false; const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); arr.push(obj); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('upload_template',obj.name||obj.id); openSettings('templates'); alert('Template uploaded.'); }
       catch{ alert('Invalid JSON template.'); }
     };
-    // Upload PNG/JPG as background to create a new template
-    $('#tplUploadImg').onchange = async (e)=>{
-      const f = e.target.files?.[0]; if(!f) return;
-      try{
-        const b64 = await fileToBase64(f);
-        const kind = $('#tplImgKind') ? $('#tplImgKind').value : 'A5';
-        const id = 'img-' + Math.random().toString(36).slice(2,8);
-        const name = (f.name||'Image Template').replace(/\.(png|jpe?g)$/i,'') + ` (${kind})`;
-        const tpl = {
-          id, name, kind, showLogo:false, bgImage:b64,
-          styles:{ sku:{fs:14,color:'#ffffff',mt:0}, description:{fs:24,color:'#ffffff',mt:0},
-                   details:{fs:12,color:'#ffffff',mt:0}, price:{fs:40,color:'#ffffff',mt:0},
-                   oldPrice:{fs:14,color:'#ff4d4f',mt:0}, expire:{fs:12,color:'#ffffff',mt:0} }
-        };
-        const arr = JSON.parse(localStorage.getItem(LS.TEMPLATES));
-        arr.push(tpl);
-        localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr;
-        autoSyncSchedule(); log('upload_template_image', name);
-        openSettings('templates'); alert('Template (image) added.');
-      }catch(err){ alert('Failed to read image: '+err.message); }
-    };
-
   }
 
   if(tab==='cloud'){
@@ -1065,20 +1032,8 @@ function buildPreviewTag(p,tpl){
   const outer=document.createElement('div');
   outer.style.width=w+'px'; outer.style.height=h+'px';
   outer.style.borderRadius='12px'; outer.style.overflow='hidden';
-  outer.style.border='2px solid #1f1f22';
-outer.style.border='2px solid #1f1f22';
-  // background: use bgImage if provided, otherwise solid color
-  if(tpl.bgImage){
-    outer.style.backgroundImage = `url('${tpl.bgImage}')`;
-    outer.style.backgroundSize = 'cover';
-    outer.style.backgroundPosition = 'center';
-    outer.style.backgroundColor = (tpl.kind==='ACC'?'#000':'#0b0b0c');
-  }else{
-    outer.style.background = (tpl.kind==='ACC'?'#000':'#0b0b0c');
-  }
-  outer.style.color='#fff'; outer.style.position='relative';
-  // show logo only when no bgImage and template allows logo
-  if(!tpl.bgImage && tpl.showLogo){
+  outer.style.border='2px solid #1f1f22'; outer.style.background = tpl.kind==='ACC'?'#000':'#0b0b0c'; outer.style.color='#fff'; outer.style.position='relative';
+  if(tpl.showLogo){
     const logo=localStorage.getItem(LS.LOGO);
     outer.innerHTML += logo? `<img src="${logo}" style="position:absolute;right:10px;top:10px;width:64px">`
                            : `<div style="position:absolute;right:10px;top:10px;width:64px;color:#fff;font-weight:800;text-align:right">P</div>`;
@@ -1183,14 +1138,11 @@ function openPrintTab(list,tpl){
 
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-  const logoTag = (tpl.showLogo && logo) ? `<img src="${logo}" class="logo">` : (tpl.showLogo ? `<div class="logo" style="color:#fff;
-  const bgStyle = tpl.bgImage
-    ? `background:#000 url(${tpl.bgImage}) center/cover no-repeat`
-    : `background:${tpl.kind==='ACC'?'#000':'#0b0b0c'}`;font-weight:800">P</div>` : '');
+  const logoTag = (tpl.showLogo && logo) ? `<img src="${logo}" class="logo">` : (tpl.showLogo ? `<div class="logo" style="color:#fff;font-weight:800">P</div>` : '');
 
   const body = pages.map(pg=>{
     const inner=pg.map(p=>`
-      <div class="tag"><div class="card" style="${bgStyle}">${tpl.bgImage ? "" : logoTag}${renderTagInnerHTML(p,tpl)}</div></div>
+      <div class="tag"><div class="card">${logoTag}${renderTagInnerHTML(p,tpl)}</div></div>
     `).join('');
     return `<div class="sheet">${inner}</div>`;
   }).join('');
@@ -1200,7 +1152,11 @@ function openPrintTab(list,tpl){
   log('open_print', `${items.length} tags, tpl=${tpl.name}`);
 }
 
-s).addEventListener('input', renderTable));
+/* ================= EVENTS ================= */
+$('#btnLogin').onclick=login;
+$('#btnLogout').onclick=()=>{ log('logout'); logout(); };
+
+['#searchInput','#dateStart','#dateEnd'].forEach(s=>$(s).addEventListener('input', renderTable));
 $('#channelSelect').addEventListener('change', ()=>{ updateColumnVisibility(); renderTable(); });
 
 /* Costs visibility propagation if global flag enables for Users */
