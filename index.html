@@ -23,63 +23,64 @@
   }
 </script>
 
-  <!-- Firebase (Compat SDK สำหรับโค้ดแบบ non-module) -->
+<!-- SheetJS + XlsxPopulate -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
+
+
+<!-- Firebase (Compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
 <script>
-  // 👇 ใส่ค่าจริงจาก Firebase Console > Project settings
+  // TODO: Replace with your Firebase project config (Project settings > General)
   const firebaseConfig = {
     apiKey: "YOUR_API_KEY",
     authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
     projectId: "YOUR_PROJECT_ID",
     storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "XXXXXX",
-    appId: "1:XXXXXX:web:XXXXXX"
+    messagingSenderId: "000000000000",
+    appId: "1:000000000000:web:0000000000000000"
   };
-  firebase.initializeApp(firebaseConfig);
+  try{
+    firebase.initializeApp(firebaseConfig);
+  }catch(e){ /* ignore if already initialized */ }
   const db = firebase.firestore();
 
-  // ==== Cloud helpers ====
   async function cloudGetHost(){
-    const snap = await db.collection('config').doc('host').get();
-    return snap.exists ? snap.data() : null;
+    try{
+      const snap = await db.collection('config').doc('host').get();
+      return snap.exists ? snap.data() : null;
+    }catch(e){ console.error('cloudGetHost', e); return null; }
   }
   async function cloudSaveHost(hostUser){
-    await db.collection('config').doc('host').set(hostUser, { merge:true });
+    try{ await db.collection('config').doc('host').set(hostUser, { merge:true }); }
+    catch(e){ console.error('cloudSaveHost', e); }
   }
   async function cloudGetState(){
-    const snap = await db.collection('app').doc('state').get();
-    return snap.exists ? snap.data() : null;
+    try{
+      const snap = await db.collection('app').doc('state').get();
+      return snap.exists ? snap.data() : null;
+    }catch(e){ console.error('cloudGetState', e); return null; }
   }
   async function cloudSaveState(){
-    try{ await db.collection('app').doc('state').set(getAppState(), { merge:true }); }
-    catch(e){ console.error('cloudSaveState:', e); }
+    try{
+      if (typeof getAppState === 'function'){
+        const state = getAppState();
+        await db.collection('app').doc('state').set(state, { merge:true });
+      }
+    }catch(e){ console.error('cloudSaveState', e); }
   }
-
-  // ดึงสถานะจาก Cloud มาลงเครื่อง ถ้ายังว่างอยู่
   async function cloudHydrateLocalIfEmpty(){
     try{
-      const localUsers = allUsers();
-      if(localUsers.length===0){
-        const state = await cloudGetState();
-        if(state){ setAppState(state); }
+      if (typeof allUsers === 'function' && typeof setAppState === 'function'){
+        if(allUsers().length===0){
+          const state = await cloudGetState();
+          if(state){ setAppState(state); }
+        }
       }
-    }catch(e){ console.error('hydrate:', e); }
+    }catch(e){ console.error('cloudHydrateLocalIfEmpty', e); }
   }
-
-  // hook: เซฟ cloud ทุกครั้งที่มีการ setUsers
-  const __origSetUsers = window.setUsers;
-  window.setUsers = function(users){
-    __origSetUsers(users);
-    cloudSaveState();
-  };
 </script>
-
-<!-- SheetJS + XlsxPopulate -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
-
 <style>
   :root { color-scheme: dark; }
   html,body{ height:100%; background:#0b0b0c }
@@ -297,8 +298,8 @@
   </div>
 </div>
 
+<script>
 /* ================= CORE STATE / STORAGE ================= */
-  <script>
 const LS = {
   PRODUCTS: 'pp_products_en_v5',
   USERS: 'pp_users_en_v5',
@@ -450,43 +451,43 @@ function allUsers(){
   try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
   catch { return []; }
 }
-function setUsers(u){
-  localStorage.setItem(LS.USERS, JSON.stringify(u));
-}
-<script>
+function setUsers(u){ localStorage.setItem(LS.USERS, JSON.stringify(u)); try{ if(typeof cloudSaveState==='function') cloudSaveState(); }catch(e){} }
 async function login(){
   const u=$('#loginUser').value.trim();
   const p=$('#loginPass').value;
   const pHash = await hashPassword(p);
 
   let found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
-
-  // ถ้า local ไม่เจอ ให้ลองดึง host จาก Cloud
   if(!found && u==='host'){
-    const host = await cloudGetHost();
-    if(host && host.passwordHash === pHash){
-      setUsers([host]);   // sync ลงเครื่องนี้ไว้
-      found = host;
-    }
+    try{
+      const host = await cloudGetHost();
+      if(host && host.passwordHash===pHash){
+        setUsers([host]);
+        found = host;
+      }
+    }catch(e){ console.error('login cloud host', e); }
   }
-
   if(!found) return alert('Invalid credentials');
 
   currentUser=found;
   localStorage.setItem(LS.LASTUSER, u);
-
-  // โหลด state บน cloud มาลง (ถ้ามี)
   try{
     const state = await cloudGetState();
-    if(state) setAppState(state);
-  }catch(e){ console.error(e); }
+    if(state && typeof setAppState==='function'){ setAppState(state); }
+  }catch(e){ console.error('login cloud state', e); }
 
   $('#loginView').classList.add('hidden');
   $('#appView').classList.remove('hidden');
-  loadState(); renderTable();  // คงฟังก์ชันใช้งานเดิม
+  $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
+  const isHost = currentUser.role==='Host';
+  const isAdmin = currentUser.role==='Admin';
+  $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
+  loadState();
+  initFiltersForUser();
+  renderColToggles();
+  renderTable();
+  log('login');
 }
-
-
 function logout(){
   currentUser=null;
   $('#loginPass').value='';
@@ -1295,7 +1296,6 @@ function renderPreview(item,tpl){
   fit();
   const ro = new ResizeObserver(()=>fit()); ro.observe(box);
 }
-<script>
 function openPrintTab(list, tpl){
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
   if(!items.length){ alert('Select at least one SKU.'); return; }
@@ -1357,16 +1357,14 @@ function openPrintTab(list, tpl){
 
   const body = pages.map(pg=>{
     const inner=pg.map(p=>{
-      // พื้นหลังแบบภาพ: ใช้ <img> เพื่อพิมพ์ได้ชัวร์
       const bgImg = tpl.imageData ? `<img class="bg" alt="" src="${tpl.imageData}">` : '';
-      // โลโก้ (ถ้าเปิดใช้)
       let logoTag = '';
       if(tpl.showLogo && logo) {
         const logoSize = tpl.logoStyles?.size || 64;
         const logoMargin = tpl.logoStyles?.margin || 10;
-        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
+        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
       }
-      const content = renderTagInnerHTML(p, tpl /* no pad needed when full-bleed */);
+      const content = renderTagInnerHTML(p, tpl);
       return `<div class="tag"><div class="card">${bgImg}${logoTag}${content}</div></div>`;
     }).join('');
     return `<div class="sheet">${inner}</div>`;
@@ -1376,92 +1374,9 @@ function openPrintTab(list, tpl){
   w.document.close();
   log('open_print', `${items.length} tags, tpl=${tpl.name}`);
 }
-</script>
 
-
-/* ================= EVENTS BINDING ================= */
-  <script>
-function bindEvents() {
-$('#btnCreateHost').addEventListener('click', async () => {
-  const pass = $('#setupPass').value;
-  const confirmPass = $('#setupPassConfirm').value;
-  if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
-  if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
-
-  const passwordHash = await hashPassword(pass);
-  const hostUser = {
-    username: 'host', passwordHash, role: 'Host',
-    channels: [...Channels], canSeeCosts: true, canPrint: true
-  };
-
-  setUsers([hostUser]);           // local
-  await cloudSaveHost(hostUser);  // cloud
-  await cloudSaveState();         // เก็บสถานะรวมขึ้น cloud
-
-  $('#setupView').classList.add('hidden');
-  $('#loginView').classList.remove('hidden');
-  alert('Host account created successfully. Please log in.');
-});
-
-
-  $('#btnLogin').addEventListener('click', login);
-  $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      if (!$('#loginView').classList.contains('hidden')) login();
-      if (!$('#setupView').classList.contains('hidden')) $('#btnCreateHost').click();
-    }
-  });
-  $('#btnNewProduct').addEventListener('click', () => openEditor());
-  $('#btnSettings').addEventListener('click',()=>openSettings('data'));
-  $('#btnPrintModal').addEventListener('click', () => {
-    if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown();
-    renderPreview(filteredProducts()[0], templates[0]); togglePrintModal(true);
-  });
-  ['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
-  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
-  $$('.set-tab').forEach(b=>b.addEventListener('click', ()=>openSettings(b.dataset.tab)));
-  $('#btnCloseEditor').addEventListener('click', closeEditor);
-  $('#btnSaveEd').addEventListener('click', saveEditor);
-  $('#btnClosePrintModal').addEventListener('click', () => togglePrintModal(false));
-  $('#btnOpenPrint').addEventListener('click', () => {
-    const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
-    const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
-                    .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
-    const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
-    openPrintTab(list,tpl);
-  });
-  window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
-}
-
-/* ================= STARTUP ================= */
-<script>
-async function init(){
-  bindEvents();
-
-  // พยายามดึงสถานะจาก Cloud มาก่อน ถ้าเครื่องนี้ยังว่าง
-  await cloudHydrateLocalIfEmpty();
-
-  const users = allUsers();
-  if(users.length === 0){
-    // เช็คว่ามี host ใน Cloud อยู่แล้วไหม
-    const host = await cloudGetHost();
-    if(host){
-      setUsers([host]);               // sync ลงเครื่องครั้งแรก
-      $('#loginView').classList.remove('hidden');
-      $('#setupView').classList.add('hidden');
-    }else{
-      $('#setupView').classList.remove('hidden');
-    }
-  }else{
-    $('#loginView').classList.remove('hidden');
-    const last=localStorage.getItem(LS.LASTUSER)||'';
-    if(last) $('#loginUser').value=last;
-  }
-}
 init();
 </script>
-
 
 </body>
 </html>
