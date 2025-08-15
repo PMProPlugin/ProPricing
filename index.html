@@ -254,7 +254,9 @@ const LS = {
   LOGS: 'pp_logs_en_v5',
   LASTUSER: 'pp_last_user_en',
   DEALER_NAMES: 'pp_dealer_names_en',
-  CLOUD_GIST_ID: 'pp_cloud_gist_id_v1' // Simplified cloud config
+  CLOUD_GIST_ID: 'pp_cloud_gist_id_v1', // Simplified cloud config
+  CLOUD_TOKEN: 'pp_cloud_token_v1',
+  CLOUD_AUTOSYNC: 'pp_cloud_autosync_v1'
 };
 const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
 const Channels = ['Flagship','Marketplace','Dealer'];
@@ -369,11 +371,15 @@ async function cloudCreateGist(token){
   const data = getAppState();
   const resp = await gistRequest('POST','/gists',{ public:false, files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } }, token);
   localStorage.setItem(LS.CLOUD_GIST_ID, resp.id);
+  localStorage.setItem(LS.CLOUD_TOKEN, token);
+  localStorage.setItem(LS.CLOUD_AUTOSYNC,'true');
+  try{ startCloudAutoSync(); }catch(e){};
   log('cloud_create_gist', resp.id);
   alert('Gist created: '+resp.id);
   return resp.id;
 }
 async function cloudSave(gistId, token){
+  if(token){ try{ localStorage.setItem(LS.CLOUD_TOKEN, token); }catch{} }
   if(!gistId) throw new Error('Gist ID is required');
   const data = getAppState();
   const body = { files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } };
@@ -381,11 +387,88 @@ async function cloudSave(gistId, token){
   log('cloud_save', gistId);
 }
 async function cloudLoad(gistId, token){
+  if(token){ try{ localStorage.setItem(LS.CLOUD_TOKEN, token); }catch{} }
+  try{ localStorage.setItem(LS.CLOUD_AUTOSYNC,'true'); }catch{}
   if(!gistId) throw new Error('Gist ID is required');
   const resp = await gistRequest('GET','/gists/'+gistId, null, token);
   const file = resp.files?.['proplugin-data.json'];
   if(!file) throw new Error('proplugin-data.json not found in gist');
-  const text = await fetch(file.raw_url, { headers: {'Authorization': 'Bearer ' + token} }).then(r=>r.text());
+  const text = await fetch(file.raw_url, { headers: {'Authorization': 'Bearer ' + token} 
+
+/* ----- Auto Cloud Auto-Sync (GitHub Gist polling) ----- */
+let __autoSyncTimer = null;
+let __lastSavedJSON = '';
+let __lastRemoteUpdatedAt = '';
+let __lastLocalSaveTs = 0;
+
+function setCloudToken(tok){
+  if(tok){ localStorage.setItem(LS.CLOUD_TOKEN, tok); } else { localStorage.removeItem(LS.CLOUD_TOKEN); }
+}
+function enableCloudAutoSync(){
+  localStorage.setItem(LS.CLOUD_AUTOSYNC, 'true');
+  startCloudAutoSync();
+}
+function disableCloudAutoSync(){
+  localStorage.setItem(LS.CLOUD_AUTOSYNC, 'false');
+  stopCloudAutoSync();
+}
+
+function startCloudAutoSync(){
+  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
+  let token = localStorage.getItem(LS.CLOUD_TOKEN);
+  if(!gistId){ console.warn('[AutoSync] Missing gist id'); return; }
+  if(!token){
+    try{ token = prompt('Enter your GitHub Personal Access Token (gist scope) for Auto-Sync:'); }
+    catch{}
+    if(!token){ console.warn('[AutoSync] Missing token'); return; }
+    localStorage.setItem(LS.CLOUD_TOKEN, token);
+  }
+  stopCloudAutoSync();
+  const poll = async ()=>{
+    try{
+      // auto-save if local changes
+      const cur = JSON.stringify(getAppState());
+      if(cur !== __lastSavedJSON){
+        await cloudSave(gistId, token);
+        __lastSavedJSON = cur;
+        __lastLocalSaveTs = Date.now();
+      }
+      // check remote changes
+      const resp = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer ' + token }
+      });
+      if(resp.ok){
+        const meta = await resp.json();
+        if(meta.updated_at && meta.updated_at !== __lastRemoteUpdatedAt){
+          if(Date.now() - __lastLocalSaveTs > 3000){ // ignore our own recent saves
+            await cloudLoad(gistId, token);
+            __lastSavedJSON = JSON.stringify(getAppState());
+          }
+          __lastRemoteUpdatedAt = meta.updated_at;
+        }
+      }
+    }catch(err){
+      console.warn('[AutoSync] error', err);
+    }
+  };
+  __lastSavedJSON = JSON.stringify(getAppState());
+  poll(); // run once immediately
+  __autoSyncTimer = setInterval(poll, 7000);
+  console.log('[AutoSync] started');
+}
+function stopCloudAutoSync(){ if(__autoSyncTimer){ clearInterval(__autoSyncTimer); __autoSyncTimer=null; console.log('[AutoSync] stopped'); } }
+
+// Also broadcast changes across same-origin tabs (same device)
+try{
+  window.addEventListener('storage', (e)=>{
+    if(!e || !e.key) return;
+    if([LS.PRODUCTS,LS.TEMPLATES,LS.DEALER_NAMES,LS.USERS,LS.LOGO,LS.LOGS].includes(e.key)){
+      try{ loadState(); renderTable(); }catch{}
+    }
+  });
+}catch{}
+
+}).then(r=>r.text());
   const data = JSON.parse(text);
   setAppState(data);
   log('cloud_load', gistId);
@@ -949,7 +1032,7 @@ function renderSettings(tab){
     const gistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
     box.innerHTML=`
       <div class="text-2xl font-semibold mb-2">Cloud Sync (GitHub Gist)</div>
-      <p class="text-sm text-zinc-400 mb-4">Sync data via a private GitHub Gist. The token is NOT saved.</p>
+      <p class="text-sm text-zinc-400 mb-4">Sync data via a private GitHub Gist. For Auto‑Sync, your token is saved locally in this browser (you can clear it anytime).</p>
       <div class="grid md:grid-cols-2 gap-6">
         <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
           <label class="text-xs text-zinc-400">GitHub Personal Access Token (scope: gist). Required for all operations.</label>
@@ -1213,7 +1296,7 @@ function openPrintTab(list,tpl){
   if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
   const logo=localStorage.getItem(LS.LOGO)||'';
   let cols=1, rows=1, pad='8mm', pageSize='A4';
-  if(tpl.kind === 'IMAGE') { cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4'; }
+  if(tpl.kind === 'IMAGE') { cols = 2; rows = 2; pad = '0mm'; pageSize = 'A4'; }
   else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
   else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
   else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
@@ -1221,11 +1304,11 @@ function openPrintTab(list,tpl){
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-      @page { size: ${pageSize}; margin: 8mm; }
+      @page { size: ${pageSize}; margin: 0; }
       html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; }
       .sheet{ width: ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'}; height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'}; margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; }
       .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; }
-      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
+      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: 100% 100%; background-position: top left; background-repeat: no-repeat; }
       .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
     </style>
@@ -1310,6 +1393,7 @@ function init() {
   }
 }
 
+if(localStorage.getItem(LS.CLOUD_AUTOSYNC)==='true'){ try{ startCloudAutoSync(); }catch(e){ console.warn(e); } }
 init();
 </script>
 
