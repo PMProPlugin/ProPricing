@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ProPlugin • ProPricing</title>
 
+<!-- Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 
+<!-- Tailwind -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -21,6 +23,7 @@
   }
 </script>
 
+<!-- SheetJS + XlsxPopulate -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
 
@@ -36,6 +39,7 @@
 
 <body class="text-white font-sans">
 
+<!-- ===================== SETUP (FIRST TIME) ===================== -->
 <section id="setupView" class="hidden min-h-screen grid place-items-center">
   <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
     <div class="flex items-center gap-3 mb-6">
@@ -56,6 +60,7 @@
   </div>
 </section>
 
+<!-- ===================== LOGIN ===================== -->
 <section id="loginView" class="hidden min-h-screen grid place-items-center">
   <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
     <div class="flex items-center gap-3 mb-6">
@@ -74,7 +79,9 @@
 </section>
 
 
+<!-- ===================== APP ===================== -->
 <section id="appView" class="hidden min-h-screen">
+  <!-- Topbar -->
   <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
       <div class="flex items-center gap-3">
@@ -91,6 +98,7 @@
       </div>
     </div>
 
+    <!-- Filters -->
     <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col gap-3">
       <div class="flex flex-col lg:flex-row gap-3">
         <div class="relative flex-1">
@@ -112,6 +120,7 @@
     </div>
   </header>
 
+  <!-- Table -->
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="overflow-auto border border-zinc-800 rounded-2xl">
       <table class="min-w-[1200px] w-full text-sm">
@@ -122,13 +131,16 @@
             <th class="w-64">Details</th>
             <th id="thCosts" class="hidden">Costs</th>
 
+            <!-- Flagship -->
             <th class="col-normal">Normal</th>
             <th class="col-promo">Promotion</th>
             <th class="col-expire">Expire Date</th>
 
+            <!-- Marketplace -->
             <th class="col-market">Marketplace</th>
             <th class="col-marketgp">Market GP%</th>
 
+            <!-- Dealer -->
             <th class="col-t1"><span id="lblT1">Dealer T1</span></th>
             <th class="col-gp1">GP% T1</th>
             <th class="col-t2"><span id="lblT2">Dealer T2</span></th>
@@ -142,10 +154,12 @@
         <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
       </table>
     </div>
+    <!-- Pagination -->
     <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
   </main>
 </section>
 
+<!-- ===================== SETTINGS (with Cloud Sync) ===================== -->
 <div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
   <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
     <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
@@ -165,6 +179,7 @@
   </div>
 </div>
 
+<!-- ===================== EDITOR ===================== -->
 <div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
   <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
     <div class="flex items-center justify-between p-4 border-b border-zinc-800">
@@ -194,13 +209,17 @@
   </div>
 </div>
 
+<!-- ===================== PRINT MODAL (Horizontal, full preview) ===================== -->
 <div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
+  <!-- OUTER GRID: header + content rows; two columns always -->
   <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl grid grid-rows-[auto_1fr] grid-cols-[480px_1fr] min-h-0">
+    <!-- Header spans two columns -->
     <div class="col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
       <div class="text-xl font-semibold">Print Price Tags</div>
       <button id="btnClosePrintModal" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
     </div>
 
+    <!-- Left column: list -->
     <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
       <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
         <div class="grid grid-cols-[1fr_auto] gap-2">
@@ -217,6 +236,7 @@
       <div id="printSummary" class="text-sm text-zinc-400"></div>
     </div>
 
+    <!-- Right column: live preview fills available space -->
     <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
       <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
       <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
@@ -337,10 +357,6 @@ function setAppState(data){
 }
 
 /* ================= CLOUD SYNC (GitHub Gist) ================= */
-// FIX 2: ส่วนนี้คือฟังก์ชันสำหรับ Sync ข้อมูลออนไลน์ผ่าน GitHub Gist
-// ข้อมูลทั้งหมด (สินค้า, user, logo) จะถูกบันทึกและโหลดผ่านฟีเจอร์นี้
-// การทำงานของ LocalStorage จะแยกตามเบราว์เซอร์และอุปกรณ์เป็นเรื่องปกติ
-// หากต้องการให้ข้อมูลตรงกันในหลายๆ ที่ ต้องใช้ฟีเจอร์นี้ในการ Save/Load
 async function gistRequest(method, path, body, token){
   if(!token) throw new Error('GitHub Token is required for this operation.');
   const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
@@ -951,7 +967,6 @@ function renderSettings(tab){
           <ul class="list-disc pl-6 text-sm text-zinc-400 space-y-1">
             <li>Your GitHub Token is used for the request and then discarded. It is never stored in the browser.</li>
             <li>After creating a new Gist, its ID will be saved locally for future use.</li>
-            <li><b>Workflow:</b> 1. Save data from your main device. 2. Load data on other devices to sync.</li>
           </ul>
         </div>
       </div>
@@ -972,9 +987,7 @@ function renderSettings(tab){
     $('#cloudLoad').onclick=async()=>{
       const token = $('#cloudToken').value.trim();
       const gistId = $('#cloudGistId').value.trim();
-      if(confirm('This will overwrite all local data. Continue?')){
-        try { await cloudLoad(gistId, token); } catch(e){ alert(e.message); }
-      }
+      try { await cloudLoad(gistId, token); } catch(e){ alert(e.message); }
     };
   }
   if(tab==='history'){
@@ -1106,11 +1119,11 @@ function baseSize(kind){
 }
 function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
-
-/* FIX 1: แก้ไขฟังก์ชัน renderTagInnerHTML ให้รับค่า padding และจัดการโครงสร้าง HTML ให้ดีขึ้น */
-function renderTagInnerHTML(p, tpl, pad = '10mm'){
-    const s = tpl.styles;
+function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a default
     if(tpl.kind==='ACC'){
+        const s=tpl.styles;
+        // ACC template uses absolute positioning, which is fine.
+        // The padding was on the container, which is now removed.
         return `
         <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
         <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
@@ -1124,11 +1137,31 @@ function renderTagInnerHTML(p, tpl, pad = '10mm'){
         `;
     }
 
+    const s=tpl.styles;
     const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
         <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
     
+    // Use the passed 'pad' variable for padding instead of hardcoded '10mm'
     return `
         <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${pad}; display:flex; flex-direction:column;">
+            <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
+            <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
+            <div class="mt-3 space-y-1">${bullets}</div>
+            <div class="mt-auto flex items-end justify-between">
+                <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+                <div class="text-right">
+                <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+                <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+    const s=tpl.styles;
+    const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
+        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
+    return `
+        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:10mm; display:flex; flex-direction:column;">
             <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
             <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
             <div class="mt-3 space-y-1">${bullets}</div>
@@ -1214,37 +1247,58 @@ function openPrintTab(list,tpl){
   else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
   else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
 
-  const style=`
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-      @page { size: ${pageSize}; margin: 8mm; }
-      html,body{
-        background:#fff;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        font-family:'Kanit','Prompt',sans-serif;
-      }
-      .sheet{
-        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
-        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
-        margin: 0 auto; display: grid;
-        grid-template-columns: repeat(${cols}, 1fr);
-        grid-template-rows:    repeat(${rows}, 1fr);
-        gap: 0; page-break-after: always;
-      }
-      /* FIX 1: ลบ padding ออกจาก .tag เพื่อให้ .card (ที่มี background) ขยายได้เต็มพื้นที่ */
-      .tag{ width:100%; height:100%; box-sizing:border-box; }
-      .card{
-        position:relative; width:100%; height:100%;
-        border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
-        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
-        color:#fff;
-        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
-        background-size: cover; background-position: center;
-      }
-      .logo{ position:absolute; }
-      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-    </style>
-  `;
+const style = `
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* 1) เอาขอบกระดาษออกทั้งหมด */
+    @page { size: ${pageSize}; margin: 0; }
+
+    html, body{
+      background: #fff;
+      margin: 0; height: 100%;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      font-family: 'Kanit','Prompt',sans-serif;
+    }
+    body{ padding: 0; }
+
+    /* 2) ให้พื้นที่ .sheet เท่ากับขนาดกระดาษจริงแบบเป๊ะ (ไม่มี -16mm แล้ว) */
+    .sheet{
+      width:  ${pageSize==='A4 landscape' ? '297mm' : '210mm'};
+      height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'};
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(${cols}, 1fr);
+      grid-template-rows:    repeat(${rows}, 1fr);
+      gap: 0;
+      page-break-after: always;
+    }
+
+    /* 3) ลบ margin/padding ที่อาจดันพื้นหลังให้ย่อ */
+    .tag{ width: 100%; height: 100%; margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* 4) ถ้ามีรูปพื้นหลัง ให้ตัดเส้นขอบและมุมโค้งออก เพื่อให้ชนขอบจริง */
+    .card{
+      position: relative; width: 100%; height: 100%; overflow: hidden;
+
+      /* ไม่มีกรอบ/มุมมนเมื่อเป็นเทมเพลตภาพ (รูปจะเต็มขอบ) */
+      border: ${tpl.imageData ? '0' : '2px solid #1f1f22'};
+      border-radius: ${tpl.imageData ? '0' : '12px'};
+
+      background-color: ${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
+      color: #fff;
+
+      /* พื้นหลังต้อง cover แบบไม่เหลือขอบขาว */
+      background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center;
+    }
+
+    .logo{ position:absolute; }
+    .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+  </style>
+`;
+
 
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
@@ -1257,6 +1311,7 @@ function openPrintTab(list,tpl){
         const logoMargin = tpl.logoStyles?.margin || 10;
         logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
       }
+      // Pass the 'pad' variable to the rendering function
       const content = renderTagInnerHTML(p, tpl, pad);
       return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
     }).join('');
@@ -1333,3 +1388,4 @@ init();
 
 </body>
 </html>
+
