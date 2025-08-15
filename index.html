@@ -71,7 +71,8 @@
         <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
       </div>
       <div class="ml-auto flex items-center gap-2">
-        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Settings</button>
+        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">⚙️</button>
+        <button id="btnHistory" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm hidden">History</button>
         <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
       </div>
     </div>
@@ -92,6 +93,7 @@
           <span class="text-zinc-500">→</span>
           <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
         </div>
+        <button id="btnNewProduct" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">New Product</button>
         <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
       </div>
     </div>
@@ -131,6 +133,8 @@
         <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
       </table>
     </div>
+    <!-- Pagination -->
+    <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
   </main>
 </section>
 
@@ -158,7 +162,7 @@
 <div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
   <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
     <div class="flex items-center justify-between p-4 border-b border-zinc-800">
-      <div class="text-xl font-semibold">Edit Product</div>
+      <div id="editorTitle" class="text-xl font-semibold">Edit Product</div>
       <button onclick="closeEditor()" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
     </div>
     <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
@@ -225,12 +229,12 @@ const LS = {
   PRODUCTS: 'pp_products_en_v5',
   USERS: 'pp_users_en_v5',
   LOGO: 'pp_logo_base64_v3',
-  TEMPLATES: 'pp_templates_en_v4',
+  TEMPLATES: 'pp_templates_en_v5', // <-- Version bump for new template structure
   LOGS: 'pp_logs_en_v5',
   LASTUSER: 'pp_last_user_en',
   USERS_COST_FLAG: 'pp_flag_users_costs_en',
   DEALER_NAMES: 'pp_dealer_names_en',
-  CLOUD: 'pp_cloud_cfg_v1' // { gistId, token, autoSync }
+  CLOUD: 'pp_cloud_cfg_v1'
 };
 const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
 const Channels = ['Flagship','Marketplace','Dealer'];
@@ -252,22 +256,26 @@ const sampleProducts = [{
   marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200
 }];
 
-/* default templates */
+// NEW: Updated default template structure
 function defaultTemplates(){
   return [
-    { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true,
+    { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null,
+      logoStyles: { size: 64, margin: 10 },
       styles:{ sku:{fs:16,color:'#ffffff',mt:0}, description:{fs:30,color:'#ffffff',mt:0},
         details:{fs:14,color:'#ffffff',mt:0}, price:{fs:72,color:'#ffffff',mt:0},
         oldPrice:{fs:20,color:'#ff4d4f',mt:0}, expire:{fs:13,color:'#ffffff',mt:0} } },
-    { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true,
+    { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null,
+      logoStyles: { size: 50, margin: 8 },
       styles:{ sku:{fs:14,color:'#ffffff',mt:0}, description:{fs:26,color:'#ffffff',mt:0},
         details:{fs:13,color:'#ffffff',mt:0}, price:{fs:60,color:'#ffffff',mt:0},
         oldPrice:{fs:18,color:'#ff4d4f',mt:0}, expire:{fs:12,color:'#ffffff',mt:0} } },
-    { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true,
+    { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null,
+      logoStyles: { size: 40, margin: 6 },
       styles:{ sku:{fs:12,color:'#ffffff',mt:0}, description:{fs:22,color:'#ffffff',mt:0},
         details:{fs:12,color:'#ffffff',mt:0}, price:{fs:48,color:'#ffffff',mt:0},
         oldPrice:{fs:16,color:'#ff4d4f',mt:0}, expire:{fs:11,color:'#ffffff',mt:0} } },
-    { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true,
+    { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null,
+      logoStyles: { size: 30, margin: 4 },
       styles:{ sku:{fs:11,color:'#ffffff',mt:2}, description:{fs:15,color:'#ffffff',mt:0, align:'center'},
         price:{fs:22,color:'#ffffff',mt:0}, oldPrice:{fs:12,color:'#B91C1C',mt:0}, expire:{fs:10,color:'#ffffff',mt:0} } }
   ];
@@ -294,6 +302,9 @@ const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...')
 
 /* ================= APP STATE ================= */
 let currentUser=null, products=[], templates=[], editingIndex=-1, dealerNames=defaultDealerNames;
+// NEW: Pagination state
+let currentPage = 1;
+const itemsPerPage = 20;
 
 function loadState(){
   if(!localStorage.getItem(LS.USERS)) localStorage.setItem(LS.USERS, JSON.stringify(defaultUsers));
@@ -384,6 +395,7 @@ function login(){
   const isHost = currentUser.role==='Host';
   const isAdmin = currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
+  $('#btnHistory').classList.toggle('hidden', !isHost);
 
   loadState();
   initFiltersForUser();
@@ -406,7 +418,9 @@ document.addEventListener('keydown',(e)=>{ if(!$('#loginView').classList.contain
 function initFiltersForUser(){
   const sel=$('#channelSelect'); sel.innerHTML='';
   currentUser.channels.forEach(ch=>{ const o=document.createElement('option'); o.textContent=ch; sel.appendChild(o); });
-  sel.value=currentUser.channels[0]; sel.disabled = currentUser.role==='User';
+  sel.value=currentUser.channels[0];
+  // All users can now filter channels
+  // sel.disabled = currentUser.role==='User'; 
 
   $('#btnPrintModal').classList.toggle('hidden', !currentUser.canPrint);
   $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
@@ -432,13 +446,13 @@ function applyDealerNamesToUI(){
   $('#edLabelT3').textContent = dealerNames.t3 || 'Dealer T3';
 }
 
-/* ================= TABLE ================= */
+/* ================= TABLE & PAGINATION ================= */
 function filteredProducts(){
   const q=$('#searchInput').value.trim().toLowerCase();
   const ds=$('#dateStart').value, de=$('#dateEnd').value;
   const isFlagship = $('#channelSelect').value==='Flagship';
   return products.filter(p=>{
-    const hit = !q || p.sku.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+    const hit = !q || (p.sku||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
     let dateOk = true;
     if(isFlagship && (ds||de)){
       const ex = p.expiresDate ? new Date(p.expiresDate) : null;
@@ -449,12 +463,34 @@ function filteredProducts(){
     return hit && dateOk;
   });
 }
+
+function renderPagination(totalItems) {
+  const pageBox = $('#pagination');
+  pageBox.innerHTML = '';
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  if (totalPages <= 1) return;
+
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = `px-3 py-1 rounded-lg text-sm border ${currentPage === i ? 'bg-brand-red border-red-700' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`;
+    btn.onclick = () => {
+      currentPage = i;
+      renderTable();
+    };
+    pageBox.appendChild(btn);
+  }
+}
+
 function renderTable(){
   const body=$('#productBody'); body.innerHTML='';
   const showCosts = (currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role));
   const canEdit = ['Host','Admin'].includes(currentUser.role);
 
-  filteredProducts().forEach(p=>{
+  const allFiltered = filteredProducts();
+  const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  paginatedItems.forEach(p=>{
     const tr=document.createElement('tr');
     tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
 
@@ -505,39 +541,94 @@ function renderTable(){
       localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
       autoSyncSchedule();
       log('delete_sku', sku);
-      renderTable(); updateColumnVisibility();
+      renderTable();
     }
   });
 
+  renderPagination(allFiltered.length);
   updateColumnVisibility();
 }
 
 /* ================= EDITOR ================= */
-function openEditor(sku){
+function openEditor(sku = null) {
   if(!['Host','Admin'].includes(currentUser.role)) return;
-  editingIndex = products.findIndex(x=>x.sku===sku);
-  const p=products[editingIndex];
-  $('#edSku').value=p.sku; $('#edDesc').value=p.description; $('#edDetails').value=p.details||'';
-  $('#edExpire').value=toDateInput(p.expiresDate);
-  $('#edCosts').value=p.costs||''; $('#edNormal').value=p.normalPrice||''; $('#edPromo').value=p.promoPrice||'';
-  $('#edMarket').value=p.marketplacePrice||''; $('#edT1').value=p.dealer1||''; $('#edT2').value=p.dealer2||''; $('#edT3').value=p.dealer3||'';
+
+  if (sku) { // Editing existing product
+    editingIndex = products.findIndex(x=>x.sku===sku);
+    const p = products[editingIndex];
+    $('#editorTitle').textContent = 'Edit Product';
+    $('#edSku').value = p.sku;
+    $('#edSku').disabled = true; // Prevent SKU change on edit
+    $('#edDesc').value = p.description;
+    $('#edDetails').value = p.details||'';
+    $('#edExpire').value = toDateInput(p.expiresDate);
+    $('#edCosts').value = p.costs||'';
+    $('#edNormal').value = p.normalPrice||'';
+    $('#edPromo').value = p.promoPrice||'';
+    $('#edMarket').value = p.marketplacePrice||'';
+    $('#edT1').value = p.dealer1||'';
+    $('#edT2').value = p.dealer2||'';
+    $('#edT3').value = p.dealer3||'';
+  } else { // Adding new product
+    editingIndex = -1;
+    $('#editorTitle').textContent = 'Add New Product';
+    $('#edSku').value = '';
+    $('#edSku').disabled = false;
+    $('#edDesc').value = '';
+    $('#edDetails').value = '';
+    $('#edExpire').value = '';
+    $('#edCosts').value = '';
+    $('#edNormal').value = '';
+    $('#edPromo').value = '';
+    $('#edMarket').value = '';
+    $('#edT1').value = '';
+    $('#edT2').value = '';
+    $('#edT3').value = '';
+  }
+  
   applyDealerNamesToUI();
   $('#editorModal').classList.remove('hidden');
 }
+
 function closeEditor(){ $('#editorModal').classList.add('hidden'); }
+
 $('#btnSaveEd').addEventListener('click', ()=>{
-  if(editingIndex<0) return;
-  const p=products[editingIndex];
-  Object.assign(p,{
-    sku:$('#edSku').value.trim(), description:$('#edDesc').value.trim(), details:$('#edDetails').value.trim(),
-    expiresDate:$('#edExpire').value||'', costs:parseFloat($('#edCosts').value)||0,
-    normalPrice:parseFloat($('#edNormal').value)||0, promoPrice:parseFloat($('#edPromo').value)||0,
-    marketplacePrice:parseFloat($('#edMarket').value)||0, dealer1:parseFloat($('#edT1').value)||0,
-    dealer2:parseFloat($('#edT2').value)||0, dealer3:parseFloat($('#edT3').value)||0
-  });
+  const sku = $('#edSku').value.trim();
+  if (!sku) {
+    alert('SKU is required.');
+    return;
+  }
+
+  const newProductData = {
+    sku: sku,
+    description:$('#edDesc').value.trim(),
+    details:$('#edDetails').value.trim(),
+    expiresDate:$('#edExpire').value||'',
+    costs:parseFloat($('#edCosts').value)||0,
+    normalPrice:parseFloat($('#edNormal').value)||0,
+    promoPrice:parseFloat($('#edPromo').value)||0,
+    marketplacePrice:parseFloat($('#edMarket').value)||0,
+    dealer1:parseFloat($('#edT1').value)||0,
+    dealer2:parseFloat($('#edT2').value)||0,
+    dealer3:parseFloat($('#edT3').value)||0
+  };
+
+  if (editingIndex > -1) { // Update existing
+    Object.assign(products[editingIndex], newProductData);
+    log('edit_product', sku);
+  } else { // Add new
+    if (products.some(p => p.sku === sku)) {
+      alert(`SKU "${sku}" already exists. Please use a unique SKU.`);
+      return;
+    }
+    products.unshift(newProductData); // Add to the top of the list
+    log('add_product', sku);
+  }
+  
   localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
   autoSyncSchedule();
-  closeEditor(); renderTable(); log('edit_product', p.sku);
+  closeEditor();
+  renderTable();
 });
 
 /* ================= SETTINGS ================= */
@@ -744,12 +835,10 @@ function renderSettings(tab){
       <div class="flex items-center justify-between">
         <div class="text-2xl font-semibold mb-2">Template Management</div>
         <div class="flex items-center gap-2">
-          <label class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 cursor-pointer">
-            <input type="file" id="tplUpload" accept="image/png, image/jpeg" class="hidden"> Upload Image Template
-          </label>
+           <button id="btnNewTpl" class="px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">New Blank Template</button>
         </div>
       </div>
-      <div class="text-sm text-zinc-400 mb-3">Default templates show the company logo. Uploaded image templates do not.</div>
+      <div class="text-sm text-zinc-400 mb-3">All templates are fully customizable.</div>
       <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
     `;
     const listBox=$('#tplList'); listBox.innerHTML='';
@@ -757,79 +846,101 @@ function renderSettings(tab){
       const card=document.createElement('div');
       card.className='p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
       
-      if (t.kind === 'IMAGE') {
-        // --- NEW: Render card for Image Templates ---
-        card.innerHTML = `
-          <div class="font-semibold">${t.name}</div>
-          <div class="text-xs text-zinc-400 mb-3">Image Template</div>
-          <img src="${t.imageData}" class="w-full h-auto rounded-lg border border-zinc-700 my-2 object-contain max-h-48">
-          <div class="mt-3 flex items-center justify-end">
-            <button class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del="${i}">Delete</button>
-          </div>
-        `;
-      } else {
-        // --- EXISTING: Render card for default style-based templates ---
-        card.innerHTML=`
-          <div class="font-semibold">${t.name}</div>
-          <div class="text-xs text-zinc-400 mb-3">${t.kind} ${t.showLogo?'• shows logo':'• no logo'}</div>
-          <div class="grid grid-cols-2 gap-3">
-            ${['sku','description','details','price','oldPrice','expire'].map(k=>`
-              <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-                <div class="text-xs text-zinc-400 mb-1">${k}</div>
-                <label class="text-xs">Font size</label>
-                <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k]?.fs||14}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
-                <label class="text-xs">Color</label>
-                <input type="color" data-color="${i}|${k}" value="${t.styles[k]?.color||'#ffffff'}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
-                <label class="text-xs">Top margin (px)</label>
-                <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k]?.mt||0}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-              </div>
-            `).join('')}
-          </div>
-          <div class="mt-3 flex items-center justify-between">
-            <label class="flex items-center gap-2 text-sm ${['t-a4','t-a5','t-a6','t-acc'].includes(t.id)?'':'hidden'}"><input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> Show logo (default templates only)</label>
-            <span class="text-xs text-zinc-500">${['t-a4','t-a5','t-a6','t-acc'].includes(t.id) ? '(cannot delete)' : ''}</span>
-          </div>
-          <button class="mt-3 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savtpl="${i}">Save template</button>
-        `;
-      }
+      card.innerHTML=`
+        <div class="flex justify-between items-start">
+            <input data-name="${i}" value="${t.name}" class="bg-transparent font-semibold text-lg w-full mb-2 border-b border-zinc-700 focus:border-brand-red outline-none">
+            <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del="${i}">Delete</button>
+        </div>
+        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id} • Kind: ${t.kind}</div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <div class="text-sm font-semibold mb-2">Background Image</div>
+                <img src="${t.imageData || 'https://placehold.co/600x400/0b0b0c/333333?text=No+Image'}" class="w-full h-auto rounded-lg border border-zinc-700 my-2 object-contain max-h-32">
+                <label class="w-full text-center block mt-2 px-3 py-1.5 text-xs rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
+                    <input type="file" data-img="${i}" accept="image/png, image/jpeg" class="hidden"> Upload/Change Image
+                </label>
+            </div>
+            <div>
+                <div class="text-sm font-semibold mb-2">Logo Settings</div>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> Show logo</label>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                        <label class="text-xs text-zinc-400">Size (px)</label>
+                        <input type="number" step="1" data-logosize="${i}" value="${t.logoStyles?.size||64}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+                    </div>
+                    <div>
+                        <label class="text-xs text-zinc-400">Margin (px)</label>
+                        <input type="number" step="1" data-logomargin="${i}" value="${t.logoStyles?.margin||10}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
+            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+              <div class="text-xs text-zinc-400 mb-1 capitalize">${k.replace('oldPrice', 'Old Price')}</div>
+              <label class="text-xs">Font size</label>
+              <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k]?.fs||14}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
+              <label class="text-xs">Color</label>
+              <input type="color" data-color="${i}|${k}" value="${t.styles[k]?.color||'#ffffff'}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
+              <label class="text-xs">Top margin (px)</label>
+              <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k]?.mt||0}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+            </div>
+          `).join('')}
+        </div>
+        <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savtpl="${i}">Save Template</button>
+      `;
       listBox.appendChild(card);
     });
 
     $$('button[data-savtpl]').forEach(b=>b.onclick=()=>{
       const i=+b.getAttribute('data-savtpl'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
+      t.name = $(`input[data-name="${i}"]`).value.trim() || 'Untitled Template';
       ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
         t.styles[k]=t.styles[k]||{}; t.styles[k].fs=parseInt($(`input[data-fs="${i}|${k}"]`).value)||14;
         t.styles[k].color=$(`input[data-color="${i}|${k}"]`).value||'#ffffff';
         t.styles[k].mt=parseInt($(`input[data-mt="${i}|${k}"]`).value)||0;
       });
-      if(['t-a4','t-a5','t-a6','t-acc'].includes(t.id)){ t.showLogo=$(`input[data-logo="${i}"]`).checked; }
+      t.showLogo=$(`input[data-logo="${i}"]`).checked;
+      t.logoStyles = t.logoStyles || {};
+      t.logoStyles.size = parseInt($(`input[data-logosize="${i}"]`).value) || 64;
+      t.logoStyles.margin = parseInt($(`input[data-logomargin="${i}"]`).value) || 10;
+      
       localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('save_template',t.name); alert('Template saved');
     });
 
     $$('button[data-del]').forEach(b=>b.onclick=()=>{
       const i=+b.getAttribute('data-del'); const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); const t=arr[i];
-      if(confirm('Delete this template?')){ arr.splice(i,1); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('delete_template', t.name); openSettings('templates'); }
+      if(confirm(`Delete template "${t.name}"?`)){ arr.splice(i,1); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('delete_template', t.name); openSettings('templates'); }
     });
     
-    // --- NEW: Rewritten upload handler for images ---
-    $('#tplUpload').onchange=async(e)=>{
-      const f=e.target.files[0]; if(!f) return;
-      const nm = prompt('Enter a name for this image template:');
-      if (!nm) return;
-      try{
-        const imageData = await fileToBase64(f);
-        const id = 'user-img-' + Math.random().toString(36).slice(2, 8);
-        const newTemplate = { id, name: nm, kind: 'IMAGE', imageData, showLogo: false }; // Image templates never show logo
-        const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES));
-        arr.push(newTemplate);
-        localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr));
-        templates=arr; autoSyncSchedule();
-        log('upload_image_template', nm);
-        openSettings('templates');
-        alert('Image template uploaded successfully.');
-      }
-      catch(err){ alert('Failed to upload image template. Error: ' + err.message); }
-      e.target.value = ''; // Reset file input
+    $$('input[data-img]').forEach(input => {
+        input.onchange = async (e) => {
+            const i = +e.target.getAttribute('data-img');
+            const f = e.target.files[0];
+            if (!f) return;
+            const arr = JSON.parse(localStorage.getItem(LS.TEMPLATES));
+            const t = arr[i];
+            t.imageData = await fileToBase64(f);
+            t.kind = 'IMAGE'; // Ensure kind is set to IMAGE
+            localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr));
+            templates = arr;
+            autoSyncSchedule();
+            log('update_template_image', t.name);
+            openSettings('templates');
+        };
+    });
+
+    $('#btnNewTpl').onclick=()=>{
+      const nm=prompt('New blank template name:'); if(!nm) return;
+      const id='user-'+Math.random().toString(36).slice(2,8);
+      const tpl = JSON.parse(JSON.stringify(defaultTemplates()[2])); // Clone A6 template
+      tpl.id = id;
+      tpl.name = nm;
+      tpl.imageData = null;
+      const arr=JSON.parse(localStorage.getItem(LS.TEMPLATES)); arr.push(tpl); localStorage.setItem(LS.TEMPLATES, JSON.stringify(arr)); templates=arr; autoSyncSchedule(); log('create_template',nm); openSettings('templates');
     };
   }
 
@@ -862,7 +973,6 @@ function renderSettings(tab){
       </div>
     `;
 
-    /* save config instantly when typing/toggling */
     const saveCfgInstant = ()=>{
       saveCloudCfg({
         token: $('#cloudToken').value.trim(),
@@ -914,19 +1024,44 @@ async function doImport(){
   const data=await fi.files[0].arrayBuffer();
   const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-  const start=rows.findIndex(r=> (r[0]||'').toString().trim() && (r[0]||'')!=='SKU');
+  
+  const headerRowIndex = rows.findIndex(r => (r[0]||'').toString().toLowerCase().trim() === 'sku');
+  if (headerRowIndex === -1) {
+    return alert('Error: Cannot find header row. Make sure the first column header is "SKU".');
+  }
+  const header = rows[headerRowIndex].map(h => (h||'').toString().trim());
+  const expectedHeaders = ['SKU', 'Description', 'Details', 'Costs', 'Normal Price', 'Promotion Price', 'Expires Date', 'Marketplace Price'];
+  if (!expectedHeaders.every(h => header.includes(h))) {
+    return alert('Error: Excel file is missing required columns. Required: ' + expectedHeaders.join(', '));
+  }
+
+  const start=headerRowIndex + 1;
   const newItems=[];
+  const importedSkus = new Set();
+
   for(let i=start;i<rows.length;i++){
-    const r=rows[i]; if(!(r[0]||'').toString().trim()) continue;
+    const r=rows[i]; 
+    const sku = (r[0]||'').toString().trim();
+    if(!sku) continue;
+
+    if (importedSkus.has(sku)) {
+      return alert(`Error: Duplicate SKU "${sku}" found in the import file. Please ensure all SKUs are unique.`);
+    }
+    if (products.some(p => p.sku === sku)) {
+      return alert(`Error: SKU "${sku}" already exists in the database. Please remove it from the file to proceed.`);
+    }
+    importedSkus.add(sku);
+
     newItems.push({
-      sku:(r[0]||'').toString().trim(), description:(r[1]||'').toString().trim(), details:(r[2]||'').toString().trim(),
+      sku:sku, description:(r[1]||'').toString().trim(), details:(r[2]||'').toString().trim(),
       costs:parseFloat(r[3]||0)||0, normalPrice:parseFloat(r[4]||0)||0, promoPrice:parseFloat(r[5]||0)||0,
       expiresDate:fromExcelDate(r[6]||''), marketplacePrice:parseFloat(r[7]||0)||0, dealer1:parseFloat(r[9]||0)||0,
       dealer2:parseFloat(r[11]||0)||0, dealer3:parseFloat(r[13]||0)||0
     });
   }
-  if(!newItems.length) return alert('No data found');
-  products=newItems; localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); renderTable(); autoSyncSchedule(); log('import_excel', `${newItems.length} rows`);
+  if(!newItems.length) return alert('No new product data found to import.');
+  products=[...newItems, ...products]; // Prepend new items
+  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); renderTable(); autoSyncSchedule(); log('import_excel', `${newItems.length} rows`);
   alert('Imported: '+newItems.length+' rows');
 }
 async function doExport(){
@@ -1005,98 +1140,71 @@ function updatePrintSummary(){
 function fillTemplateDropdown(){
   const dd=$('#printTemplate'); dd.innerHTML='';
   templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
-  dd.onchange=()=>{ const first=filteredProducts()[0]; renderPreview(first, templates.find(t=>t.id===dd.value)); };
+  dd.onchange=()=>{ 
+    const firstSelectedSku = $('#printList input[type="checkbox"]:checked')?.getAttribute('data-sel');
+    const firstItem = products.find(p => p.sku === firstSelectedSku) || filteredProducts()[0];
+    renderPreview(firstItem, templates.find(t=>t.id===dd.value)); 
+  };
 }
 
 /* ---------- Live Preview: fit-to-pane + observer ---------- */
 function baseSize(kind){
-  if(kind==='A4') return {w:744,h:1052};  // portrait
-  if(kind==='A5') return {w:526,h:744};   // portrait A5 (like A4/A6 but scaled)
-  if(kind==='A6') return {w:372,h:526};   // portrait
-  return {w:640,h:320}; // ACC (label aspect ~2:1)
+  if(kind==='A4') return {w:744,h:1052};
+  if(kind==='A5') return {w:526,h:744};
+  if(kind==='A6') return {w:372,h:526};
+  return {w:640,h:320}; // ACC or default for IMAGE
 }
 function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
 
 function renderTagInnerHTML(p,tpl){
-  // --- NEW: Handle Image Templates ---
-  if (tpl.kind === 'IMAGE') {
-    return `
-      <div style="position:absolute; top:5%; left:5%; font-size:1.8vh; color:white; font-weight:600; text-shadow: 0 1px 3px #000;" class="text-elevate">${p.sku}</div>
-      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:90%; text-align:center; font-size:2.5vh; color:white; font-weight:700; text-shadow: 0 2px 4px #000;" class="text-elevate">${ellip(p.description, 60)}</div>
-      <div style="position:absolute; bottom:5%; right:5%; text-align:right;">
-          <div style="font-size:2.2vh; color:#ffb8b8; text-shadow: 0 1px 3px #000;" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-          <div style="font-size:5vh; color:white; font-weight:900; text-shadow: 0 2px 5px #000;" class="text-elevate">${money(p.promoPrice)}.-</div>
-      </div>
-    `;
-  }
-  
-  if(tpl.kind==='ACC'){
     const s=tpl.styles;
+    const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
+        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
+    
     return `
-      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
-      <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
-        <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${truncateMiddle(p.description, 44)}</div>
-      </div>
-      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
-        <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-        <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-      </div>
-    `;
-  }
-  const s=tpl.styles;
-  const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
-    <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
-  return `
-    <div style="padding:10mm">
-      <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
-      <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
-      <div class="mt-3 space-y-1">${bullets}</div>
-      <div class="mt-4 flex items-end justify-between">
-        <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-        <div class="text-right">
-          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:10mm; display:flex; flex-direction:column;">
+            <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
+            <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
+            <div class="mt-3 space-y-1">${bullets}</div>
+            <div class="mt-auto flex items-end justify-between">
+                <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+                <div class="text-right">
+                <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+                <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  `;
+    `;
 }
 function buildPreviewTag(p,tpl){
-  // --- NEW: Handle Image Templates ---
-  if (tpl.kind === 'IMAGE') {
-    const img = new Image();
-    img.src = tpl.imageData;
-    const w = img.width || 640;
-    const h = img.height || 360;
-
-    const outer=document.createElement('div');
-    outer.style.width=w+'px'; outer.style.height=h+'px';
-    outer.style.borderRadius='12px'; outer.style.overflow='hidden';
-    outer.style.border='2px solid #1f1f22';
-    outer.style.background = `url(${tpl.imageData})`;
-    outer.style.backgroundSize = 'cover';
-    outer.style.backgroundPosition = 'center';
-    outer.style.color='#fff'; outer.style.position='relative';
-
-    const inner=document.createElement('div');
-    inner.innerHTML=renderTagInnerHTML(p,tpl);
-    inner.style.width='100%'; inner.style.height='100%';
-    outer.appendChild(inner);
-    return {node:outer, w, h};
+  let w, h;
+  if(tpl.imageData) {
+      const img = new Image();
+      img.src = tpl.imageData;
+      w = img.width || 640;
+      h = img.height || 360;
+  } else {
+      const size = baseSize(tpl.kind);
+      w = size.w;
+      h = size.h;
   }
 
-  // --- EXISTING: Handle default templates ---
-  const {w,h}=baseSize(tpl.kind);
   const outer=document.createElement('div');
   outer.style.width=w+'px'; outer.style.height=h+'px';
   outer.style.borderRadius='12px'; outer.style.overflow='hidden';
-  outer.style.border='2px solid #1f1f22'; outer.style.background = tpl.kind==='ACC'?'#000':'#0b0b0c'; outer.style.color='#fff'; outer.style.position='relative';
+  outer.style.border='2px solid #1f1f22';
+  outer.style.background = tpl.imageData ? `url(${tpl.imageData})` : (tpl.kind==='ACC'?'#000':'#0b0b0c');
+  outer.style.backgroundSize = 'cover';
+  outer.style.backgroundPosition = 'center';
+  outer.style.color='#fff'; outer.style.position='relative';
+
   if(tpl.showLogo){
     const logo=localStorage.getItem(LS.LOGO);
-    outer.innerHTML += logo? `<img src="${logo}" style="position:absolute;right:10px;top:10px;width:64px">`
-                           : `<div style="position:absolute;right:10px;top:10px;width:64px;color:#fff;font-weight:800;text-align:right">P</div>`;
+    const logoSize = tpl.logoStyles?.size || 64;
+    const logoMargin = tpl.logoStyles?.margin || 10;
+    outer.innerHTML += logo? `<img src="${logo}" style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
+                           : `<div style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;color:#fff;font-weight:800;text-align:right">P</div>`;
   }
   const inner=document.createElement('div');
   inner.innerHTML=renderTagInnerHTML(p,tpl);
@@ -1124,12 +1232,10 @@ function renderPreview(item,tpl){
     holder.style.margin='auto';
   }
   fit();
-  window.addEventListener('resize', fit, {passive:true});
-  $('#printTemplate')?.addEventListener('change', fit, {passive:true});
   const ro = new ResizeObserver(()=>fit()); ro.observe(box);
 }
 
-/* ---------- Print page (A5 portrait on A4 landscape, 2-up) ---------- */
+/* ---------- Print page ---------- */
 function openPrintTab(list,tpl){
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
   if(!items.length){ alert('Select at least one SKU.'); return; }
@@ -1138,80 +1244,60 @@ function openPrintTab(list,tpl){
   if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
 
   const logo=localStorage.getItem(LS.LOGO)||'';
-  let cols=1, rows=1, pad='8mm', logoW='28mm';
-  let pageSize='A4'; // default
+  let cols=1, rows=1, pad='8mm', pageSize='A4';
 
-  // --- NEW: Handle Image Template layout ---
   if(tpl.kind === 'IMAGE') {
-    cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4'; // 4-up on A4 portrait
+    cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4';
   }
-  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; logoW='32mm'; pageSize='A4'; }
+  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
   else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
   else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
-  else { cols=2; rows=6; pad='6mm'; logoW='20mm'; pageSize='A4'; }
+  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
 
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
       @page { size: ${pageSize}; margin: 8mm; }
       html,body{
-        background:#fff; /* Changed to white for printing */
+        background:#fff;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
         font-family:'Kanit','Prompt',sans-serif;
       }
-
-      ${pageSize==='A4 landscape'
-        ? `
-          /* A4 landscape: 297 x 210 mm */
-          .sheet{
-            width:  calc(297mm - 16mm);
-            height: calc(210mm - 16mm);
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(${cols}, 1fr); /* 2 columns for A5 */
-            grid-template-rows:    repeat(${rows}, 1fr); /* 1 row */
-            gap: 0;
-            page-break-after: always;
-          }
-        `
-        : `
-          /* A4 portrait */
-          .sheet{
-            width:  calc(210mm - 16mm);
-            height: calc(297mm - 16mm);
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(${cols}, 1fr);
-            grid-template-rows:    repeat(${rows}, 1fr);
-            gap: 0;
-            page-break-after: always;
-          }
-        `
+      .sheet{
+        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
+        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
+        margin: 0 auto; display: grid;
+        grid-template-columns: repeat(${cols}, 1fr);
+        grid-template-rows:    repeat(${rows}, 1fr);
+        gap: 0; page-break-after: always;
       }
-
       .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; }
       .card{
         position:relative; width:100%; height:100%;
         border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
-        background:${tpl.kind==='ACC'?'#000':'#0b0b0c'}; color:#fff;
-        background-size: cover;
-        background-position: center;
+        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
+        color:#fff;
+        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
+        background-size: cover; background-position: center;
       }
-      .logo{ position:absolute; right:8mm; top:6mm; width:${logoW}; }
+      .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
     </style>
   `;
 
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-  const logoTag = (tpl.showLogo && logo) ? `<img src="${logo}" class="logo">` : (tpl.showLogo ? `<div class="logo" style="color:#fff;font-weight:800">P</div>` : '');
-
+  
   const body = pages.map(pg=>{
     const inner=pg.map(p=>{
-      // --- NEW: Logic to handle image vs default templates ---
-      const cardStyle = tpl.kind === 'IMAGE' ? `style="background-image: url(${tpl.imageData})"` : '';
-      const content = tpl.kind === 'IMAGE' ? renderTagInnerHTML(p, tpl) : logoTag + renderTagInnerHTML(p, tpl);
-      return `<div class="tag"><div class="card" ${cardStyle}>${content}</div></div>`;
+      let logoTag = '';
+      if(tpl.showLogo && logo) {
+        const logoSize = tpl.logoStyles?.size || 64;
+        const logoMargin = tpl.logoStyles?.margin || 10;
+        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
+      }
+      const content = renderTagInnerHTML(p, tpl);
+      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
     }).join('');
     return `<div class="sheet">${inner}</div>`;
   }).join('');
@@ -1224,9 +1310,9 @@ function openPrintTab(list,tpl){
 /* ================= EVENTS ================= */
 $('#btnLogin').onclick=login;
 $('#btnLogout').onclick=()=>{ log('logout'); logout(); };
+$('#btnNewProduct').onclick = () => openEditor();
 
-['#searchInput','#dateStart','#dateEnd'].forEach(s=>$(s).addEventListener('input', renderTable));
-$('#channelSelect').addEventListener('change', ()=>{ updateColumnVisibility(); renderTable(); });
+['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
 
 /* Costs visibility propagation if global flag enables for Users */
 const observer=new MutationObserver(()=>{
