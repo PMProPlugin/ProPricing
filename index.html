@@ -1247,58 +1247,37 @@ function openPrintTab(list,tpl){
   else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
   else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
 
-const style = `
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* 1) เอาขอบกระดาษออกทั้งหมด */
-    @page { size: ${pageSize}; margin: 0; }
-
-    html, body{
-      background: #fff;
-      margin: 0; height: 100%;
-      -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      font-family: 'Kanit','Prompt',sans-serif;
-    }
-    body{ padding: 0; }
-
-    /* 2) ให้พื้นที่ .sheet เท่ากับขนาดกระดาษจริงแบบเป๊ะ (ไม่มี -16mm แล้ว) */
-    .sheet{
-      width:  ${pageSize==='A4 landscape' ? '297mm' : '210mm'};
-      height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'};
-      margin: 0;
-      display: grid;
-      grid-template-columns: repeat(${cols}, 1fr);
-      grid-template-rows:    repeat(${rows}, 1fr);
-      gap: 0;
-      page-break-after: always;
-    }
-
-    /* 3) ลบ margin/padding ที่อาจดันพื้นหลังให้ย่อ */
-    .tag{ width: 100%; height: 100%; margin: 0; padding: 0; box-sizing: border-box; }
-
-    /* 4) ถ้ามีรูปพื้นหลัง ให้ตัดเส้นขอบและมุมโค้งออก เพื่อให้ชนขอบจริง */
-    .card{
-      position: relative; width: 100%; height: 100%; overflow: hidden;
-
-      /* ไม่มีกรอบ/มุมมนเมื่อเป็นเทมเพลตภาพ (รูปจะเต็มขอบ) */
-      border: ${tpl.imageData ? '0' : '2px solid #1f1f22'};
-      border-radius: ${tpl.imageData ? '0' : '12px'};
-
-      background-color: ${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
-      color: #fff;
-
-      /* พื้นหลังต้อง cover แบบไม่เหลือขอบขาว */
-      background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
-      background-repeat: no-repeat;
-      background-size: cover;
-      background-position: center;
-    }
-
-    .logo{ position:absolute; }
-    .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-  </style>
-`;
-
+  const style=`
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      @page { size: ${pageSize}; margin: 8mm; }
+      html,body{
+        background:#fff;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        font-family:'Kanit','Prompt',sans-serif;
+      }
+      .sheet{
+        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
+        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
+        margin: 0 auto; display: grid;
+        grid-template-columns: repeat(${cols}, 1fr);
+        grid-template-rows:    repeat(${rows}, 1fr);
+        gap: 0; page-break-after: always;
+      }
+      /* REMOVED padding from .tag to allow background to fill the space */
+      .tag{ width:100%; height:100%; box-sizing:border-box; }
+      .card{
+        position:relative; width:100%; height:100%;
+        border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
+        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
+        color:#fff;
+        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
+        background-size: cover; background-position: center;
+      }
+      .logo{ position:absolute; }
+      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+    </style>
+  `;
 
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
@@ -1388,4 +1367,3 @@ init();
 
 </body>
 </html>
-
