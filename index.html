@@ -27,55 +27,6 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
 
-
-<!-- Firebase (Compat SDK) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script>
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "000000000000",
-    appId: "1:000000000000:web:0000000000000000"
-  };
-  let __db = null;
-  try{
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    __db = firebase.firestore();
-  }catch(e){
-    console.warn('Firebase init skipped. Fill firebaseConfig to enable cloud sync.');
-  }
-  const cloudReady = ()=>!!__db;
-  async function cloudGetHost(){
-    if(!cloudReady()) return null;
-    try{
-      const snap = await __db.collection('config').doc('host').get();
-      return snap.exists ? snap.data() : null;
-    }catch(e){ console.error('cloudGetHost', e); return null; }
-  }
-  async function cloudSaveHost(hostUser){
-    if(!cloudReady()) return;
-    try{ await __db.collection('config').doc('host').set(hostUser, {merge:true}); }
-    catch(e){ console.error('cloudSaveHost', e); }
-  }
-  async function cloudGetState(){
-    if(!cloudReady()) return null;
-    try{
-      const snap = await __db.collection('app').doc('state').get();
-      return snap.exists ? snap.data() : null;
-    }catch(e){ console.error('cloudGetState', e); return null; }
-  }
-  async function cloudSaveState(){
-    if(!cloudReady()) return;
-    try{
-      if(typeof getAppState==='function'){
-        await __db.collection('app').doc('state').set(getAppState(), {merge:true});
-      }
-    }catch(e){ console.error('cloudSaveState', e); }
-  }
-</script>
 <style>
   :root { color-scheme: dark; }
   html,body{ height:100%; background:#0b0b0c }
@@ -106,6 +57,17 @@
     <label class="text-sm text-zinc-400 mt-4 block">Confirm password</label>
     <input id="setupPassConfirm" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="confirm password" />
     <button id="btnCreateHost" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create Host Account</button>
+  
+    <div class="mt-8 border-t border-zinc-800 pt-6">
+      <div class="text-lg font-semibold mb-2">Or Load Existing Data from Cloud</div>
+      <p class="text-sm text-zinc-400 mb-3">If your team already saved data to a private GitHub Gist, you can load it here and then log in.</p>
+      <label class="text-sm text-zinc-400">GitHub Personal Access Token</label>
+      <input id="setupCloudToken" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_... (never saved)">
+      <label class="text-sm text-zinc-400 mt-4 block">Gist ID</label>
+      <input id="setupCloudGist" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4...">
+      <button id="btnSetupCloudLoad" class="mt-4 w-full py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Load from Cloud</button>
+    </div>
+
   </div>
 </section>
 
@@ -124,6 +86,17 @@
     <label class="text-sm text-zinc-400 mt-4 block">Password</label>
     <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="password" />
     <button id="btnLogin" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
+    <details class="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/50">
+      <summary class="cursor-pointer list-none px-4 py-3 font-medium">Load from Cloud</summary>
+      <div class="p-4 pt-2">
+        <label class="text-sm text-zinc-400">GitHub Personal Access Token</label>
+        <input id="loginCloudToken" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_... (never saved)">
+        <label class="text-sm text-zinc-400 mt-4 block">Gist ID</label>
+        <input id="loginCloudGist" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4...">
+        <button id="btnLoginCloudLoad" class="mt-4 w-full py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Load from Cloud</button>
+      </div>
+    </details>
+
   </div>
 </section>
 
@@ -453,17 +426,9 @@ async function login(){
   const u=$('#loginUser').value.trim();
   const p=$('#loginPass').value;
   const pHash = await hashPassword(p);
-  let found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
-  if(!found && u==='host'){
-    try{
-      const host = await cloudGetHost();
-      if(host && host.passwordHash===pHash){
-        setUsers([host]);
-        found = host;
-      }
-    }catch(e){ console.error('login cloud host', e); }
-  }
+  const found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
   if(!found) return alert('Invalid credentials');
+
   currentUser=found;
   localStorage.setItem(LS.LASTUSER, u);
   $('#loginView').classList.add('hidden');
@@ -472,8 +437,10 @@ async function login(){
   const isHost = currentUser.role==='Host';
   const isAdmin = currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  try{ const state = await cloudGetState(); if(state) setAppState(state); }catch(e){}
-  loadState(); initFiltersForUser(); renderColToggles(); renderTable();
+  loadState();
+  initFiltersForUser();
+  applyDealerNamesToUI();
+  renderTable();
   log('login');
 }
 function logout(){
@@ -1173,6 +1140,11 @@ function baseSize(kind){
   return {w:640,h:320}; // ACC or default for IMAGE
 }
 function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
+
+function escapeHtml(str){
+  if(str==null) return '';
+  return String(str).replace(/[&<>"'`=\/]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','=':'&#61;','/':'&#47;','\\':'&#92;'}[s]||s));
+}
 function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
 function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a default
     if(tpl.kind==='ACC'){
@@ -1194,7 +1166,7 @@ function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a de
 
     const s=tpl.styles;
     const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
-        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
+        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>\${escapeHtml(t)}</span></div>`).join('');
     
     // Use the passed 'pad' variable for padding instead of hardcoded '10mm'
     return `
@@ -1232,30 +1204,39 @@ function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a de
 }
 function buildPreviewTag(p,tpl){
   let w, h;
+  const outer=document.createElement('div');
+  outer.style.borderRadius='12px'; outer.style.overflow='hidden';
+  outer.style.border='2px solid #1f1f22';
+  outer.style.color='#fff'; outer.style.position='relative';
   if(tpl.imageData) {
       const img = new Image();
+      img.onload = () => {
+        const nw = img.naturalWidth || 640;
+        const nh = img.naturalHeight || 360;
+        outer.style.width = nw+'px';
+        outer.style.height = nh+'px';
+        outer.dispatchEvent(new CustomEvent('templateImageLoaded', { detail: { w: nw, h: nh }}));
+      };
       img.src = tpl.imageData;
-      w = img.width || 640;
-      h = img.height || 360;
+      w = img.naturalWidth || 640;
+      h = img.naturalHeight || 360;
+      outer.style.width=w+'px'; outer.style.height=h+'px';
+      outer.style.background = `url(${tpl.imageData})`;
+      outer.style.backgroundSize = 'cover';
+      outer.style.backgroundPosition = 'center';
   } else {
       const size = baseSize(tpl.kind);
       w = size.w;
       h = size.h;
+      outer.style.width=w+'px'; outer.style.height=h+'px';
+      outer.style.background = (tpl.kind==='ACC'?'#000':'#0b0b0c');
   }
-  const outer=document.createElement('div');
-  outer.style.width=w+'px'; outer.style.height=h+'px';
-  outer.style.borderRadius='12px'; outer.style.overflow='hidden';
-  outer.style.border='2px solid #1f1f22';
-  outer.style.background = tpl.imageData ? `url(${tpl.imageData})` : (tpl.kind==='ACC'?'#000':'#0b0b0c');
-  outer.style.backgroundSize = 'cover';
-  outer.style.backgroundPosition = 'center';
-  outer.style.color='#fff'; outer.style.position='relative';
   if(tpl.showLogo){
     const logo=localStorage.getItem(LS.LOGO);
     const logoSize = tpl.logoStyles?.size || 64;
     const logoMargin = tpl.logoStyles?.margin || 10;
-    outer.innerHTML += logo? `<img src="${logo}" style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
-                           : `<div style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;color:#fff;font-weight:800;text-align:right">P</div>`;
+    outer.innerHTML += logo? `<img src="\${logo}" style="position:absolute;right:\${logoMargin}px;top:\${logoMargin}px;width:\${logoSize}px;height:auto;">`
+                           : `<div style="position:absolute;right:\${logoMargin}px;top:\${logoMargin}px;width:\${logoSize}px;color:#fff;font-weight:900;text-align:center;border:1px dashed #555;border-radius:10px;padding:8px 4px">LOGO</div>`;
   }
   const inner=document.createElement('div');
   inner.innerHTML=renderTagInnerHTML(p,tpl);
@@ -1272,15 +1253,19 @@ function renderPreview(item,tpl){
   holder.style.position='relative';
   holder.appendChild(node);
   box.appendChild(holder);
+  let W=w, H=h;
   function fit(){
     const availW=box.clientWidth;
     const availH=box.clientHeight;
-    const scale=Math.max(0.1, Math.min(availW/w, availH/h));
+    const scale=Math.max(0.1, Math.min(availW/W, availH/H));
     node.style.transform=`scale(${scale})`;
-    holder.style.width=(w*scale)+'px';
-    holder.style.height=(h*scale)+'px';
+    holder.style.width=(W*scale)+'px';
+    holder.style.height=(H*scale)+'px';
     holder.style.margin='auto';
   }
+  node.addEventListener('templateImageLoaded', (e) => {
+    W = e.detail.w; H = e.detail.h; fit();
+  }, { once:false });
   fit();
   const ro = new ResizeObserver(()=>fit()); ro.observe(box);
 }
@@ -1305,15 +1290,15 @@ function openPrintTab(list,tpl){
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-      @page { size: ${pageSize}; margin: 0; }
+      @page { size: ${pageSize}; margin: 8mm; }
       html,body{
         background:#fff;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
         font-family:'Kanit','Prompt',sans-serif;
       }
       .sheet{
-        width:  ${pageSize==='A4 landscape' ? '297mm' : '210mm'};
-        height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'};
+        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
+        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
         margin: 0 auto; display: grid;
         grid-template-columns: repeat(${cols}, 1fr);
         grid-template-rows:    repeat(${rows}, 1fr);
@@ -1360,19 +1345,20 @@ function openPrintTab(list,tpl){
 /* ================= EVENTS BINDING ================= */
 function bindEvents() {
   $('#btnCreateHost').addEventListener('click', async () => {
-  const pass = $('#setupPass').value;
-  const confirmPass = $('#setupPassConfirm').value;
-  if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
-  if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
-  const passwordHash = await hashPassword(pass);
-  const hostUser = { username:'host', passwordHash, role:'Host',
-    channels:[...Channels], canSeeCosts:true, canPrint:true };
-  setUsers([hostUser]);
-  try{ await cloudSaveHost(hostUser); await cloudSaveState(); }catch(e){}
-  $('#setupView').classList.add('hidden');
-  $('#loginView').classList.remove('hidden');
-  alert('Host account created successfully. Please log in.');
-});
+    const pass = $('#setupPass').value;
+    const confirmPass = $('#setupPassConfirm').value;
+    if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
+    if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
+    const passwordHash = await hashPassword(pass);
+    const hostUser = {
+        username: 'host', passwordHash, role: 'Host',
+        channels: [...Channels], canSeeCosts: true, canPrint: true
+    };
+    setUsers([hostUser]);
+    $('#setupView').classList.add('hidden');
+    $('#loginView').classList.remove('hidden');
+    alert('Host account created successfully. Please log in.');
+  });
   $('#btnLogin').addEventListener('click', login);
   $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
   document.addEventListener('keydown', (e) => {
@@ -1401,6 +1387,40 @@ function bindEvents() {
     openPrintTab(list,tpl);
   });
   window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
+  // Cloud Load on Setup view
+  const setupGistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
+  const setupGistInput = $('#setupCloudGist');
+  if (setupGistInput) setupGistInput.value = setupGistId;
+  if ($('#btnSetupCloudLoad')) {
+    $('#btnSetupCloudLoad').addEventListener('click', async () => {
+      const token = ($('#setupCloudToken')?.value || '').trim();
+      const gistId = ($('#setupCloudGist')?.value || '').trim() || localStorage.getItem(LS.CLOUD_GIST_ID) || '';
+      if (!token || !gistId) return alert('Token and Gist ID are required.');
+      try {
+        await cloudLoad(gistId, token);
+        $('#setupView').classList.add('hidden');
+        $('#loginView').classList.remove('hidden');
+        alert('Loaded from cloud. Please log in.');
+      } catch(e){ alert(e.message); }
+    });
+  }
+  // Cloud Load on Login view
+  const loginGistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
+  const loginGistInput = $('#loginCloudGist');
+  if (loginGistInput) loginGistInput.value = loginGistId;
+  if ($('#btnLoginCloudLoad')) {
+    $('#btnLoginCloudLoad').addEventListener('click', async () => {
+      const token = ($('#loginCloudToken')?.value || '').trim();
+      const gistId = ($('#loginCloudGist')?.value || '').trim() || localStorage.getItem(LS.CLOUD_GIST_ID) || '';
+      if (!token || !gistId) return alert('Token and Gist ID are required.');
+      try {
+        await cloudLoad(gistId, token);
+        alert('Loaded from cloud. You can now sign in.');
+      } catch(e){ alert(e.message); }
+    });
+  }
+
+}
 }
 
 /* ================= STARTUP ================= */
@@ -1417,18 +1437,6 @@ function init() {
 }
 
 init();
-(async function cloudKickstart(){
-  try{
-    if(allUsers().length===0){
-      const host = await cloudGetHost();
-      if(host){
-        setUsers([host]);
-        $('#setupView').classList.add('hidden');
-        $('#loginView').classList.remove('hidden');
-      }
-    }
-  }catch(e){ console.error('cloudKickstart', e); }
-})();
 </script>
 
 </body>
