@@ -163,17 +163,45 @@
   <script>
     // ========================= CONFIG =========================
     // 1) Replace with your Firebase project config (Project settings > General)
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+const firebaseConfig = {
+  apiKey: "AIza...",            // ต้องขึ้นต้นด้วย AIza
+  authDomain: "<projectId>.firebaseapp.com",
+  projectId: "<projectId>",
+  storageBucket: "<projectId>.appspot.com",
+  messagingSenderId: "...",
+  appId: "1:...:web:..."
+};
 
     // 2) Optional defaults
     const DEFAULTS = { pageSize: 'A4', orientation: 'portrait', fit: 'cover' };
+
+    <script>
+  // ===== Guard: Validate Firebase Config =====
+  function validateFirebaseConfig(cfg){
+    if (!cfg || typeof cfg !== 'object') throw new Error('Missing firebaseConfig object');
+    const required = ['apiKey','authDomain','projectId','storageBucket','appId'];
+    for (const k of required){ if(!cfg[k]) throw new Error('firebaseConfig.'+k+' is missing'); }
+    if (!/^AIza[0-9A-Za-z-_]{35}$/.test(cfg.apiKey)) {
+      throw new Error('firebaseConfig.apiKey looks invalid (must start with AIza…)');
+    }
+  }
+
+  try {
+    validateFirebaseConfig(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
+  } catch (err) {
+    console.error(err);
+    const msg = [
+      'Firebase config error → '+err.message,
+      'Fix steps:',
+      '1) Copy the Web App config from Project settings → General → Your apps (</>)',
+      '2) Paste into index.html exactly (no extra spaces/quotes)',
+      '3) Enable Email/Password sign-in',
+      '4) Add your domain in Authorized domains',
+    ].join('\n');
+    alert(msg);
+    throw err; // stop further execution
+  }
 
     // ========================= FIREBASE INIT =========================
     firebase.initializeApp(firebaseConfig);
