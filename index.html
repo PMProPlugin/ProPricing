@@ -1,1444 +1,696 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="th">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>ProPlugin • ProPricing</title>
-
-<!-- Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-
-<!-- Tailwind -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        fontFamily: { sans: ['Kanit','Prompt','system-ui','sans-serif'] },
-        colors: { brand: { dark:'#0b0b0c', red:'#E11D2E' } },
-        boxShadow: { soft: '0 6px 18px rgba(0,0,0,.25)' }
-      }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Price Tag Manager — Fixed</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
     }
-  }
-</script>
-
-<!-- SheetJS + XlsxPopulate -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
-
-<style>
-  :root { color-scheme: dark; }
-  html,body{ height:100%; background:#0b0b0c }
-  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#222;border-radius:10px}
-  .oneline{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .text-elevate{ text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 1px rgba(0,0,0,.7) }
-  @media print { .no-print{display:none!important} .print-only{display:block} }
-</style>
+  </style>
 </head>
-
-<body class="text-white font-sans">
-
-<!-- ===================== SETUP (FIRST TIME) ===================== -->
-<section id="setupView" class="hidden min-h-screen grid place-items-center">
-  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
-        <img src="data:image/jpeg;base64,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n0ePo8fR4+jx9Hj6PH0ePo8fR4IkNhtzcyvJqO6wcJfOd96tv4BSo2ikYSBdDtBNNbDO3b4YlW5aUcGLSo419ATFzuE+8/eOjaFSqaZ4f0SJCxYsWLEbDk4+Z/uKw14g82cWuvTkaHT/wAZv//aAAwDAQACAAMAAAAQ8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888880088Ge88888888888888888EwosYQkHH8888888888888888888888qnp88888888888888888sMMM84s88888888888888888oc8884YU88888888888888888gc8c8s8888888888888888888I8M888888888888888888888sc888888888888888888888888888888888888888884bisq1L9gM4c88888k8888888h2Np5y/pEww0QskkI4sc88888PHDP4Al9IM8scswMAc04U88888888888oocQ8www0U888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888//EACQRAQABBAEEAwADAAAAAAAAAAERACExQVFAYaHRcJGxgcHh/9oACAEDAQE/EPiZGcmbnNrVOhLwMfzx1AtWZhw5khOO9ZLBPIeytbzbua6cm8JcohYNMzkiExuj01EN5n4gYsgOtk7rg/NH5bbuVhCkTNDYKRM9EpW0PtqeHJsOIpTD5nuiUkQfX+2oxrJPHacN1moeRnIsb7UoJDGvEVhov7Cd+iLYDKuLUa0QREJi+qCiXj1VkKMqvF6gbAAmOads9/i9JuriT1NDHHmj+vj/AP/EAB8RAQACAgICAwAAAAAAAAAAAAEAESExQHAQYVGhsf/aAAgBAgEBPxDqZZi4OxvkJMhAMPz6YQ8cglMp2YY1hvqAqseGSsUyzxZw1YyyPc9n1NQozFVokHywSXkje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"
-          style="width:45px; height:45px" alt="">
-      </div>
-      <div class="text-2xl font-semibold">First-Time Setup</div>
-    </div>
-    <div class="text-zinc-400 mb-4">Please create the primary 'host' account to begin.</div>
-    <label class="text-sm text-zinc-400">Username</label>
-    <input id="setupUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" value="host" disabled />
-    <label class="text-sm text-zinc-400 mt-4 block">Choose a strong password</label>
-    <input id="setupPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="password" />
-    <label class="text-sm text-zinc-400 mt-4 block">Confirm password</label>
-    <input id="setupPassConfirm" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="confirm password" />
-    <button id="btnCreateHost" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create Host Account</button>
-  
-    <div class="mt-8 border-t border-zinc-800 pt-6">
-      <div class="text-lg font-semibold mb-2">Or Load Existing Data from Cloud</div>
-      <p class="text-sm text-zinc-400 mb-3">If your team already saved data to a private GitHub Gist, you can load it here and then log in.</p>
-      <label class="text-sm text-zinc-400">GitHub Personal Access Token</label>
-      <input id="setupCloudToken" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_... (never saved)">
-      <label class="text-sm text-zinc-400 mt-4 block">Gist ID</label>
-      <input id="setupCloudGist" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4...">
-      <button id="btnSetupCloudLoad" class="mt-4 w-full py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Load from Cloud</button>
-    </div>
-
-  </div>
-</section>
-
-<!-- ===================== LOGIN ===================== -->
-<section id="loginView" class="hidden min-h-screen grid place-items-center">
-  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
-        <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gKgSUNDX1BST0ZJTEUAAQEAAAKQbGNtcwQwAABtbnRyUkdCIFhZWiAAAAAAAAAAAAAAAABhY3NwQVBQTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWxjbXMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtkZXNjAAABCAAAADhjcHJ0AAABQAAAAE53dHB0AAABkAAAABRjaGFkAAABpAAAACxyWFlaAAAB0AAAABRiWFlaAAAB5AAAABRnWFlaAAAB+AAAABRyVFJDAAACDAAAACBnVFJDAAACLAAAACBiVFJDAAACTAAAACBjaHJtAAACbAAAACRtbHVjAAAAAAAAAAEAAAAMZW5VUwAAABwAAAAcAHMAUgBHAEIAIABiAHUAaQBsAHQALQBpAG4AAG1sdWMAAAAAAAAAAQAAAAxlblVTAAAAMgAAABwATgBvACAAYwBvAHAAeQByAGkAZwBoAHQALAAgAHUAcwBlACAAZgByAGUAZQBsAHkAAAAAWFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEoAAAXj///zKgAAB5sAAP2H///7ov///aMAAAPYAADAlFhZWiAAAAAAAABvlAAAOO4AAAOQWFlaIAAAAAAAACSdAAAPgwAAtr5YWVogAAAAAAAAYqUAALeQAAAY3nBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbcGFyYQAAAAAAAwAAAAJmZgAA8qcAAA1ZAAAT0AAACltwYXJhAAAAAAADAAAAAmZmAADypwAADVkAABPQAAAKW2Nocm0AAAAAAAMAAAAAo9cAAFR7AABMzQAAmZoAACZmAAAPXP/bAEMABQMEBAQDBQQEBAUFBQYHDAgHBwcHDwsLCQwRDxISEQ8RERMWHBcTFBoVEREYIRgaHR0fHx8TFyIkIh4kHB4fHv/bAEMBBQUFBwYHDggIDh4UERQeHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHv/CABEIAZABkAMBIgACEQEDEQH/xAAcAAEAAgMBAQEAAAAAAAAAAAAABgcEBQgDAgH/xAAaAQEAAgMBAAAAAAAAAAAAAAAAAwQBAgUG/9oADAMBAAIQAxAAAAGmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGwzDRpB5GkbfUAGxZcqrd6u/ybRGShjCWgAAAAAAAAAAAAAAAB0Nlc8ex1g5XHVun55yzpuP0XjF1S3mLVHV/hy16mb96OWVvRY2XhZcPShHxII9c8n+DeuAAAAAAAAAAAAAAAAAAAAB+5ON+42sXQy+Awdnfwj08pKX4JKIAAAAAAAAAAAAAAAyDoSc/HMx045PHWDk8dYOTx1ZyZ7asbDX2aXxyV0TzMAAAAAAAAAAAAAAAAAJ1BbzJtyteFHg3RpUsETSwRNLM0hHS2tkxVNU5mGAAAAAAAAAAAAAAAAAOreb+pDnWEe/gOm+eerjB8eXsE6vcoDq/H5YF4VBrgAAAAAAAAAAAAAAAAABa82+/o5tW+MedbapSsgAAAAAAAAAAAAAAAAAAAAP38F6ZFBi/FBi/KSwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP0yfqY+9X0cHTdjaB+ViwmWhrv19S8r4fXznH6fWM/D9/M49ttIOhjll0sOZtR15Bjnzc/nTJyYAAAAD12v3ahRwAAAAAAP37+M7G84r+wdFT9XFkp+p+N76qSQ+LpSXP84BrPJ8PUT3en+fUDxywYXvsbG872Wz2NvzXNS8BWXSGmiZDrTh+cRf2msLKymUNuM86/sqYGqy4TEC4KftXWER28h0BhWTgxgmuNUNpFTxm66UAAAAPrdaTdR3JFpfHRxdGRfMfSUcrP025zruobutLib3ntd7zWbybv50tZsT9tTvU6mgO4oOfj2p+VKJ9BPgdBweQ1iX/A45YxWdva8V9fHLk3Nbrbl+T1re8ObC8aXsmlDpnnS46BPO/aCug0tYyGPAAAAAAAAAAADMw/UsPZwvPJRnQzYE3jPnpiYI0JKjIkyMiTIz+EnyoZ8l1cs5euAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//EAC8QAAEDAwMDBAAFBQEAAAAAAAMCBAUAAQYSExYHFBUQETBQICEiNEAjNTZBkHD/2gIAQEAAQUC/wCPDVupxRmhxfUtGjp2oUTJkT4WWosVJCGaOfhB6xhxhUhaF2dMxmsYSxL+ixJjD3jrtWSJrtW1dq2oYRDqA/Y1kn9hyD/GNsdXAC9XZM703EMjwrJSLs3eu7sCTjWm6VfQiKUVIdukV5ORrycjTOdlWqgZJLgRyqbp1kcs5bup6Ucs/IP6tJyNqtLSdqA5IIjRyhwmSb6ksTbwJgXsv64BLiIi9loZf0X8ijW0+vY4k4cM5ZtdhJXWr6TCWKQwWyKtkVbIq2RVsirZFWyKljAhD43cPKjm93b79AAyB7un30bcSjnbCS3bSss8NJeSkK8lIV5KQryUhXkpCvJSFKkHyk+nT1pvSuZO+0gfpMIa9zPZI67SE+LD45UfEdRHm4++k6cNdLPqO69m3owi379HHJuuOTdccm645N1xybpvisyVUDizdguclARbN0cjlx9Jjzbs4bNXXdT/AKYez7OCNJR4S+Yiq8xFV5iKrzEVRp6HEmTzMKUv3jh8f6SBbd5MPDJbtTEUY1RLXvZIihtwPjqdPPq+nLbW/wA7ddvBenTpprfZw77WD+swZr28Dk8IaYXwc1cHNWOxlolh1Cd7sr9Y2y+Mbt+ax1c1jq5rHVzWOqQcXdvf/NEBKu3bHrtz1256WNaPiENZSeIlK8RKV4iUpUXJJtf8r2/OvEyfxjQoiyRciMf8BinS0uYVr74a3g0pKVpfB2T17X/B7X9cFBvZC4OBujysZXlYym7ts5rM4cLlhCC35iaLsRHxQRQN5fIMljnUP86be9020IKrUT0irqu1mP3DJsgQ9aalyW2WDLdslIhW3EUUQy2eAuA3TYPufqSb2a+mNrMicm1WTD4IHdyDOjbWPYXDtpRWaRcfForEY4MlKZdCRkZFwsW4lXTbDotCOJQ1LxCIvbIogkQ8wyLbybzM4iNjGeFQ7WTricJXE4SjYhELTkMSWJefEyTqdLtqR4xFeMRSY0drquMAdXcvXCtAL3oVtZF3sIJirKuodalDmvbV09FohMgx9Eu44OCuDgqEx5lFkzyYRYHTYPufqSb2b9PBaIbqIXXM101B+vqUf9OHsUs4TJslepkeRTVYPLPZG3UpadnpuHTH9SDapDp8Hbg8wm37WZ5HN1g8o+kbdSlJ2viiE+7l6ftxeUVXlFVeTJRjkNeJT7upVWlpQFaTLtYg1x7i10x7i92oUtxSBt5xjIdiBkcwM2f83c1zd1T/ACuUdIve979PBaIXqGXXNYdZNscyjHpN7McVm6w6OPGxnUA25PR90qYSuOy/kLY7NXviMQSKZdRC65nDAbGO5mffyLGg7EDkJd+crp0LTE9RC65j4o04gVJOkHT+CNOIFSTlB7ejN9cSfIt6vIt6dvVmt/seWwwxGJcpvwQWSRTCInniX8vjORLik2zKK9uZRNcyiamnVnspjeUdg3TlkLexMthU2YOUu2eVm38gY5TENmT41nL9OWxAwrvdSqx7IouOiMhepkJf+Q1AV04cYk8ALhDmkYSfWyxJgQ3C4yr4u1u24OGuDhrg4a4OGuDhrg4a4OGuDhrg4ab4UzQSWfN4iNKtRS/z0KUhSp6WUnlM5SMqm7Lb5c8Cvmz2uTvNrmUtXMpauZS1cylq5lLVzKWrmUtV8xl65hL0rL5i9nzxy9L/AMZf/8QAKREAAQMDAQgBBQAAAAAAAAAAAQIDBAAFERITFCEiMUBRcDIQFUFCU//aAAgBAwEBPwH1NCt8eSyObCqmW92Kebp57i27s+2GlfKmiSTEkcfBqUwWHSg9ulRScinbxtChWnimp8sSnNYGPUDdlaLaVLXjNfZo39Kn2wxRrByKAJ+mD2bSdSwmrrEefCEtjgKFnl+KuB2cdEbOVVKlotyUtoTURKZzypDg4D8Uq+JScIb4VcA3JiCQBg9lAKRISVnAqfdHdsQyrlo3SUf3qGsKkpU6auz6XpBKTkVapjbOpDnQ1udu67SrjOQ4gMs/Eev/AP/EACQRAAICAgEEAQUAAAAAAAAAAAECAAMREiETQFFwIhQjMVJh/9oACAECAQE/AfU1ljI38iWB+4t3U5H4h/dYrbDPcLTjIlaaDHqA3nOAJ128Su3fjtjwJS4XOZ10lfLF4iGzkx/trqJ9P5Mryr69lZnXiV0jX5CdJPEcfHAlK6rLqy3Im9viVVkHZvX/AP/EAEgQAAEDAgIDDAYHBgQHAAAAAAEAAgMEERIhEzGTIjIzNDVBUXGRksHREFBSYYHhFCMwQlOhsQUgQGPw8UNzgpBEYnB0g7Kz/9oACAEBAAY/Av8AZ4OEgW6VmzLpHqktpoJJi3XgF1igoZ3C5GTFydU7Mp0klDOxjRcks1LTy0kzIh94ty/cdpDa6uxwPUrjcu6VgeM/UYkg0c8rm/XF+ZHu9y/Z0dPDFodBLa2YO9XFoe4FxaHuBXjiYzqFk7/uJv8A6O9Fd/kuWx/92reN7FnDH3VnSQH/AMYVU1zAQHm3asdM8gjmWil3Mit97mKLTrHqI6KRzLixwnWEzBUStwCzbPOS4/U7Urj9TtSiY6yQ39vdfqsEVQ0NxF3BjWTcrjTdk1Pp5qhro3izhowjSTTgxG2QYBqXHqnalceqdqVyhU7QovBvi1351lk7nC00eT260Cd8MihKOfX6vD2oO5iFJDzHUne7P1hDP9PDNIwOw4Dl+alpdNpHR5YxlzLfHt9SRvkY0umJfmObmXBM7q4JndXBM7q4JndXBM7q4JndXBM7qL3MjAAuclNPa2keXW9EFMP8R4avZjjb2AKepP8AiPLvUjIWb57g0KOFu9jaGhVEsVZO2MvOENkIFlx6p2pXHqnalceqdqVx6p2pXHqnalceqdqUWurKgg6wZD6X1RG5gZl1n+iprb+X6tvx+XqWNx3sIMh8FVTXscGFvWcvs2iUWllON46PcoqJpyibid1n+vz9S1FWRnI7AOoKmowc3uxn4elz6SmdK1psSFxB/eC4g/vBcQf3guIP7wXEH94LdU7Yh0veE2oqX/SJxqy3LUZpDd54NntFSVEpu+Q3PqWlgtYhl3dZzKmA3sP1Y8fz9MN9/L9Y74/JGKWtgY9utpeLhco020C5RptoFyjTbQLlGm2gV3ftCH/ScX6ItoIC93tyZDsRnqpS95/L1LTU9rhz911aypah2qNhcnyv3zziPop6X8R4B6udOedzHG2/UApql2uR5d6snqyMo2YR1lOjB3U7gz4az6Zqxw3MTcLesp7GndTnR/Dn9Wsed9M4yeShw1TYmRg5Ft8yuUGbP5rlBmz+a+jY9I4uLnOtZMpQdzAzPrP9D1bHAynqcMbQ0ZDzXF6nsHmuL1PYPNcXqewea4vU9g81NUu1yPLv+mt2scR1Lgn9i4J/YuCf2LdNI+yEcbS97tQHOuT6nZlcn1OzK5PqdmVd1BUgf5ZVj6OIVOzP2YYxpc4mwARkkoahrGi5JYcv4GMe66sZGg9a4VnauFZ2qzgCEWjVzfYxu5omuf4eKxzysibqu42XH6baBcfptoEfo9RFLbXgddSVsTA2oiGIkfeCpIrXvK39VVy6sMTv0+zpp6kkRRuxHK6qKelkeZZBhF2W58/4ABAdATndJ9OfTkm9SBI3Z1lb4dqa0EG5Wkl3vMOlZBrAt+3tVntBRZzcyq6j2Whg+P8AZUtP7Ty7s/v6aTQkhxkANujnVYTq0Lv0Ub/wmOd4eKkbzyuazx8FUuq2uLI7WsbZlUzaRjg+Qm93XyHo0NQCYmxlxsbITU8bxK6QNF33WhgyAze86mq0pmmd04rLgpdoVkJ2+/GhGXY4ni8b+lTNqmF0cbOY2zUJpYnNkkfzuJyVS+sYXMZYNs62a4u/aFcXftCtw2aM9If5rQudjjcLsf0/Zxj3ot1XC4Q9i4Q9ize4r2WhAn7zk93QPQ1vSUSBk0LE4+h7TqGpR9Nk6T8SUnwUcr6p8WBuEANuuPydxcfk7i0zC6Wb2383Uj+zIH3e4/W25h0KrqPZaGD4/wBlSU/tOLz8P7qST8SUqOO/BxD8/RWVJ6GsHj4Kjph/zPPh4qI2+smGkf8AHUpaWhl0McRwkgZuK4/J2BVEdW8SaPCQ61td1Rx/exOP6Kpn53yYewfNU0HMyPF2n5IyfiSk+CdT0dS6JrGC4AGvWuPv7oVS2rk0ojw2da2u6om/eu4/p9nfoCxgXzsuCC4ILJjVd7rq/shW9o+hrugot5nBZAO+KzaG/FYb+8lEjejIKjj/AJeLtzU9Oykje2N5aCXa1xGHvFcSh7xRYxzKdp16MZ9qucynSfiSlMjvwcQVJg6DfrxFS1dOxkjJLW3drZWXFW7VqdHUsDZHSF1r3Wj/AAogPHxVOWb3Rtt2KdzKUytfIXBzSM81b6A/tCfp8OmlN3W5vco478HEPzVN0vu8/Eqo6GWYPgFRx/ywe3NVkn80jsy9E0tt/L+gUUV+Di/U/ZuL73PQmhl8tf7ry++aYGXy1+nBIMTV97sWWI/BYRuWrNNjYKizRYbhPldre65/dp6R+mxsburM59aqKpl8Lzub9GpGCWPS05N7DW1ZsqR/oHmt7U9wea3tT3B5qoqm3wyP3N+hCkrGOkibvHN1t9yuah7euMq4mkf7hGVHUsa5rZBcB2tVb+h+HsyUEF5zo4w3eKafUJJC780GRifcts0YEXu1k3PohpZNNpG3xWZzkqeqjvgcRhv0W/iWU8LcUjzYBaSSohtdjcr63OA8Vx6HulNx1seG+dm5qpjfPUHQyYRYj2QfFcNU94eSrZW1EwMEjmNGXMuUH7P5rlB+z+a5Qfs/muUH7P5rlB+z+a5Qfs/muUH7P5rlB+z+a5Qfs/mg6arllb7IGFGQ4RhbhiZ0nmCdI83c43PqAOYS1w1ELC+sc4bnWB903C44Nk3yQLqkOA5jG3P8lM/6NA4yvxHX0AeC4nT/AJqojEMIbO8vOvK63lN3D5reU3cPmt7Tdw+a3tN3D5re03cPmt7Tdw+a3tN3D5rVTdz5r/h+4rXgHvEa0tVM6V3v/wBmb//EACwQAQACAQEGBgIDAQEBAAAAAAEAESExQVFhcYHBEJGhsfDxUNEgMOFAkHD/2gAIAQEAAT8h/wDHhY1W4sFnmCJWv4g1YWVoRGPpUcjSecR1iWloPAb2Kh4K8F4M9f4XGglNXK0XiiwTdtvOMqA9fwYUiygtM1dGvOaD7AN4XtnzDtPmHaNqB1rtBXH8A+K3eEcdY+WaoOZnrNJ2hxiBWmWk36mXvMe0Y3X/ALHboHSYHNJSfglWm94WajwmuuKRV1DdPivefFe8Tamm9emVRm1UrcrYb1nzDtF8jqNjyIKUjYshMheoT5r3mgfN4zRvhcZfoq9aNgFqTAWoptJ+2Qyn2Meb8fr+D5wWZtTcfQep6TjXFH8eFa4pMi6jPpRBkoe9RZSp+Ea1UqVo9BfWfSp9Kn0qfSp9Kn0qfSoksyJwE09ANwXTwsKu8NguWcL0gH6goJjnZb+ECy+eK1PRzICpSiGgXxQO6fEe8+I958R7z4j3nxHvPiPeBh6kYnn45U8p0z0gbLR957vwonb5oGPUnlA1yt5ovf8AqBWjWZEPQzbTyTNXWT1ulfhQYmq8C31fSFmIHwwPVfLxuAAQKerPlvefLe8+W958t7z5b3hY+LoFYVLJODbw2vFhPhJbn9G9lzPX4v4W1K6XyMstDZHT/Y+NTFB2nsmPVxb+IIIIIyd4WPK02ObhTx2n0m1sY6DcGw/C2lXUcPYGarMehcaK2rxW3wYQaoHUvK5SSiq0BNUnBut0/GLcBm4v6HzjUV8KOFdfHa2mfT6HrHpQo9XoK6/jXK0o5aegvrMfLjbajrwJ9nj7PGEoo5F0xyCZ68Buzvp+NcKzIQr+K1atWrLCkOy3T/5rxDwR9ln3yfdY15+f1Nrij2r+Bxxzsg2/5QKBSakCgC1iIqQf1lEwyWrulMhDQN//AA8YPUzGQJqJn0GfUYwQ9jNtjnkgXOExE2PgC7JwmImzwsMtJ5U9Ytfrhxe7M+Xd58u7zlQBp5Srzoqr1HpmaZF44ZMrBsoeOj+u8KnLMFmOdQ6/QQUjVyv/AIEE1WFsWryib4HxzGoMtujEjU72EdQtDThEWk2G7vi7pQWEj2TyfSItsm3b5ywF6lvJe+nUhX2ecp9y3yFeJU388Tg8Kml299L8LPQaRXb3JaApuS+o3cvWLR9b6Dfz9PBWKByNAz1iB0JAGVx0lEgmwT5sgKmMqnoEX2El4zuX9yXJoqVTaPEh6utLkcacmMuaXhBnXmQat3pku9OR5z4P3nwfvKJxE+6AxYLVTjxP6+VN8szOWQXui/hvW0TdVS1NDwSwHQxwlMtKpEW7bnD0JsMDOUfKX2lu+MSqmXGdSIrpVdxAOxhNisw1u59P/c+n/uYeJRRz0NIFYha0s9dy89OpCvslYuejAHul6lNJ3gB+5SNi0blL+vCwDRPnb7IyBqj8iG2UR6HQr1g0KWqDXLoXPhnaLvTR1uGsbIamKt7gB39IFJh9H+yJYZfV/kjJFVXEK7GX9TYZG8bkny3tM0smKNhjXSXbVzcq/wAf1lx+9owBbgZ9rPtYzT85dHuGwlO9o9pebgd/AG9DZb7SWcYpDN4D3lcK3p7SguJbYMCAGFYrnm942eal0a8OmjF0t1UBLqydIzdRtXbFfNWcQA/cE2wJNyq/qXUEt8whymqoqGmeU+Yd4u54DhQGTlCoOp82+xK67ty0l01LVG2/EPgb3me8B1Sm7AGLdXzlB2MLcpf1KAlH1RXpUxFvy8X63ACKzeeT3j2N2Lkqe3hduTl7wP2ysMBxuUf1/XsWwKXME5XY/jrBUCiYSyWxHwEIDRNSG9EGIiw79Q1ecKRat7KkDnXQK3zWgnOW/wCO7QoJZVt3sxJLgpoA9omTNSm3n6j8m3eIWLMvcNGdg9AjYf8Ayi3h1JZQbrfoSwu4t61KFrcqmyZWxR6TslnQnW2Fb5edy9qDaa/HA7DG2L5bk3vhedsMksO/jMFXK6aAPb/p1zRarYK3rl2Dl4dc9a+HCULhYFjn48BhGgSsJSrxxn0ePo8fR4+jx9Hj6PH0ePo8fR4IkNhtzcyvJqO6wcJfOd96tv4BSo2ikYSBdDtBNNbDO3b4YlW5aUcGLSo419ATFzuE+8/eOjaFSqaZ4f0SJCxYsWLEbDk4+Z/uKw14g82cWuvTkaHT/wAZv//aAAwDAQACAAMAAAAQ8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888880088Ge88888888888888888EwosYQkHH8888888888888888888888qnp88888888888888888sMMM84s88888888888888888oc8884YU88888888888888888gc8c8s8888888888888888888I8M888888888888888888888sc888888888888888888888888888888888888888884bisq1L9gM4c88888k8888888h2Np5y/pEww0QskkI4sc88888PHDP4Al9IM8scswMAc04U88888888888oocQ8www0U888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888//EACQRAQABBAEEAwADAAAAAAAAAAERACExQVFAYaHRcJGxgcHh/9oACAEDAQE/EPiZGcmbnNrVOhLwMfzx1AtWZhw5khOO9ZLBPIeytbzbua6cm8JcohYNMzkiExuj01EN5n4gYsgOtk7rg/NH5bbuVhCkTNDYKRM9EpW0PtqeHJsOIpTD5nuiUkQfX+2oxrJPHacN1moeRnIsb7UoJDGvEVhov7Cd+iLYDKuLUa0QREJi+qCiXj1VkKMqvF6gbAAmOads9/i9JuriT1NDHHmj+vj/AP/EAB8RAQACAgICAwAAAAAAAAAAAAEAESExQHAQYVGhsf/aAAgBAgEBPxDqZZi4OxvkJMhAMPz6YQ8cglMp2YY1hvqAqseGSsUyzxZw1YyyPc9n1NQozFVokHywSXkje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"
-          style="width:45px; height:45px" alt="">
-      </div>
-      <div class="text-2xl font-semibold">ProPlugin • ProPricing</div>
-    </div>
-    <label class="text-sm text-zinc-400">Username</label>
-    <input id="loginUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="username" />
-    <label class="text-sm text-zinc-400 mt-4 block">Password</label>
-    <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="password" />
-    <button id="btnLogin" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
-    <details class="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/50">
-      <summary class="cursor-pointer list-none px-4 py-3 font-medium">Load from Cloud</summary>
-      <div class="p-4 pt-2">
-        <label class="text-sm text-zinc-400">GitHub Personal Access Token</label>
-        <input id="loginCloudToken" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_... (never saved)">
-        <label class="text-sm text-zinc-400 mt-4 block">Gist ID</label>
-        <input id="loginCloudGist" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4...">
-        <button id="btnLoginCloudLoad" class="mt-4 w-full py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Load from Cloud</button>
-      </div>
-    </details>
-
-  </div>
-</section>
-
-
-<!-- ===================== APP ===================== -->
-<section id="appView" class="hidden min-h-screen">
-  <!-- Topbar -->
-  <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-      <div class="flex items-center gap-3">
-        <div id="logoBox" class="w-10 h-10 rounded-xl bg-zinc-100 text-brand.dark font-black grid place-items-center overflow-hidden select-none">
-          <span id="logoFallback">P</span>
-          <img id="logoImg" class="hidden w-full h-full object-contain" alt="logo">
-        </div>
-        <div class="text-xl sm:text-2xl font-semibold tracking-wide">ProPricing</div>
-        <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
-      </div>
-      <div class="ml-auto flex items-center gap-2">
-        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">⚙️</button>
-        <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col gap-3">
-      <div class="flex flex-col lg:flex-row gap-3">
-        <div class="relative flex-1">
-          <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-[#F8F8FF] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="Search (SKU / Product Name)" />
-          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">🔎</div>
-        </div>
-        <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-[#E10600] border border-zinc-700">
-          <option style="background-color: #000000;">Flagship</option><option style="background-color: #000000;">Marketplace</option><option style="background-color: #000000;">Dealer</option>
-        </select>
-        <div class="px-3 py-2 rounded-2xl bg-zinc-950 border border-zinc-700 flex items-center gap-2">
-          <span class="text-sm text-zinc-400">Date range</span>
-          <input id="dateStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-          <span class="text-zinc-500">→</span>
-          <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-        </div>
-        <button id="btnNewProduct" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Add +</button>
-        <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
-      </div>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+  <!-- App Shell -->
+  <header class="border-b border-zinc-800 sticky top-0 bg-zinc-950/70 backdrop-blur no-print">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="font-semibold tracking-wide">Price Tag Manager</div>
+      <div id="currentUserBadge" class="text-sm text-zinc-300"></div>
     </div>
   </header>
 
-  <!-- Table -->
-  <main class="max-w-7xl mx-auto px-4 py-6">
-    <div class="overflow-auto border border-zinc-800 rounded-2xl">
-      <table class="min-w-[1200px] w-full text-sm">
-        <thead class="bg-zinc-900/70 border-b border-zinc-800">
-          <tr class="[&>th]:px-3 [&>th]:py-3 text-left">
-            <th>SKU</th>
-            <th class="w-64">Description</th>
-            <th class="w-64">Details</th>
-            <th id="thCosts" class="hidden">Costs</th>
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- ===== First-Run Setup View ===== -->
+    <section id="view-setup" class="hidden">
+      <h1 class="text-xl font-semibold mb-4">เริ่มต้นใช้งานครั้งแรก</h1>
 
-            <!-- Flagship -->
-            <th class="col-normal">Normal</th>
-            <th class="col-promo">Promotion</th>
-            <th class="col-expire">Expire Date</th>
-
-            <!-- Marketplace -->
-            <th class="col-market">Marketplace</th>
-            <th class="col-marketgp">Market GP%</th>
-
-            <!-- Dealer -->
-            <th class="col-t1"><span id="lblT1">Dealer T1</span></th>
-            <th class="col-gp1">GP% T1</th>
-            <th class="col-t2"><span id="lblT2">Dealer T2</span></th>
-            <th class="col-gp2">GP% T2</th>
-            <th class="col-t3"><span id="lblT3">Dealer T3</span></th>
-            <th class="col-gp3">GP% T3</th>
-
-            <th class="w-32">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
-      </table>
-    </div>
-    <!-- Pagination -->
-    <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
-  </main>
-</section>
-
-<!-- ===================== SETTINGS (with Cloud Sync) ===================== -->
-<div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
-  <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
-    <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
-      <div class="text-sm text-zinc-400 px-2">Settings</div>
-      <button data-tab="data" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Data</button>
-      <button data-tab="logo" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Logo</button>
-      <button data-tab="dealer" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Dealer Settings</button>
-      <button data-tab="users" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
-      <button data-tab="templates" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Template Management</button>
-      <button data-tab="cloud" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Cloud Sync</button>
-      <button data-tab="history" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Usage History</button>
-      <div class="absolute bottom-3 left-3 right-3">
-        <button id="btnCloseSettings" class="w-full text-sm px-2 py-1.5 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
-      </div>
-    </aside>
-    <section id="settingsContent" class="p-6 overflow-auto"></section>
-  </div>
-</div>
-
-<!-- ===================== EDITOR ===================== -->
-<div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
-  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
-    <div class="flex items-center justify-between p-4 border-b border-zinc-800">
-      <div id="editorTitle" class="text-xl font-semibold">Edit Product</div>
-      <button id="btnCloseEditor" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
-    </div>
-    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
-      <div class="space-y-4">
-        <div><label class="text-sm text-zinc-400">SKU</label><input id="edSku" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-        <div><label class="text-sm text-zinc-400">Description</label><input id="edDesc" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-        <div><label class="text-sm text-zinc-400">Details</label><textarea id="edDetails" rows="6" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></textarea></div>
-        <div><label class="text-sm text-zinc-400">Expires Date</label><input id="edExpire" type="date" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-      </div>
-      <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div><label class="text-sm text-zinc-400">Costs</label><input id="edCosts" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">Normal Price</label><input id="edNormal" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">Promotion Price</label><input id="edPromo" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">Marketplace Price</label><input id="edMarket" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400"><span id="edLabelT1">Dealer T1</span></label><input id="edT1" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400"><span id="edLabelT2">Dealer T2</span></label><input id="edT2" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400"><span id="edLabelT3">Dealer T3</span></label><input id="edT3" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-        </div>
-        <button id="btnSaveEd" class="w-full mt-2 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===================== PRINT MODAL (Horizontal, full preview) ===================== -->
-<div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
-  <!-- OUTER GRID: header + content rows; two columns always -->
-  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl grid grid-rows-[auto_1fr] grid-cols-[480px_1fr] min-h-0">
-    <!-- Header spans two columns -->
-    <div class="col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
-      <div class="text-xl font-semibold">Print Price Tags</div>
-      <button id="btnClosePrintModal" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
-    </div>
-
-    <!-- Left column: list -->
-    <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
-      <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
-        <div class="grid grid-cols-[1fr_auto] gap-2">
-          <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
-          <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
-        </div>
-        <div class="mt-3 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
-          <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
-          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
-        </div>
-        <div class="text-sm text-zinc-400 mt-2">Select products and set qty per SKU</div>
-      </div>
-      <div id="printList" class="space-y-2 pt-2"></div>
-      <div id="printSummary" class="text-sm text-zinc-400"></div>
-    </div>
-
-    <!-- Right column: live preview fills available space -->
-    <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
-      <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
-      <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ================= CORE STATE / STORAGE ================= */
-const LS = {
-  PRODUCTS: 'pp_products_en_v5',
-  USERS: 'pp_users_en_v5',
-  LOGO: 'pp_logo_base64_v3',
-  TEMPLATES: 'pp_templates_en_v5',
-  LOGS: 'pp_logs_en_v5',
-  LASTUSER: 'pp_last_user_en',
-  DEALER_NAMES: 'pp_dealer_names_en',
-  CLOUD_GIST_ID: 'pp_cloud_gist_id_v1' // Simplified cloud config
-};
-const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
-const Channels = ['Flagship','Marketplace','Dealer'];
-
-const sampleProducts = [{
-  sku:'MP-00010',
-  description:'iCon Pro Audio GoLive Pro',
-  details:'Audio interface for live streaming with remote control\n24-bit/48kHz with onboard DSP (Reverb, EQ, Vocal Tune)\nBuilt-in 5000mAh battery up to 6 hours\nMic input mini-XLR (48V) & 1/4-inch\nBluetooth for music & control',
-  costs:4200, normalPrice:7990, promoPrice:5990, expiresDate:'2099-09-09',
-  marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200
-}];
-
-function defaultTemplates(){
-  return [
-    { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null,
-      logoStyles: { size: 64, margin: 10 },
-      styles:{ sku:{fs:16,color:'#ffffff',mt:0}, description:{fs:30,color:'#ffffff',mt:0},
-        details:{fs:14,color:'#ffffff',mt:0}, price:{fs:72,color:'#ffffff',mt:0},
-        oldPrice:{fs:20,color:'#ff4d4f',mt:0}, expire:{fs:13,color:'#ffffff',mt:0} } },
-    { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null,
-      logoStyles: { size: 50, margin: 8 },
-      styles:{ sku:{fs:14,color:'#ffffff',mt:0}, description:{fs:26,color:'#ffffff',mt:0},
-        details:{fs:13,color:'#ffffff',mt:0}, price:{fs:60,color:'#ffffff',mt:0},
-        oldPrice:{fs:18,color:'#ff4d4f',mt:0}, expire:{fs:12,color:'#ffffff',mt:0} } },
-    { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null,
-      logoStyles: { size: 40, margin: 6 },
-      styles:{ sku:{fs:12,color:'#ffffff',mt:0}, description:{fs:22,color:'#ffffff',mt:0},
-        details:{fs:12,color:'#ffffff',mt:0}, price:{fs:48,color:'#ffffff',mt:0},
-        oldPrice:{fs:16,color:'#ff4d4f',mt:0}, expire:{fs:11,color:'#ffffff',mt:0} } },
-    { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null,
-      logoStyles: { size: 30, margin: 4 },
-      styles:{ sku:{fs:11,color:'#ffffff',mt:2}, description:{fs:15,color:'#ffffff',mt:0, align:'center'},
-        price:{fs:22,color:'#ffffff',mt:0}, oldPrice:{fs:12,color:'#B91C1C',mt:0}, expire:{fs:10,color:'#ffffff',mt:0} } }
-  ];
-}
-
-/* ================= UTILITIES ================= */
-const $  = (s,r=document)=>r.querySelector(s);
-const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-const money = n => isFinite(n) ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
-const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
-const fromExcelDate = v => {
-  if (v instanceof Date) return v.toISOString().slice(0,10);
-  if (typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400*1000)); return d.toISOString().slice(0,10); }
-  if (typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-  return '';
-};
-const gpPct = (price,cost)=> (cost>0 ? ((price - (cost||0))/cost)*100 : 0);
-const log = (action,meta='')=>{
-  try {
-    const logs = JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
-    logs.unshift({ts:new Date().toISOString(), user:currentUser?.username||'-', action, meta});
-    localStorage.setItem(LS.LOGS, JSON.stringify(logs.slice(0,3000)));
-  } catch (e) { console.error("Failed to write log:", e); }
-};
-const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/* ================= APP STATE ================= */
-let currentUser=null, products=[], templates=[], editingIndex=-1, dealerNames=defaultDealerNames;
-let currentPage = 1;
-const itemsPerPage = 20;
-
-function loadState(){
-  try { products = JSON.parse(localStorage.getItem(LS.PRODUCTS) || 'null') || sampleProducts; } catch { products = sampleProducts; }
-  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
-
-  try { templates = JSON.parse(localStorage.getItem(LS.TEMPLATES) || 'null') || defaultTemplates(); } catch { templates = defaultTemplates(); }
-  localStorage.setItem(LS.TEMPLATES, JSON.stringify(templates));
-
-  try { dealerNames = JSON.parse(localStorage.getItem(LS.DEALER_NAMES) || 'null') || defaultDealerNames; } catch { dealerNames = defaultDealerNames; }
-  localStorage.setItem(LS.DEALER_NAMES, JSON.stringify(dealerNames));
-
-  const base64 = localStorage.getItem(LS.LOGO);
-  if(base64){ $('#logoImg').src=base64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden'); }
-}
-function getAppState(){
-  return {
-    version: 1,
-    products, templates, dealerNames,
-    users: JSON.parse(localStorage.getItem(LS.USERS)||'[]'),
-    logo: localStorage.getItem(LS.LOGO)||'',
-    logs: JSON.parse(localStorage.getItem(LS.LOGS)||'[]')
-  };
-}
-function setAppState(data){
-  if(data.products){ products = data.products; localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); }
-  if(data.templates){ templates = data.templates; localStorage.setItem(LS.TEMPLATES, JSON.stringify(templates)); }
-  if(data.dealerNames){ dealerNames = data.dealerNames; localStorage.setItem(LS.DEALER_NAMES, JSON.stringify(dealerNames)); }
-  if(data.users){ localStorage.setItem(LS.USERS, JSON.stringify(data.users)); }
-  if('logo' in data){ if(data.logo){ localStorage.setItem(LS.LOGO, data.logo); $('#logoImg').src=data.logo; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden'); } else { localStorage.removeItem(LS.LOGO); $('#logoImg').classList.add('hidden'); $('#logoFallback').classList.remove('hidden'); } }
-  if(data.logs){ localStorage.setItem(LS.LOGS, JSON.stringify(data.logs)); }
-  applyDealerNamesToUI(); renderTable();
-}
-
-/* ================= CLOUD SYNC (GitHub Gist) ================= */
-async function gistRequest(method, path, body, token){
-  if(!token) throw new Error('GitHub Token is required for this operation.');
-  const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
-  if(body) headers['Content-Type']='application/json';
-  const res = await fetch('https://api.github.com'+path, { method, headers, body: body?JSON.stringify(body):undefined });
-  if(!res.ok){ const t=await res.text(); throw new Error(`GitHub ${res.status}: ${t}`); }
-  return res.json();
-}
-async function cloudCreateGist(token){
-  const data = getAppState();
-  const resp = await gistRequest('POST','/gists',{ public:false, files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } }, token);
-  localStorage.setItem(LS.CLOUD_GIST_ID, resp.id);
-  log('cloud_create_gist', resp.id);
-  alert('Gist created: '+resp.id);
-  return resp.id;
-}
-async function cloudSave(gistId, token){
-  if(!gistId) throw new Error('Gist ID is required');
-  const data = getAppState();
-  const body = { files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } };
-  await gistRequest('PATCH','/gists/'+gistId, body, token);
-  log('cloud_save', gistId);
-}
-async function cloudLoad(gistId, token){
-  if(!gistId) throw new Error('Gist ID is required');
-  const resp = await gistRequest('GET','/gists/'+gistId, null, token);
-  const file = resp.files?.['proplugin-data.json'];
-  if(!file) throw new Error('proplugin-data.json not found in gist');
-  const text = await fetch(file.raw_url, { headers: {'Authorization': 'Bearer ' + token} }).then(r=>r.text());
-  const data = JSON.parse(text);
-  setAppState(data);
-  log('cloud_load', gistId);
-  alert('Loaded from cloud.');
-}
-
-/* ================= AUTH ================= */
-function allUsers(){
-  try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
-  catch { return []; }
-}
-function setUsers(u){
-  localStorage.setItem(LS.USERS, JSON.stringify(u));
-}
-async function login(){
-  const u=$('#loginUser').value.trim();
-  const p=$('#loginPass').value;
-  const pHash = await hashPassword(p);
-  const found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
-  if(!found) return alert('Invalid credentials');
-
-  currentUser=found;
-  localStorage.setItem(LS.LASTUSER, u);
-  $('#loginView').classList.add('hidden');
-  $('#appView').classList.remove('hidden');
-  $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
-  const isHost = currentUser.role==='Host';
-  const isAdmin = currentUser.role==='Admin';
-  $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  loadState();
-  initFiltersForUser();
-  applyDealerNamesToUI();
-  renderTable();
-  log('login');
-}
-function logout(){
-  currentUser=null;
-  $('#loginPass').value='';
-  $('#appView').classList.add('hidden');
-  $('#loginView').classList.remove('hidden');
-}
-
-/* ================= FILTERS & COLUMN VISIBILITY ================= */
-function initFiltersForUser(){
-  const sel=$('#channelSelect'); sel.innerHTML='';
-  currentUser.channels.forEach(ch=>{ const o=document.createElement('option'); o.textContent=ch; sel.appendChild(o); });
-  sel.value=currentUser.channels[0];
-  $('#btnPrintModal').classList.toggle('hidden', !currentUser.canPrint);
-  $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
-  updateColumnVisibility();
-}
-function updateColumnVisibility(){
-  const ch=$('#channelSelect').value;
-  const show={normal:false,promo:false,expire:false,market:false,marketgp:false,t1:false,gp1:false,t2:false,gp2:false,t3:false,gp3:false};
-  if(ch==='Flagship'){ show.normal=show.promo=show.expire=true; }
-  if(ch==='Marketplace'){ show.market=show.marketgp=true; }
-  if(ch==='Dealer'){ show.t1=show.gp1=show.t2=show.gp2=show.t3=show.gp3=true; }
-  const map={ 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
-  Object.entries(map).forEach(([cls,v])=> $$('.'+cls).forEach(el=>el.classList.toggle('hidden',!v)));
-}
-
-/* ================= APPLY DEALER NAMES ================= */
-function applyDealerNamesToUI(){
-  $('#lblT1').textContent = dealerNames.t1 || 'Dealer T1';
-  $('#lblT2').textContent = dealerNames.t2 || 'Dealer T2';
-  $('#lblT3').textContent = dealerNames.t3 || 'Dealer T3';
-  $('#edLabelT1').textContent = dealerNames.t1 || 'Dealer T1';
-  $('#edLabelT2').textContent = dealerNames.t2 || 'Dealer T2';
-  $('#edLabelT3').textContent = dealerNames.t3 || 'Dealer T3';
-}
-
-/* ================= TABLE & PAGINATION ================= */
-function filteredProducts(){
-  const q=$('#searchInput').value.trim().toLowerCase();
-  const ds=$('#dateStart').value, de=$('#dateEnd').value;
-  const isFlagship = $('#channelSelect').value==='Flagship';
-  return products.filter(p=>{
-    const hit = !q || (p.sku||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
-    let dateOk = true;
-    if(isFlagship && (ds||de)){
-      const ex = p.expiresDate ? new Date(p.expiresDate) : null;
-      if(!ex) dateOk=false;
-      if(ds && ex < new Date(ds)) dateOk=false;
-      if(de && ex > new Date(de+'T23:59:59')) dateOk=false;
-    }
-    return hit && dateOk;
-  });
-}
-function renderPagination(totalItems) {
-  const pageBox = $('#pagination');
-  pageBox.innerHTML = '';
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  if (totalPages <= 1) return;
-  for (let i = 1; i <= totalPages; i++) {
-    const btn = document.createElement('button');
-    btn.textContent = i;
-    btn.className = `px-3 py-1 rounded-lg text-sm border ${currentPage === i ? 'bg-brand.red border-red-700' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`;
-    btn.onclick = () => { currentPage = i; renderTable(); };
-    pageBox.appendChild(btn);
-  }
-}
-function renderTable(){
-  const body=$('#productBody'); body.innerHTML='';
-  const showCosts = (currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role));
-  const canEdit = ['Host','Admin'].includes(currentUser.role);
-  const allFiltered = filteredProducts();
-  const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  paginatedItems.forEach(p=>{
-    const tr=document.createElement('tr');
-    tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
-    const gpM = gpPct(p.marketplacePrice, p.costs);
-    const gp1 = gpPct(p.dealer1, p.costs);
-    const gp2 = gpPct(p.dealer2, p.costs);
-    const gp3 = gpPct(p.dealer3, p.costs);
-    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
-    tr.innerHTML = `
-      <td class="px-3 py-3 oneline" title="${p.sku}">${p.sku}</td>
-      <td class="px-3 py-3 oneline" title="${p.description}"><div class="oneline" style="max-width:16rem">${p.description}</div></td>
-      <td class="px-3 py-3 oneline" title="${detailsOneLine}"><div class="oneline" style="max-width:18rem">${detailsOneLine}</div></td>
-      <td class="px-3 py-3 ${showCosts?'':'hidden'} oneline" title="${p.costs?money(p.costs):'-'}">${p.costs?money(p.costs):'-'}</td>
-      <td class="px-3 py-3 col-normal oneline" title="${p.normalPrice?money(p.normalPrice):'-'}">${p.normalPrice?money(p.normalPrice):'-'}</td>
-      <td class="px-3 py-3 col-promo oneline"  title="${p.promoPrice?money(p.promoPrice):'-'}">${p.promoPrice?money(p.promoPrice):'-'}</td>
-      <td class="px-3 py-3 col-expire oneline" title="${p.expiresDate?toDateInput(p.expiresDate):'-'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
-      <td class="px-3 py-3 col-market oneline"   title="${p.marketplacePrice?money(p.marketplacePrice):'-'}">${p.marketplacePrice?money(p.marketplacePrice):'-'}</td>
-      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t1 oneline"  title="${p.dealer1?money(p.dealer1):'-'}">${p.dealer1?money(p.dealer1):'-'}</td>
-      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t2 oneline"  title="${p.dealer2?money(p.dealer2):'-'}">${p.dealer2?money(p.dealer2):'-'}</td>
-      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t3 oneline"  title="${p.dealer3?money(p.dealer3):'-'}">${p.dealer3?money(p.dealer3):'-'}</td>
-      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
-      <td class="px-3 py-3">
-        ${canEdit? `
-          <div class="flex items-center gap-2">
-            <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
-            <button title="Delete" class="px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>
-          </div>` : '-'}
-      </td>
-    `;
-    body.appendChild(tr);
-  });
-  $$('button[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.getAttribute('data-edit'))));
-  $$('button[data-del]').forEach(b=>b.addEventListener('click',()=>{
-    const sku=b.getAttribute('data-del');
-    if(confirm(`Delete SKU ${sku}? This cannot be undone.`)){
-      products = products.filter(x=>x.sku!==sku);
-      localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
-      log('delete_sku', sku); renderTable();
-    }
-  }));
-  renderPagination(allFiltered.length);
-  updateColumnVisibility();
-}
-
-/* ================= EDITOR ================= */
-function openEditor(sku = null) {
-  if(!['Host','Admin'].includes(currentUser.role)) return;
-  if (sku) {
-    editingIndex = products.findIndex(x=>x.sku===sku);
-    const p = products[editingIndex];
-    $('#editorTitle').textContent = 'Edit Product';
-    $('#edSku').value = p.sku;
-    $('#edSku').disabled = true;
-    $('#edDesc').value = p.description;
-    $('#edDetails').value = p.details||'';
-    $('#edExpire').value = toDateInput(p.expiresDate);
-    $('#edCosts').value = p.costs||'';
-    $('#edNormal').value = p.normalPrice||'';
-    $('#edPromo').value = p.promoPrice||'';
-    $('#edMarket').value = p.marketplacePrice||'';
-    $('#edT1').value = p.dealer1||'';
-    $('#edT2').value = p.dealer2||'';
-    $('#edT3').value = p.dealer3||'';
-  } else {
-    editingIndex = -1;
-    $('#editorTitle').textContent = 'Add New Product';
-    $('#edSku').value = '';
-    $('#edSku').disabled = false;
-    $('#edDesc').value = '';
-    $('#edDetails').value = '';
-    $('#edExpire').value = '';
-    $('#edCosts').value = '';
-    $('#edNormal').value = '';
-    $('#edPromo').value = '';
-    $('#edMarket').value = '';
-    $('#edT1').value = '';
-    $('#edT2').value = '';
-    $('#edT3').value = '';
-  }
-  applyDealerNamesToUI();
-  $('#editorModal').classList.remove('hidden');
-}
-function closeEditor(){ $('#editorModal').classList.add('hidden'); }
-function saveEditor() {
-  const sku = $('#edSku').value.trim();
-  if (!sku) { alert('SKU is required.'); return; }
-  const newProductData = {
-    sku: sku,
-    description:$('#edDesc').value.trim(), details:$('#edDetails').value.trim(),
-    expiresDate:$('#edExpire').value||'', costs:parseFloat($('#edCosts').value)||0,
-    normalPrice:parseFloat($('#edNormal').value)||0, promoPrice:parseFloat($('#edPromo').value)||0,
-    marketplacePrice:parseFloat($('#edMarket').value)||0, dealer1:parseFloat($('#edT1').value)||0,
-    dealer2:parseFloat($('#edT2').value)||0, dealer3:parseFloat($('#edT3').value)||0
-  };
-  if (editingIndex > -1) {
-    Object.assign(products[editingIndex], newProductData);
-    log('edit_product', sku);
-  } else {
-    if (products.some(p => p.sku === sku)) {
-      alert(`SKU "${sku}" already exists. Please use a unique SKU.`); return;
-    }
-    products.unshift(newProductData);
-    log('add_product', sku);
-  }
-  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
-  closeEditor(); renderTable();
-}
-
-/* ================= SETTINGS ================= */
-function openSettings(tab){
-  if(!['Host','Admin'].includes(currentUser.role)) return;
-  $('#settingsPanel').classList.remove('hidden');
-  renderSettings(tab);
-}
-function fileToBase64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); }); }
-
-function renderSettings(tab){
-  const box=$('#settingsContent');
-  $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
-  const btn=$(`.set-tab[data-tab="${tab}"]`); if(btn) btn.classList.add('ring-2','ring-brand.red');
-  const isHost=currentUser.role==='Host';
-  const isAdmin=currentUser.role==='Admin';
-  $$('.only-host').forEach(el=>el.classList.toggle('hidden', !isHost));
-  $$('.only-host-admin').forEach(el=>el.classList.toggle('hidden', !(isHost||isAdmin)));
-
-  if(tab==='data'){
-    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Manage Data</div>
-      <div class="text-zinc-400 mb-4">Import / Export Excel (A–O columns; GP% auto-calculated)</div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Import (.xlsx)</div>
-          <input id="fileImport" type="file" accept=".xlsx,.xls" class="w-full">
-          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Market GP% (ignored), J Dealer T1, K GP% T1 (ignored), L Dealer T2, M GP% T2 (ignored), N Dealer T3, O GP% T3 (ignored)</p>
-          <button id="btnDoImport" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import</button>
-        </div>
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Export (.xlsx)</div>
-          <button id="btnExport" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Excel</button>
-          <p class="text-xs text-zinc-400 mt-2">Export colors: D = light green, F & G = yellow. GP% (Market/T1/T2/T3 & Promotion) auto-calculated.</p>
-        </div>
-      </div>
-    `;
-    $('#btnDoImport').onclick=doImport;
-    $('#btnExport').onclick=doExport;
-  }
-  if(tab==='logo'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const base64 = localStorage.getItem(LS.LOGO)||'';
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Manage Logo</div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Upload logo</div>
-          <input type="file" id="logoFile" accept="image/*">
-          <p class="text-xs text-zinc-400 mt-2">PNG/JPG/SVG. Used on default templates.</p>
-          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save logo</button>
-          <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Remove</button>
-        </div>
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Preview</div>
-          <div class="h-40 w-40 bg-white rounded-xl overflow-hidden grid place-items-center p-2">
-            ${base64?`<img src="${base64}" class="max-h-full max-w-full object-contain">`:'<div class="text-zinc-800 text-4xl font-black">P</div>'}
-          </div>
-        </div>
-      </div>
-    `;
-    $('#btnSaveLogo').onclick=async()=>{
-      const f=$('#logoFile').files[0]; if(!f) return alert('Choose a file.');
-      const b64=await fileToBase64(f); localStorage.setItem(LS.LOGO,b64);
-      $('#logoImg').src=b64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden');
-      log('update_logo'); openSettings('logo');
-    };
-    $('#btnRemoveLogo').onclick=()=>{ localStorage.removeItem(LS.LOGO); $('#logoImg').classList.add('hidden'); $('#logoFallback').classList.remove('hidden'); log('remove_logo'); openSettings('logo'); }
-  }
-  if(tab==='dealer'){
-    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
-    const names = JSON.parse(localStorage.getItem(LS.DEALER_NAMES)||'{}');
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-4">Dealer Settings</div>
-      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-        <div class="grid md:grid-cols-3 gap-3">
-          <div><label class="text-xs text-zinc-400">Name for Dealer T1</label><input id="nameT1" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t1||'Dealer T1'}"></div>
-          <div><label class="text-xs text-zinc-400">Name for Dealer T2</label><input id="nameT2" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t2||'Dealer T2'}"></div>
-          <div><label class="text-xs text-zinc-400">Name for Dealer T3</label><input id="nameT3" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t3||'Dealer T3'}"></div>
-        </div>
-        <button id="btnSaveDealer" class="mt-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save Names</button>
-      </div>
-    `;
-    $('#btnSaveDealer').onclick=()=>{
-      dealerNames = {t1:$('#nameT1').value.trim()||'Dealer T1', t2:$('#nameT2').value.trim()||'Dealer T2', t3:$('#nameT3').value.trim()||'Dealer T3'};
-      localStorage.setItem(LS.DEALER_NAMES, JSON.stringify(dealerNames));
-      applyDealerNamesToUI();
-      alert('Saved'); log('save_dealer_names', JSON.stringify(dealerNames));
-    };
-  }
-  if(tab==='users'){
-    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Host/Admin only.</div>'; return; }
-    box.innerHTML=`
-      <div class="flex items-center justify-between">
-        <div class="text-2xl font-semibold mb-2">User Management</div>
-        <button id="btnAddUser" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Add User</button>
-      </div>
-      <div id="addUserBox" class="hidden p-4 mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-        <div class="grid md:grid-cols-2 gap-3">
-          <input id="nuName" placeholder="username" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-          <input id="nuPass" placeholder="password" type="password" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-          <select id="nuRole" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-            <option>User</option><option>Admin</option>${isHost?'<option>Host</option>':''}
-          </select>
-          <div class="flex items-center gap-4">
-            <label class="text-sm"><input type="checkbox" id="nuSeeCosts"> See Costs</label>
-            <label class="text-sm"><input type="checkbox" id="nuCanPrint" checked> Can Print</label>
-          </div>
-          <div class="md:col-span-2">
-            ${Channels.map(ch=>`<label class="mr-3 text-sm"><input type="checkbox" class="nuCh" value="${ch}" ${ch==='Flagship'?'checked':''}> ${ch}</label>`).join('')}
-          </div>
-        </div>
-        <div class="mt-3"><button id="nuCreate" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Create</button></div>
-      </div>
-      <div class="overflow-auto border border-zinc-800 rounded-2xl">
-        <table class="min-w-[900px] w-full text-sm">
-          <thead class="bg-zinc-900/70 border-b border-zinc-800">
-            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>User</th><th>Role</th><th>Channels</th><th>See Costs</th><th>Can Print</th><th>New Pwd</th><th></th></tr>
-          </thead>
-          <tbody id="userRows"></tbody>
-        </table>
-      </div>
-    `;
-    $('#btnAddUser').onclick=()=>$('#addUserBox').classList.toggle('hidden');
-    $('#nuCreate').onclick=async ()=>{
-      const name=$('#nuName').value.trim(); const pass=$('#nuPass').value.trim(); if(!name||!pass) return alert('Username & password required');
-      if(allUsers().some(u=>u.username===name)) return alert('Username already exists');
-      const role=$('#nuRole').value; const canSee=$('#nuSeeCosts').checked; const canPrint=$('#nuCanPrint').checked;
-      const chs=$$('.nuCh').filter(x=>x.checked).map(x=>x.value); if(!chs.length) return alert('Select at least one channel');
-      const passHash = await hashPassword(pass);
-      const list=allUsers(); list.push({username:name, passwordHash:passHash, role, channels:chs, canSeeCosts:canSee, canPrint});
-      setUsers(list); log('add_user',name); openSettings('users'); alert('User created');
-    };
-    const tbody=$('#userRows'); tbody.innerHTML='';
-    allUsers().forEach((u,i)=>{
-      const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
-      tr.innerHTML=`
-        <td class="px-3 py-2">${u.username}</td>
-        <td class="px-3 py-2">
-          <select data-role="${i}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700" ${u.username==='host'?'disabled':''}>
-            ${['Host','Admin','User'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
-          </select>
-        </td>
-        <td class="px-3 py-2">
-          ${Channels.map(ch=>`<label class="mr-2"><input type="checkbox" data-ch="${i}|${ch}" ${u.channels.includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>`).join('')}
-        </td>
-        <td class="px-3 py-2"><input type="checkbox" data-cost="${i}" ${u.canSeeCosts?'checked':''}></td>
-        <td class="px-3 py-2"><input type="checkbox" data-print="${i}" ${u.canPrint?'checked':''}></td>
-        <td class="px-3 py-2"><input type="text" data-pass="${i}" placeholder="Set new" class="w-28 px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700"></td>
-        <td class="px-3 py-2">
-          <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu="${i}">Save</button>
-          ${u.username==='host' ? '' : `<button class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-delu="${i}">❌</button>`}
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-    $$('button[data-saveu]').forEach(b=>b.addEventListener('click', async (e) => {
-      const i=+e.target.getAttribute('data-saveu'); const list=allUsers(); const u=list[i];
-      u.role=$(`select[data-role="${i}"]`).value;
-      u.canSeeCosts=$(`input[data-cost="${i}"]`).checked;
-      u.canPrint=$(`input[data-print="${i}"]`).checked;
-      const newPass = $(`input[data-pass="${i}"]`).value.trim();
-      if(newPass) { u.passwordHash = await hashPassword(newPass); }
-      u.channels=Channels.filter(ch=> $(`input[data-ch="${i}|${ch}"]`).checked );
-      setUsers(list);
-      if(currentUser.username===u.username){ currentUser=u; initFiltersForUser(); renderTable(); }
-      log('update_user',u.username); alert('Saved.');
-      openSettings('users');
-    }));
-    $$('button[data-delu]').forEach(b=>b.addEventListener('click', (e) => {
-      const i=+e.target.getAttribute('data-delu'); const list=allUsers(); const u=list[i];
-      if(u.username==='host') return alert('Cannot delete the default host account.');
-      if(confirm(`Delete user "${u.username}"?`)){
-        list.splice(i,1); setUsers(list); log('delete_user',u.username); openSettings('users');
-      }
-    }));
-  }
-  if(tab==='templates'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const arr = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-    box.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="text-2xl font-semibold mb-2">Template Management</div>
-        <div class="flex items-center gap-2">
-          <label class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 cursor-pointer">
-            <input type="file" id="tplUploadNew" accept="image/png, image/jpeg" class="hidden">
-            Upload New Template
-          </label>
-        </div>
-      </div>
-      <div class="text-sm text-zinc-400 mb-3">All templates are fully customizable.</div>
-      <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
-    `;
-
-    const listBox = $('#tplList'); listBox.innerHTML='';
-    arr.forEach((t,i)=>{
-      const card = document.createElement('div');
-      card.className = 'p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
-      const safe = (v, d) => (v===undefined || v===null) ? d : v;
-      t.styles = t.styles || {};
-      ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-        t.styles[k] = t.styles[k] || {fs:14,color:'#ffffff',mt:0};
-        t.styles[k].fs = safe(parseInt(t.styles[k].fs), 14);
-        t.styles[k].color = t.styles[k].color || '#ffffff';
-        t.styles[k].mt = safe(parseInt(t.styles[k].mt), 0);
-      });
-      t.logoStyles = t.logoStyles || {size:64, margin:10};
-
-      card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <input data-name="${i}" value="${t.name||'Untitled Template'}" class="bg-transparent text-white text-lg font-semibold px-2 py-1 outline-none border-b border-zinc-700 focus:border-brand.red">
-          <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del="${i}">Delete</button>
-        </div>
-        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-sm font-semibold mb-2">Background Image</div>
-            <img src="${t.imageData||''}" alt="template" class="w-full rounded-lg border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
-            <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
-            <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
-              <input type="file" data-img="${i}" accept="image/png, image/jpeg" class="hidden">
-              Upload/Change Image
-            </label>
-          </div>
-          <div>
-            <div class="text-sm font-semibold mb-2">Logo Settings</div>
-            <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> Show logo
-            </label>
-            <div class="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label class="text-xs text-zinc-400">Size (px)</label>
-                <input type="number" step="1" data-logosize="${i}" value="${safe(parseInt(t.logoStyles.size),64)}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-              </div>
-              <div>
-                <label class="text-xs text-zinc-400">Margin (px)</label>
-                <input type="number" step="1" data-logomargin="${i}" value="${safe(parseInt(t.logoStyles.margin),10)}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 mt-4">
-          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
-            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-              <div class="text-xs text-zinc-400 mb-1 capitalize">${k.replace('oldPrice','Old Price')}</div>
-              <label class="text-xs">Font size</label>
-              <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k].fs}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
-              <label class="text-xs">Color</label>
-              <input type="color" data-color="${i}|${k}" value="${t.styles[k].color}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
-              <label class="text-xs">Top margin (px)</label>
-              <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k].mt}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-            </div>
-          `).join('')}
-        </div>
-        <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savtpl="${i}">Save Template</button>
-      `;
-      listBox.appendChild(card);
-    });
-
-    listBox.addEventListener('click', (ev)=>{
-      const saveBtn = ev.target.closest('button[data-savtpl]');
-      if(saveBtn){
-        const i = +saveBtn.getAttribute('data-savtpl');
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        const t = list[i]; if(!t) return;
-        t.name = $(`#settingsContent input[data-name="${i}"]`)?.value?.trim() || t.name || 'Untitled Template';
-        ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-          const fs = parseInt($(`#settingsContent input[data-fs="${i}|${k}"]`)?.value)||14;
-          const color = $(`#settingsContent input[data-color="${i}|${k}"]`)?.value||'#ffffff';
-          const mt = parseInt($(`#settingsContent input[data-mt="${i}|${k}"]`)?.value)||0;
-          t.styles = t.styles || {}; t.styles[k] = {fs, color, mt};
-        });
-        t.showLogo = !!$(`#settingsContent input[data-logo="${i}"]`)?.checked;
-        t.logoStyles = t.logoStyles || {};
-        t.logoStyles.size = parseInt($(`#settingsContent input[data-logosize="${i}"]`)?.value)||64;
-        t.logoStyles.margin = parseInt($(`#settingsContent input[data-logomargin="${i}"]`)?.value)||10;
-        localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-        templates = list;
-        log('save_template', t.name);
-        alert('Template saved');
-        return;
-      }
-      const delBtn = ev.target.closest('button[data-del]');
-      if(delBtn){
-        const i = +delBtn.getAttribute('data-del');
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        const t = list[i]; if(!t) return;
-        if(confirm(`Delete template "${t.name}"?`)){
-          list.splice(i,1);
-          localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-          templates = list;
-          log('delete_template', t.name);
-          openSettings('templates');
-        }
-      }
-    });
-
-    listBox.addEventListener('change', async (ev)=>{
-      const fInput = ev.target.closest('input[type="file"][data-img]');
-      if(fInput){
-        const i = +fInput.getAttribute('data-img');
-        const file = fInput.files && fInput.files[0];
-        if(!file) return;
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        const t = list[i]; if(!t) return;
-        try{
-          const b64 = await fileToBase64(file);
-          t.imageData = b64; t.kind = t.kind || 'IMAGE';
-          localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-          templates = list;
-          log('update_template_image', t.name);
-          openSettings('templates');
-        }catch(err){ alert('Failed to update image: '+err.message); }
-        fInput.value = '';
-      }
-    });
-
-    $('#settingsContent #tplUploadNew').onchange = async (e)=>{
-      const f = e.target.files && e.target.files[0]; if(!f) return;
-      const nm = prompt('Enter a name for this new template:'); if(!nm){ e.target.value=''; return; }
-      try{
-        const imageData = await fileToBase64(f);
-        const id = 'user-' + Math.random().toString(36).slice(2,10);
-        const base = defaultTemplates()[2] || {styles:{}};
-        const newTpl = {
-          id, name: nm, kind: 'IMAGE', imageData,
-          showLogo: false,
-          logoStyles: { size: 40, margin: 6 },
-          styles: JSON.parse(JSON.stringify(base.styles||{}))
-        };
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        list.push(newTpl);
-        localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-        templates = list;
-        log('create_template_image', nm);
-        openSettings('templates');
-        alert('New template created.');
-      }catch(err){ alert('Failed to create template: '+err.message); }
-      e.target.value='';
-    };
-  }
-  if(tab==='cloud'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const gistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Cloud Sync (GitHub Gist)</div>
-      <p class="text-sm text-zinc-400 mb-4">Sync data via a private GitHub Gist. The token is NOT saved.</p>
       <div class="grid md:grid-cols-2 gap-6">
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-          <label class="text-xs text-zinc-400">GitHub Personal Access Token (scope: gist). Required for all operations.</label>
-          <input id="cloudToken" type="password" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="ghp_... (never saved)">
-          <label class="text-xs text-zinc-400">Gist ID</label>
-          <input id="cloudGistId" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4..." value="${gistId}">
-          <div class="flex flex-wrap gap-2">
-            <button id="cloudCreate" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Create New Gist</button>
-            <button id="cloudSave" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Save to Cloud</button>
-            <button id="cloudLoad" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Load from Cloud</button>
+        <!-- Create Host Block -->
+        <div class="p-5 rounded-2xl border border-zinc-800">
+          <h2 class="font-medium mb-3">สร้างบัญชี Host (แอดมินสูงสุด)</h2>
+          <label class="block text-sm mb-1">ชื่อผู้ใช้</label>
+          <input id="setupHostUsername" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-3" placeholder="host" />
+          <label class="block text-sm mb-1">รหัสผ่าน</label>
+          <input id="setupHostPassword" type="password" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-3" placeholder="••••••" />
+          <label class="block text-sm mb-1">ยืนยันรหัสผ่าน</label>
+          <input id="setupHostPassword2" type="password" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-4" placeholder="••••••" />
+          <button id="btnCreateHost" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500">สร้างบัญชี Host</button>
+          <p id="setupHostMsg" class="text-sm text-zinc-400 mt-3"></p>
+        </div>
+
+        <!-- Cloud Load Block on First Run -->
+        <div class="p-5 rounded-2xl border border-zinc-800">
+          <h2 class="font-medium mb-3">มีข้อมูลอยู่บน Cloud แล้ว?</h2>
+          <p class="text-sm text-zinc-400 mb-3">กรอก GitHub Token และ Gist ID เพื่อโหลดสแนปช็อตมาใช้ทันที จากนั้นไปที่หน้าเข้าสู่ระบบ</p>
+          <label class="block text-sm mb-1">GitHub Token (scopes: <code>gist</code>)</label>
+          <input id="frToken" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-3" placeholder="ghp_..." />
+          <label class="block text-sm mb-1">Gist ID</label>
+          <input id="frGistId" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-4" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+          <div class="flex gap-2">
+            <button id="btnFirstRunCloudLoad" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500">Load from Cloud</button>
+            <button id="btnGoLoginFromSetup" class="px-4 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600">ไปหน้า Login</button>
+          </div>
+          <p id="firstRunMsg" class="text-sm text-zinc-400 mt-3"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Login View ===== -->
+    <section id="view-login" class="hidden">
+      <h1 class="text-xl font-semibold mb-4">เข้าสู่ระบบ</h1>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="p-5 rounded-2xl border border-zinc-800">
+          <label class="block text-sm mb-1">ชื่อผู้ใช้</label>
+          <input id="loginUsername" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-3" placeholder="username" />
+          <label class="block text-sm mb-1">รหัสผ่าน</label>
+          <input id="loginPassword" type="password" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-4" placeholder="••••••" />
+          <button id="btnLogin" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500">เข้าสู่ระบบ</button>
+          <p id="loginMsg" class="text-sm text-zinc-400 mt-3"></p>
+        </div>
+        <div class="p-5 rounded-2xl border border-zinc-800">
+          <h2 class="font-medium mb-3">โหลดข้อมูลจาก Cloud (ถ้ามี)</h2>
+          <label class="block text-sm mb-1">GitHub Token</label>
+          <input id="loginToken" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-3" placeholder="ghp_..." />
+          <label class="block text-sm mb-1">Gist ID</label>
+          <input id="loginGistId" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-4" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+          <div class="flex gap-2">
+            <button id="btnLoginCloudLoad" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500">Load from Cloud</button>
+            <button id="btnGoSetupFromLogin" class="px-4 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600">ไปหน้า Setup</button>
+          </div>
+          <p class="text-xs text-zinc-500 mt-2">*ระบบจะจดจำ Token และ Gist ID ไว้ในเครื่องนี้เพื่อโหลดอัตโนมัติครั้งต่อไป (สามารถลบได้ใน Settings)</p>
+          <p id="loginCloudMsg" class="text-sm text-zinc-400 mt-3"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== App View ===== -->
+    <section id="view-app" class="hidden">
+      <!-- Top Bar -->
+      <div class="no-print mb-5 flex items-center gap-3">
+        <button data-tab="products" class="tab-btn px-4 py-2 rounded-xl bg-zinc-800">Products</button>
+        <button data-tab="templates" class="tab-btn px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800">Templates</button>
+        <button data-tab="settings" class="tab-btn px-4 py-2 rounded-xl bg-zinc-900 border border-zinc-800">Settings</button>
+        <div class="ml-auto flex items-center gap-2">
+          <button id="btnCloudSave" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 no-print">Save ↥ Cloud</button>
+          <button id="btnCloudLoad" class="px-3 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 no-print">Load ↧ Cloud</button>
+          <button id="btnLogout" class="px-3 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600 no-print">ออกจากระบบ</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div id="tab-products">
+        <div class="no-print mb-3 flex items-center gap-3">
+          <input id="searchSku" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 w-64" placeholder="ค้นหา SKU/ชื่อ" />
+          <select id="channelFilter" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800">
+            <option value="Flagship">Flagship</option>
+            <option value="Marketplace">Marketplace</option>
+            <option value="Dealer">Dealer</option>
+          </select>
+          <button id="btnAddProduct" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500">เพิ่มสินค้า</button>
+        </div>
+
+        <div class="overflow-x-auto border border-zinc-800 rounded-2xl">
+          <table class="w-full text-sm">
+            <thead class="bg-zinc-900">
+              <tr>
+                <th class="px-3 py-2 text-left">SKU</th>
+                <th class="px-3 py-2 text-left">ชื่อ</th>
+                <th class="px-3 py-2 text-left">ราคา Flagship</th>
+                <th class="px-3 py-2 text-left">ราคา Marketplace</th>
+                <th class="px-3 py-2 text-left">ราคา Dealer</th>
+                <th class="px-3 py-2 text-left col-costs">Costs (สิทธิ์เฉพาะ)</th>
+                <th class="px-3 py-2 text-left col-expires">Expires Date</th>
+                <th class="px-3 py-2 text-left">Details</th>
+                <th class="px-3 py-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="productsTbody" class="divide-y divide-zinc-800"></tbody>
+          </table>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="font-medium mb-2">ตัวอย่างป้าย (Preview)</h3>
+          <div id="previewArea" class="grid md:grid-cols-3 gap-4"></div>
+        </div>
+      </div>
+
+      <div id="tab-templates" class="hidden">
+        <div class="no-print mb-3 flex items-center gap-2">
+          <button id="btnUploadTemplate" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500">อัปโหลดเทมเพลต (PNG/JPG)</button>
+          <input id="templateFile" type="file" accept="image/png,image/jpeg" class="hidden" />
+        </div>
+        <div id="templatesList" class="grid md:grid-cols-3 gap-4"></div>
+      </div>
+
+      <div id="tab-settings" class="hidden">
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="p-5 rounded-2xl border border-zinc-800">
+            <h3 class="font-medium mb-3">Cloud Sync (GitHub Gist)</h3>
+            <label class="block text-sm mb-1">GitHub Token</label>
+            <input id="setToken" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-3" />
+            <label class="block text-sm mb-1">Gist ID</label>
+            <input id="setGistId" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 mb-4" />
+            <div class="flex gap-2">
+              <button id="btnSaveSettings" class="px-3 py-2 rounded-xl bg-zinc-700 hover:bg-zinc-600">บันทึก</button>
+              <button id="btnCreateGist" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500">Create New Gist</button>
+            </div>
+            <p id="settingsMsg" class="text-sm text-zinc-400 mt-3"></p>
+          </div>
+
+          <div class="p-5 rounded-2xl border border-zinc-800">
+            <h3 class="font-medium mb-3">ผู้ใช้ & สิทธิ์</h3>
+            <div class="flex gap-2 mb-3">
+              <input id="newUsername" class="flex-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800" placeholder="username" />
+              <input id="newPassword" type="password" class="flex-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800" placeholder="password" />
+            </div>
+            <div class="flex gap-2 mb-3">
+              <select id="newRole" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800">
+                <option>host</option>
+                <option>manager</option>
+                <option>staff</option>
+                <option>viewer</option>
+              </select>
+              <button id="btnAddUser" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500">เพิ่มผู้ใช้</button>
+            </div>
+            <div id="usersList" class="space-y-2"></div>
           </div>
         </div>
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Notes</div>
-          <ul class="list-disc pl-6 text-sm text-zinc-400 space-y-1">
-            <li>Your GitHub Token is used for the request and then discarded. It is never stored in the browser.</li>
-            <li>After creating a new Gist, its ID will be saved locally for future use.</li>
-          </ul>
-        </div>
       </div>
-    `;
-    $('#cloudGistId').oninput = (e) => localStorage.setItem(LS.CLOUD_GIST_ID, e.target.value.trim());
-    $('#cloudCreate').onclick=async()=>{
-      const token = $('#cloudToken').value.trim();
-      try {
-        const newGistId = await cloudCreateGist(token);
-        $('#cloudGistId').value = newGistId;
-      } catch(e){ alert(e.message); }
-    };
-    $('#cloudSave').onclick=async()=>{
-      const token = $('#cloudToken').value.trim();
-      const gistId = $('#cloudGistId').value.trim();
-      try { await cloudSave(gistId, token); alert('Saved to cloud.'); } catch(e){ alert(e.message); }
-    };
-    $('#cloudLoad').onclick=async()=>{
-      const token = $('#cloudToken').value.trim();
-      const gistId = $('#cloudGistId').value.trim();
-      try { await cloudLoad(gistId, token); } catch(e){ alert(e.message); }
-    };
-  }
-  if(tab==='history'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const logs=JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Usage History</div>
-      <div class="max-h-[65vh] overflow-auto border border-zinc-800 rounded-2xl">
-        <table class="min-w-[700px] w-full text-sm">
-          <thead class="bg-zinc-900/70 border-b border-zinc-800">
-            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
-          </thead>
-          <tbody>${logs.map(l=>`<tr class="border-b border-zinc-800"><td class="px-3 py-2">${new Date(l.ts).toLocaleString('th-TH')}</td><td class="px-3 py-2">${l.user}</td><td class="px-3 py-2">${l.action}</td><td class="px-3 py-2 text-zinc-400">${l.meta||''}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>
-    `;
-  }
-}
+    </section>
+  </main>
 
-/* ================= IMPORT / EXPORT ================= */
-async function doImport(){
-  const fi=$('#fileImport'); if(!fi.files[0]) return alert('Choose a file');
-  const data=await fi.files[0].arrayBuffer();
-  const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-  const headerRowIndex = rows.findIndex(r => (r[0]||'').toString().toLowerCase().trim() === 'sku');
-  if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
-  const start=headerRowIndex + 1;
-  const newItems=[], importedSkus = new Set();
-  for(let i=start;i<rows.length;i++){
-    const r=rows[i]; const sku = (r[0]||'').toString().trim(); if(!sku) continue;
-    if (importedSkus.has(sku) || products.some(p => p.sku === sku)) {
-      console.warn(`Skipping duplicate SKU: ${sku}`); continue;
+  <template id="tpl-product-row">
+    <tr>
+      <td class="px-3 py-2 text-zinc-300 font-mono"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2 col-costs"></td>
+      <td class="px-3 py-2 col-expires"></td>
+      <td class="px-3 py-2"></td>
+      <td class="px-3 py-2">
+        <button class="btnEdit px-2 py-1 rounded-lg bg-zinc-800 mr-1">แก้ไข</button>
+        <button class="btnDelete px-2 py-1 rounded-lg bg-red-700">ลบ</button>
+      </td>
+    </tr>
+  </template>
+
+  <script>
+  // ============================
+  // Storage Keys & In-Memory
+  // ============================
+  const LS = {
+    users: 'ptm.users',
+    settings: 'ptm.settings',
+    products: 'ptm.products',
+    templates: 'ptm.templates',
+    session: 'ptm.session',
+  };
+
+  const $ = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  function getJSON(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+  }
+  function setJSON(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+  function getUsers(){ return getJSON(LS.users, []); }
+  function setUsers(u){ setJSON(LS.users, u); }
+  function getSettings(){ return getJSON(LS.settings, { token: '', gistId: '' }); }
+  function setSettings(s){ setJSON(LS.settings, s); }
+  function getProducts(){ return getJSON(LS.products, []); }
+  function setProducts(p){ setJSON(LS.products, p); }
+  function getTemplates(){ return getJSON(LS.templates, []); }
+  function setTemplates(t){ setJSON(LS.templates, t); }
+  function getSession(){ return getJSON(LS.session, null); }
+  function setSession(sess){ setJSON(LS.session, sess); }
+
+  // ============================
+  // Crypto (PBKDF2 + fallback SHA-256)
+  // ============================
+  async function sha256(str){
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
+    return btoa(String.fromCharCode(...new Uint8Array(buf)));
+  }
+
+  function randSalt(len=16){
+    const b = new Uint8Array(len);
+    crypto.getRandomValues(b);
+    return btoa(String.fromCharCode(...b));
+  }
+
+  async function pbkdf2(password, saltB64, iterations=150000, keyLen=32){
+    const enc = new TextEncoder();
+    const salt = Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0));
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), {name:'PBKDF2'}, false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({name:'PBKDF2', hash:'SHA-256', salt, iterations}, keyMaterial, keyLen*8);
+    return btoa(String.fromCharCode(...new Uint8Array(bits)));
+  }
+
+  async function createUser(username, password, role='viewer'){
+    const users = getUsers();
+    if(users.some(u=>u.username===username)) throw new Error('มีผู้ใช้นี้อยู่แล้ว');
+    const salt = randSalt();
+    const hash = await pbkdf2(password, salt);
+    const user = { id: crypto.randomUUID(), username, role, kdf:'pbkdf2', iterations:150000, salt, hash };
+    users.push(user); setUsers(users);
+    return user;
+  }
+
+  async function verifyPassword(user, password){
+    if(user.kdf==='pbkdf2'){
+      const h = await pbkdf2(password, user.salt, user.iterations||150000);
+      return h===user.hash;
     }
-    importedSkus.add(sku);
-    newItems.push({
-      sku:sku, description:(r[1]||'').toString().trim(), details:(r[2]||'').toString().trim(),
-      costs:parseFloat(r[3]||0)||0, normalPrice:parseFloat(r[4]||0)||0, promoPrice:parseFloat(r[5]||0)||0,
-      expiresDate:fromExcelDate(r[6]||''), marketplacePrice:parseFloat(r[7]||0)||0, dealer1:parseFloat(r[9]||0)||0,
-      dealer2:parseFloat(r[11]||0)||0, dealer3:parseFloat(r[13]||0)||0
+    if(user.passwordHash){ // legacy fallback
+      const h = await sha256(password);
+      return h===user.passwordHash;
+    }
+    return false;
+  }
+
+  // ============================
+  // UI Helpers
+  // ============================
+  function show(id){ $(id).classList.remove('hidden'); }
+  function hide(id){ $(id).classList.add('hidden'); }
+  function setView(v){
+    ['#view-setup','#view-login','#view-app'].forEach(hide);
+    if(v==='setup') show('#view-setup');
+    else if(v==='login') show('#view-login');
+    else show('#view-app');
+  }
+
+  function escapeHTML(str){
+    return (str||'').replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+  }
+
+  // ============================
+  // Cloud (GitHub Gist)
+  // ============================
+  async function cloudSave(){
+    const {token, gistId} = getSettings();
+    if(!token) throw new Error('ยังไม่ได้ตั้งค่า Token');
+    const snapshot = {
+      version: 1,
+      users: getUsers(),
+      products: getProducts(),
+      templates: getTemplates(),
+      savedAt: new Date().toISOString()
+    };
+    const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' };
+
+    if(gistId){
+      const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        method:'PATCH', headers, body: JSON.stringify({ files: { 'ptm.json': { content: JSON.stringify(snapshot, null, 2) } } })
+      });
+      if(!res.ok) throw new Error('บันทึกไม่สำเร็จ: '+res.status);
+      return { gistId };
+    } else {
+      const body = { description:'PTM Snapshot', public:false, files:{ 'ptm.json': { content: JSON.stringify(snapshot, null, 2) } } };
+      const res = await fetch('https://api.github.com/gists', { method:'POST', headers, body: JSON.stringify(body) });
+      if(!res.ok) throw new Error('สร้าง Gist ไม่สำเร็จ: '+res.status);
+      const data = await res.json();
+      const id = data.id; setSettings({ token, gistId:id });
+      return { gistId:id };
+    }
+  }
+
+  async function cloudLoad(tokenOverride, gistIdOverride){
+    const s = getSettings();
+    const token = tokenOverride ?? s.token;
+    const gistId = gistIdOverride ?? s.gistId;
+    if(!token || !gistId) throw new Error('ต้องมี Token และ Gist ID');
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers:{ 'Authorization': `token ${token}`, 'Accept':'application/vnd.github+json' } });
+    if(!res.ok) throw new Error('โหลดไม่สำเร็จ: '+res.status);
+    const data = await res.json();
+    const file = data.files?.['ptm.json'];
+    if(!file?.content) throw new Error('ไม่พบไฟล์ ptm.json ใน Gist');
+    const snapshot = JSON.parse(file.content);
+    if(snapshot.users) setUsers(snapshot.users);
+    if(snapshot.products) setProducts(snapshot.products);
+    if(snapshot.templates) setTemplates(snapshot.templates);
+    return snapshot;
+  }
+
+  async function tryAutoCloudLoad(){
+    // ถ้าไม่มีผู้ใช้ แต่ตั้งค่า Token+Gist ไว้แล้ว ให้ลองโหลดอัตโนมัติ
+    if(getUsers().length===0){
+      const {token, gistId} = getSettings();
+      if(token && gistId){
+        try { await cloudLoad(); } catch(e){ console.warn('Auto cloud load failed:', e.message); }
+      }
+    }
+  }
+
+  // ============================
+  // App Logic
+  // ============================
+  function refreshCurrentUserBadge(){
+    const sess = getSession();
+    $('#currentUserBadge').textContent = sess ? `${sess.username} · ${sess.role}` : '';
+  }
+
+  function setTab(name){
+    ['products','templates','settings'].forEach(t=>{
+      const on = (t===name);
+      $(`#tab-${t}`).classList.toggle('hidden', !on);
+      const btn = document.querySelector(`.tab-btn[data-tab="${t}"]`);
+      btn.classList.toggle('bg-zinc-800', on);
+      btn.classList.toggle('bg-zinc-900', !on);
+      btn.classList.toggle('border', !on);
+      btn.classList.toggle('border-zinc-800', !on);
     });
   }
-  if(!newItems.length) return alert('No new valid products found to import.');
-  products=[...newItems, ...products];
-  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); renderTable(); log('import_excel', `${newItems.length} rows`);
-  alert('Imported: '+newItems.length+' new rows. Duplicates were skipped.');
-}
-async function doExport(){
-  const wb=await XlsxPopulate.fromBlankAsync(); const sh=wb.sheet(0).name('PriceData');
-  const header=['SKU','Description','Details','Costs','Normal Price','Promotion Price','Expires Date','Marketplace Price','Marketplace GP%','Dealer Price Tier 1','GP% T1','Dealer Price Tier 2','GP% T2','Dealer Price Tier 3','GP% T3','Promotion GP%'];
-  const dataRows = products.map(p=>[
-    p.sku,p.description,p.details,p.costs,p.normalPrice,p.promoPrice,p.expiresDate?toDateInput(p.expiresDate):'',
-    p.marketplacePrice, +gpPct(p.marketplacePrice,p.costs).toFixed(2),
-    p.dealer1, +gpPct(p.dealer1,p.costs).toFixed(2),
-    p.dealer2, +gpPct(p.dealer2,p.costs).toFixed(2),
-    p.dealer3, +gpPct(p.dealer3,p.costs).toFixed(2),
-    +gpPct(p.promoPrice,p.costs).toFixed(2)
-  ]);
-  const matrix=[header,...dataRows];
-  sh.cell('A1').value(matrix);
-  sh.row(1).style({bold:true});
-  const lastRow=matrix.length;
-  if(lastRow>1){
-    sh.range(`D2:D${lastRow}`).style({fill:'FFCCFFCC'});
-    sh.range(`F2:G${lastRow}`).style({fill:'FFFFFF99'});
+
+  function maybeToggleProtectedColumns(){
+    const sess = getSession();
+    const canSeeCosts = !!sess && ['host','manager'].includes(sess.role);
+    $$('.col-costs').forEach(td=> td.classList.toggle('hidden', !canSeeCosts));
   }
-  [12,28,50,12,14,16,16,16,14,14,12,14,12,14,12,14].forEach((w,i)=>sh.column(i+1).width(w));
-  const blob=await wb.outputAsync();
-  const url=URL.createObjectURL(new Blob([blob],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-  const a=document.createElement('a'); a.href=url; a.download='price_data_export.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  log('export_excel', `${products.length} rows`);
-}
 
-/* ================= PRINT FLOW ================= */
-function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
-function buildPrintList(){
-  const box=$('#printList'); box.innerHTML='';
-  const items=filteredProducts();
-  const frag=document.createDocumentFragment();
-  items.forEach(p=>{
-    const row=document.createElement('div');
-    row.className='flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-2';
-    row.innerHTML=`
-      <label class="flex items-center gap-2 w-6"><input type="checkbox" data-sel="${p.sku}"></label>
-      <div class="flex-1">
-        <div class="font-medium oneline" title="${p.sku}">${p.sku}</div>
-        <div class="text-xs text-zinc-400 oneline" title="${p.description}">${ellip(p.description, 46)}</div>
-      </div>
-      <div class="flex items-center gap-1">
-        <span class="text-xs text-zinc-400">Qty</span>
-        <input type="number" min="1" value="1" data-qty="${p.sku}" class="w-20 px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-      </div>
-    `;
-    frag.appendChild(row);
-  });
-  box.appendChild(frag);
-  $('#printCheckAll').checked=false;
-  $('#printCheckAll').onchange=()=> $$('#printList input[type="checkbox"]').forEach(c=>c.checked=$('#printCheckAll').checked);
-  $('#printSearch').oninput=()=>{
-    const q=$('#printSearch').value.toLowerCase();
-    $$('#printList > div').forEach(div=>{
-      const sku=div.querySelector('[data-sel]').getAttribute('data-sel').toLowerCase();
-      const desc=div.querySelector('.text-xs').getAttribute('title').toLowerCase();
-      div.style.display = (!q || sku.includes(q) || desc.includes(q)) ? '' : 'none';
-    });
-  };
-  updatePrintSummary();
-  $$('#printList input').forEach(i=>i.oninput=updatePrintSummary);
-}
-function updatePrintSummary(){
-  const selected=$$('#printList input[type="checkbox"]:checked');
-  let count=0; selected.forEach(c=>{ const sku=c.getAttribute('data-sel'); const qty=parseInt($(`[data-qty="${sku}"]`).value)||0; count+=qty; });
-  $('#printSummary').textContent = `${selected.length} SKUs selected • ${count} tags total`;
-}
-function fillTemplateDropdown(){
-  const dd=$('#printTemplate'); dd.innerHTML='';
-  templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
-  dd.onchange=()=>{ 
-    const firstSelectedSku = $('#printList input[type="checkbox"]:checked')?.getAttribute('data-sel');
-    const firstItem = products.find(p => p.sku === firstSelectedSku) || filteredProducts()[0];
-    renderPreview(firstItem, templates.find(t=>t.id===dd.value)); 
-  };
-}
-function baseSize(kind){
-  if(kind==='A4') return {w:744,h:1052};
-  if(kind==='A5') return {w:526,h:744};
-  if(kind==='A6') return {w:372,h:526};
-  return {w:640,h:320}; // ACC or default for IMAGE
-}
-function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
+  function maybeToggleExpiresColumn(){
+    const ch = $('#channelFilter').value;
+    const show = (ch==='Flagship');
+    $$('.col-expires').forEach(td=> td.classList.toggle('hidden', !show));
+  }
 
-function escapeHtml(str){
-  if(str==null) return '';
-  return String(str).replace(/[&<>"'`=\/]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;','=':'&#61;','/':'&#47;','\\':'&#92;'}[s]||s));
-}
-function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
-function renderTagInnerHTML(p, tpl, pad = '10mm'){ // Add pad argument with a default
-    if(tpl.kind==='ACC'){
-        const s=tpl.styles;
-        // ACC template uses absolute positioning, which is fine.
-        // The padding was on the container, which is now removed.
-        return `
-        <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
-        <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
-            <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${truncateMiddle(p.description, 44)}</div>
-        </div>
-        <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-        <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
-            <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-            <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-        </div>
-        `;
+  function renderUsers(){
+    const list = $('#usersList');
+    list.innerHTML='';
+    const users = getUsers();
+    for(const u of users){
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800';
+      row.innerHTML = `<div><span class="font-medium">${escapeHTML(u.username)}</span> <span class="text-xs text-zinc-400">· ${u.role}</span></div>
+      <div class="flex gap-2">
+        <button class="btnReset px-2 py-1 rounded-lg bg-zinc-800" data-id="${u.id}">รีเซ็ตรหัส</button>
+        <button class="btnRemove px-2 py-1 rounded-lg bg-red-700" data-id="${u.id}">ลบ</button>
+      </div>`;
+      list.appendChild(row);
     }
 
-    const s=tpl.styles;
-    const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
-        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>\${escapeHtml(t)}</span></div>`).join('');
-    
-    // Use the passed 'pad' variable for padding instead of hardcoded '10mm'
-    return `
-        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${pad}; display:flex; flex-direction:column;">
-            <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
-            <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
-            <div class="mt-3 space-y-1">${bullets}</div>
-            <div class="mt-auto flex items-end justify-between">
-                <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-                <div class="text-right">
-                <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-                <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-    const s=tpl.styles;
-    const bullets=(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
-        <div class="flex gap-2 items-start text-elevate" style="${styleInline(s.details)}"><span>•</span><span>${t}</span></div>`).join('');
-    return `
-        <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:10mm; display:flex; flex-direction:column;">
-            <div style="${styleInline(s.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
-            <div style="font-weight:800;line-height:1.2;${styleInline(s.description)}" class="mt-2 text-elevate">${p.description}</div>
-            <div class="mt-3 space-y-1">${bullets}</div>
-            <div class="mt-auto flex items-end justify-between">
-                <div style="${styleInline(s.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-                <div class="text-right">
-                <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-                <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-function buildPreviewTag(p,tpl){
-  let w, h;
-  const outer=document.createElement('div');
-  outer.style.borderRadius='12px'; outer.style.overflow='hidden';
-  outer.style.border='2px solid #1f1f22';
-  outer.style.color='#fff'; outer.style.position='relative';
-  if(tpl.imageData) {
+    list.addEventListener('click', async (e)=>{
+      const id = e.target?.dataset?.id; if(!id) return;
+      const users = getUsers();
+      const idx = users.findIndex(x=>x.id===id);
+      if(idx<0) return;
+      if(e.target.classList.contains('btnRemove')){
+        users.splice(idx,1); setUsers(users); renderUsers(); return;
+      }
+      if(e.target.classList.contains('btnReset')){
+        const pass = prompt('กำหนดรหัสผ่านใหม่'); if(!pass) return;
+        const u = users[idx];
+        const salt = randSalt(); const hash = await pbkdf2(pass, salt);
+        users[idx] = { ...u, kdf:'pbkdf2', iterations:150000, salt, hash, passwordHash: undefined };
+        setUsers(users); alert('อัปเดตรหัสแล้ว');
+      }
+    }, { once:true });
+  }
+
+  function renderProducts(){
+    const tbody = $('#productsTbody');
+    tbody.innerHTML='';
+    const q = ($('#searchSku').value||'').toLowerCase();
+    const ch = $('#channelFilter').value;
+    const products = getProducts().filter(p=> (p.sku?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q)) );
+
+    for(const p of products){
+      const tr = document.importNode($('#tpl-product-row').content, true);
+      const tds = tr.querySelectorAll('td');
+      tds[0].textContent = p.sku||'';
+      tds[1].textContent = p.name||'';
+      tds[2].textContent = formatMoney(p.priceFlagship);
+      tds[3].textContent = formatMoney(p.priceMarketplace);
+      tds[4].textContent = formatMoney(p.priceDealer);
+      tds[5].textContent = p.costs!=null ? formatMoney(p.costs) : '';
+      tds[6].textContent = p.expires||'';
+      // details: render as text-only bullets (escape)
+      tds[7].innerHTML = (p.details||[]).map(d=>`<div class="text-zinc-300">• ${escapeHTML(d)}</div>`).join('');
+
+      const [btnEdit, btnDelete] = tr.querySelectorAll('button');
+      btnEdit.addEventListener('click', ()=> editProduct(p));
+      btnDelete.addEventListener('click', ()=> deleteProduct(p));
+      tbody.appendChild(tr);
+    }
+
+    maybeToggleProtectedColumns();
+    maybeToggleExpiresColumn();
+
+    // Preview sample (first 3)
+    const area = $('#previewArea');
+    area.innerHTML='';
+    products.slice(0,3).forEach(async item=>{
+      const el = await buildPreviewTag(item);
+      area.appendChild(el);
+    });
+  }
+
+  function formatMoney(n){
+    if(n==null || isNaN(n)) return '';
+    return new Intl.NumberFormat('th-TH',{ style:'currency', currency:'THB', maximumFractionDigits:0 }).format(n);
+  }
+
+  function editProduct(p){
+    const name = prompt('ชื่อสินค้า', p.name||''); if(name==null) return;
+    const sku = prompt('SKU', p.sku||''); if(sku==null) return;
+    const pf = +prompt('ราคา Flagship', p.priceFlagship??'') || 0;
+    const pm = +prompt('ราคา Marketplace', p.priceMarketplace??'') || 0;
+    const pd = +prompt('ราคา Dealer', p.priceDealer??'') || 0;
+    const costs = +prompt('Costs (ถ้ามีสิทธิ์)', p.costs??'') || 0;
+    const expires = prompt('วันหมดอายุ (YYYY-MM-DD)', p.expires||'') || '';
+    const detailsRaw = prompt('รายละเอียด (คั่นบรรทัด)\nจะถูกบันทึกเป็นข้อความปลอดภัย (ไม่ใช้ HTML)', (p.details||[]).join('\n'))||'';
+
+    const products = getProducts();
+    const idx = products.findIndex(x=>x.sku===p.sku);
+    const details = detailsRaw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const np = { ...p, name, sku, priceFlagship:pf, priceMarketplace:pm, priceDealer:pd, costs, expires, details };
+    if(idx>=0) products[idx] = np; else products.push(np);
+    setProducts(products); renderProducts();
+  }
+
+  function deleteProduct(p){
+    if(!confirm('ลบสินค้านี้?')) return;
+    const products = getProducts().filter(x=>x.sku!==p.sku);
+    setProducts(products); renderProducts();
+  }
+
+  async function buildPreviewTag(item){
+    // Simple preview: either use first template image as background or plain card
+    const wrap = document.createElement('div');
+    wrap.className = 'p-4 rounded-2xl border border-zinc-800';
+
+    const tpl = getTemplates()[0];
+    if(tpl?.imageData){
       const img = new Image();
-      img.onload = () => {
-        const nw = img.naturalWidth || 640;
-        const nh = img.naturalHeight || 360;
-        outer.style.width = nw+'px';
-        outer.style.height = nh+'px';
-        outer.dispatchEvent(new CustomEvent('templateImageLoaded', { detail: { w: nw, h: nh }}));
-      };
       img.src = tpl.imageData;
-      w = img.naturalWidth || 640;
-      h = img.naturalHeight || 360;
-      outer.style.width=w+'px'; outer.style.height=h+'px';
-      outer.style.background = `url(${tpl.imageData})`;
-      outer.style.backgroundSize = 'cover';
-      outer.style.backgroundPosition = 'center';
-  } else {
-      const size = baseSize(tpl.kind);
-      w = size.w;
-      h = size.h;
-      outer.style.width=w+'px'; outer.style.height=h+'px';
-      outer.style.background = (tpl.kind==='ACC'?'#000':'#0b0b0c');
-  }
-  if(tpl.showLogo){
-    const logo=localStorage.getItem(LS.LOGO);
-    const logoSize = tpl.logoStyles?.size || 64;
-    const logoMargin = tpl.logoStyles?.margin || 10;
-    outer.innerHTML += logo? `<img src="\${logo}" style="position:absolute;right:\${logoMargin}px;top:\${logoMargin}px;width:\${logoSize}px;height:auto;">`
-                           : `<div style="position:absolute;right:\${logoMargin}px;top:\${logoMargin}px;width:\${logoSize}px;color:#fff;font-weight:900;text-align:center;border:1px dashed #555;border-radius:10px;padding:8px 4px">LOGO</div>`;
-  }
-  const inner=document.createElement('div');
-  inner.innerHTML=renderTagInnerHTML(p,tpl);
-  inner.style.width='100%'; inner.style.height='100%';
-  outer.appendChild(inner);
-  return {node:outer, w, h};
-}
-function renderPreview(item,tpl){
-  const box=$('#previewBox'); box.innerHTML='';
-  if(!item || !tpl){ box.innerHTML='<div class="text-zinc-500">No items or template selected</div>'; return; }
-  const {node,w,h}=buildPreviewTag(item,tpl);
-  node.style.transformOrigin='top left';
-  const holder=document.createElement('div');
-  holder.style.position='relative';
-  holder.appendChild(node);
-  box.appendChild(holder);
-  let W=w, H=h;
-  function fit(){
-    const availW=box.clientWidth;
-    const availH=box.clientHeight;
-    const scale=Math.max(0.1, Math.min(availW/W, availH/H));
-    node.style.transform=`scale(${scale})`;
-    holder.style.width=(W*scale)+'px';
-    holder.style.height=(H*scale)+'px';
-    holder.style.margin='auto';
-  }
-  node.addEventListener('templateImageLoaded', (e) => {
-    W = e.detail.w; H = e.detail.h; fit();
-  }, { once:false });
-  fit();
-  const ro = new ResizeObserver(()=>fit()); ro.observe(box);
-}
-function openPrintTab(list,tpl){
-  const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
-  if(!items.length){ alert('Select at least one SKU.'); return; }
+      await img.decode().catch(()=>{}); // ⟵ รอรูปเพื่ออ่านขนาดจริง
+      const W = img.naturalWidth || 640, H = img.naturalHeight || 480;
+      const scale = 240 / W; // fit width ~240px
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(W*scale);
+      canvas.height = Math.round(H*scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  const w=window.open('', '_blank');
-  if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
+      // Overlay simple texts
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillStyle = '#111';
+      ctx.fillText(item.name||'', 12, 24);
+      ctx.font = '14px sans-serif';
+      ctx.fillText(formatMoney(item.priceFlagship||item.priceMarketplace||item.priceDealer||0), 12, 46);
 
-  const logo=localStorage.getItem(LS.LOGO)||'';
-  let cols=1, rows=1, pad='8mm', pageSize='A4';
-
-  if(tpl.kind === 'IMAGE') {
-    cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4';
-  }
-  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
-  else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
-  else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
-  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
-
-  const style=`
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-      @page { size: ${pageSize}; margin: 8mm; }
-      html,body{
-        background:#fff;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        font-family:'Kanit','Prompt',sans-serif;
-      }
-      .sheet{
-        width:  ${pageSize==='A4 landscape' ? 'calc(297mm - 16mm)' : 'calc(210mm - 16mm)'};
-        height: ${pageSize==='A4 landscape' ? 'calc(210mm - 16mm)' : 'calc(297mm - 16mm)'};
-        margin: 0 auto; display: grid;
-        grid-template-columns: repeat(${cols}, 1fr);
-        grid-template-rows:    repeat(${rows}, 1fr);
-        gap: 0; page-break-after: always;
-      }
-      /* REMOVED padding from .tag to allow background to fill the space */
-      .tag{ width:100%; height:100%; box-sizing:border-box; }
-      .card{
-        position:relative; width:100%; height:100%;
-        border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
-        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
-        color:#fff;
-        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
-        background-size: cover; background-position: center;
-      }
-      .logo{ position:absolute; }
-      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-    </style>
-  `;
-
-  const perSheet = cols*rows;
-  const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-  
-  const body = pages.map(pg=>{
-    const inner=pg.map(p=>{
-      let logoTag = '';
-      if(tpl.showLogo && logo) {
-        const logoSize = tpl.logoStyles?.size || 64;
-        const logoMargin = tpl.logoStyles?.margin || 10;
-        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
-      }
-      // Pass the 'pad' variable to the rendering function
-      const content = renderTagInnerHTML(p, tpl, pad);
-      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
-    }).join('');
-    return `<div class="sheet">${inner}</div>`;
-  }).join('');
-
-  w.document.write(\`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>\${style}</head><body>\${body}</body></html>\`);
-  w.document.close();
-  log('open_print', \`\${items.length} tags, tpl=\${tpl.name}\`);
-}
-
-/* ================= EVENTS BINDING ================= */
-function bindEvents() {
-  $('#btnCreateHost').addEventListener('click', async () => {
-    const pass = $('#setupPass').value;
-    const confirmPass = $('#setupPassConfirm').value;
-    if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
-    if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
-    const passwordHash = await hashPassword(pass);
-    const hostUser = {
-        username: 'host', passwordHash, role: 'Host',
-        channels: [...Channels], canSeeCosts: true, canPrint: true
-    };
-    setUsers([hostUser]);
-    $('#setupView').classList.add('hidden');
-    $('#loginView').classList.remove('hidden');
-    alert('Host account created successfully. Please log in.');
-  });
-  $('#btnLogin').addEventListener('click', login);
-  $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      if (!$('#loginView').classList.contains('hidden')) login();
-      if (!$('#setupView').classList.contains('hidden')) $('#btnCreateHost').click();
+      wrap.appendChild(canvas);
+    } else {
+      wrap.innerHTML = `<div class="text-sm text-zinc-400 mb-2">(ไม่มีภาพเทมเพลต — แสดงการ์ดพื้นฐาน)</div>
+      <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-4">
+        <div class="text-xs text-zinc-400">${escapeHTML(item.sku||'')}</div>
+        <div class="font-medium">${escapeHTML(item.name||'')}</div>
+        <div class="text-lg">${formatMoney(item.priceFlagship||item.priceMarketplace||item.priceDealer||0)}</div>
+        ${(item.details||[]).slice(0,3).map(d=>`<div class="text-zinc-300">• ${escapeHTML(d)}</div>`).join('')}
+      </div>`;
     }
-  });
-  $('#btnNewProduct').addEventListener('click', () => openEditor());
-  $('#btnSettings').addEventListener('click',()=>openSettings('data'));
-  $('#btnPrintModal').addEventListener('click', () => {
-    if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown();
-    renderPreview(filteredProducts()[0], templates[0]); togglePrintModal(true);
-  });
-  ['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
-  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
-  $$('.set-tab').forEach(b=>b.addEventListener('click', ()=>openSettings(b.dataset.tab)));
-  $('#btnCloseEditor').addEventListener('click', closeEditor);
-  $('#btnSaveEd').addEventListener('click', saveEditor);
-  $('#btnClosePrintModal').addEventListener('click', () => togglePrintModal(false));
-  $('#btnOpenPrint').addEventListener('click', () => {
-    const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
-    const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
-                    .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
-    const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
-    openPrintTab(list,tpl);
-  });
-  window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
-  // Cloud Load on Setup view
-  const setupGistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
-  const setupGistInput = $('#setupCloudGist');
-  if (setupGistInput) setupGistInput.value = setupGistId;
-  if ($('#btnSetupCloudLoad')) {
-    $('#btnSetupCloudLoad').addEventListener('click', async () => {
-      const token = ($('#setupCloudToken')?.value || '').trim();
-      const gistId = ($('#setupCloudGist')?.value || '').trim() || localStorage.getItem(LS.CLOUD_GIST_ID) || '';
-      if (!token || !gistId) return alert('Token and Gist ID are required.');
-      try {
-        await cloudLoad(gistId, token);
-        $('#setupView').classList.add('hidden');
-        $('#loginView').classList.remove('hidden');
-        alert('Loaded from cloud. Please log in.');
-      } catch(e){ alert(e.message); }
-    });
-  }
-  // Cloud Load on Login view
-  const loginGistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
-  const loginGistInput = $('#loginCloudGist');
-  if (loginGistInput) loginGistInput.value = loginGistId;
-  if ($('#btnLoginCloudLoad')) {
-    $('#btnLoginCloudLoad').addEventListener('click', async () => {
-      const token = ($('#loginCloudToken')?.value || '').trim();
-      const gistId = ($('#loginCloudGist')?.value || '').trim() || localStorage.getItem(LS.CLOUD_GIST_ID) || '';
-      if (!token || !gistId) return alert('Token and Gist ID are required.');
-      try {
-        await cloudLoad(gistId, token);
-        alert('Loaded from cloud. You can now sign in.');
-      } catch(e){ alert(e.message); }
-    });
+
+    return wrap;
   }
 
-}
-}
-
-/* ================= STARTUP ================= */
-function init() {
-  bindEvents();
-  const users = allUsers();
-  if (users.length === 0) {
-    $('#setupView').classList.remove('hidden');
-  } else {
-    $('#loginView').classList.remove('hidden');
-    const last=localStorage.getItem(LS.LASTUSER)||'';
-    if(last) $('#loginUser').value=last;
+  // ============================
+  // Templates
+  // ============================
+  function renderTemplates(){
+    const box = $('#templatesList');
+    box.innerHTML='';
+    const tpls = getTemplates();
+    if(tpls.length===0){ box.innerHTML = '<div class="text-sm text-zinc-400">ยังไม่มีเทมเพลต</div>'; return; }
+    for(const t of tpls){
+      const card = document.createElement('div');
+      card.className = 'rounded-2xl border border-zinc-800 overflow-hidden';
+      card.innerHTML = `<div class="aspect-video bg-zinc-900">${ t.imageData ? `<img src="${t.imageData}" class="w-full h-full object-cover"/>` : ''}</div>
+      <div class="p-3 flex items-center justify-between">
+        <div class="text-sm">${escapeHTML(t.name)}</div>
+        <button class="btnRemoveTpl px-2 py-1 rounded-lg bg-red-700" data-id="${t.id}">ลบ</button>
+      </div>`;
+      box.appendChild(card);
+    }
+    box.addEventListener('click', (e)=>{
+      const id = e.target?.dataset?.id; if(!id) return;
+      if(e.target.classList.contains('btnRemoveTpl')){
+        const tpls = getTemplates().filter(x=>x.id!==id);
+        setTemplates(tpls); renderTemplates();
+      }
+    }, { once:true });
   }
-}
 
-init();
-</script>
+  function handleTemplateUpload(file){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const tpls = getTemplates();
+      tpls.push({ id: crypto.randomUUID(), name: file.name, imageData: reader.result });
+      setTemplates(tpls); renderTemplates(); renderProducts();
+    };
+    reader.readAsDataURL(file);
+  }
 
+  // ============================
+  // Init & Event Wiring
+  // ============================
+  async function init(){
+    await tryAutoCloudLoad();
+
+    const sess = getSession();
+    if(sess){ setView('app'); refreshCurrentUserBadge(); setTab('products'); renderProducts(); renderTemplates(); wireSettingsForm(); return; }
+
+    if(getUsers().length===0){ setView('setup'); }
+    else { setView('login'); }
+  }
+
+  function wireSettingsForm(){
+    const s = getSettings();
+    $('#setToken').value = s.token||'';
+    $('#setGistId').value = s.gistId||'';
+  }
+
+  // --- Setup events ---
+  $('#btnCreateHost').addEventListener('click', async ()=>{
+    const u = $('#setupHostUsername').value.trim();
+    const p1 = $('#setupHostPassword').value;
+    const p2 = $('#setupHostPassword2').value;
+    const msg = $('#setupHostMsg'); msg.textContent='';
+    if(!u || !p1){ msg.textContent='กรอกชื่อผู้ใช้และรหัสผ่าน'; return; }
+    if(p1!==p2){ msg.textContent='รหัสผ่านไม่ตรงกัน'; return; }
+    try {
+      await createUser(u, p1, 'host');
+      msg.textContent='สร้าง Host แล้ว ไปหน้าเข้าสู่ระบบได้เลย';
+      setView('login');
+    } catch(e){ msg.textContent = e.message; }
+  });
+
+  $('#btnFirstRunCloudLoad').addEventListener('click', async ()=>{
+    const token = $('#frToken').value.trim();
+    const gist = $('#frGistId').value.trim();
+    const msg = $('#firstRunMsg'); msg.textContent='กำลังโหลด...';
+    try{
+      setSettings({ token, gistId:gist });
+      await cloudLoad(token, gist);
+      msg.textContent='โหลดสำเร็จ! ไปหน้าเข้าสู่ระบบได้เลย';
+    }catch(e){ msg.textContent='ผิดพลาด: '+e.message; }
+  });
+
+  $('#btnGoLoginFromSetup').addEventListener('click', ()=> setView('login'));
+
+  // --- Login events ---
+  $('#btnLogin').addEventListener('click', async ()=>{
+    const u = $('#loginUsername').value.trim();
+    const p = $('#loginPassword').value;
+    const msg = $('#loginMsg'); msg.textContent='';
+    const users = getUsers();
+    const user = users.find(x=>x.username===u);
+    if(!user){ msg.textContent='ไม่พบบัญชีนี้'; return; }
+    const ok = await verifyPassword(user, p);
+    if(!ok){ msg.textContent='รหัสผ่านไม่ถูกต้อง'; return; }
+    setSession({ id:user.id, username:user.username, role:user.role, at:Date.now() });
+    setView('app'); refreshCurrentUserBadge(); setTab('products'); renderProducts(); renderTemplates(); wireSettingsForm();
+  });
+
+  $('#btnLoginCloudLoad').addEventListener('click', async ()=>{
+    const token = $('#loginToken').value.trim();
+    const gist = $('#loginGistId').value.trim();
+    const msg = $('#loginCloudMsg'); msg.textContent='กำลังโหลด...';
+    try{ setSettings({ token, gistId:gist }); await cloudLoad(token, gist); msg.textContent='โหลดสำเร็จ! เข้าสู่ระบบด้วยบัญชีของคุณได้เลย'; }
+    catch(e){ msg.textContent='ผิดพลาด: '+e.message; }
+  });
+
+  $('#btnGoSetupFromLogin').addEventListener('click', ()=> setView('setup'));
+
+  // --- App topbar ---
+  $$('.tab-btn').forEach(b=> b.addEventListener('click', ()=> setTab(b.dataset.tab)) );
+  $('#channelFilter').addEventListener('change', ()=>{ maybeToggleExpiresColumn(); renderProducts(); });
+  $('#searchSku').addEventListener('input', ()=> renderProducts());
+
+  $('#btnLogout').addEventListener('click', ()=>{ setSession(null); setView('login'); refreshCurrentUserBadge(); });
+
+  $('#btnCloudSave').addEventListener('click', async ()=>{
+    try{ const {gistId} = await cloudSave(); alert('บันทึกขึ้น Cloud แล้ว (Gist: '+gistId+')'); }
+    catch(e){ alert('บันทึกไม่สำเร็จ: '+e.message); }
+  });
+  $('#btnCloudLoad').addEventListener('click', async ()=>{
+    try{ await cloudLoad(); renderUsers(); renderProducts(); renderTemplates(); alert('โหลดจาก Cloud แล้ว'); }
+    catch(e){ alert('โหลดไม่สำเร็จ: '+e.message); }
+  });
+
+  // --- Settings ---
+  $('#btnSaveSettings').addEventListener('click', ()=>{
+    const token = $('#setToken').value.trim();
+    const gistId = $('#setGistId').value.trim();
+    setSettings({ token, gistId });
+    $('#settingsMsg').textContent = 'บันทึกการตั้งค่าแล้ว';
+  });
+
+  $('#btnCreateGist').addEventListener('click', async ()=>{
+    try{ const {gistId} = await cloudSave(); $('#setGistId').value = gistId; $('#settingsMsg').textContent = 'สร้าง Gist ใหม่และบันทึกแล้ว'; }
+    catch(e){ $('#settingsMsg').textContent = 'ผิดพลาด: '+e.message; }
+  });
+
+  $('#btnAddUser').addEventListener('click', async ()=>{
+    const u = $('#newUsername').value.trim();
+    const p = $('#newPassword').value;
+    const r = $('#newRole').value;
+    if(!u || !p) return alert('กรอกชื่อผู้ใช้และรหัสผ่าน');
+    try{ await createUser(u,p,r); renderUsers(); alert('เพิ่มผู้ใช้แล้ว'); }
+    catch(e){ alert(e.message); }
+  });
+
+  // --- Products ---
+  $('#btnAddProduct').addEventListener('click', ()=>{
+    editProduct({ sku:'', name:'', priceFlagship:0, priceMarketplace:0, priceDealer:0, costs:null, expires:'', details:[] });
+  });
+
+  // --- Templates ---
+  $('#btnUploadTemplate').addEventListener('click', ()=> $('#templateFile').click());
+  $('#templateFile').addEventListener('change', ()=>{
+    const f = $('#templateFile').files?.[0]; if(!f) return;
+    if(!/image\/(png|jpeg)/.test(f.type)) return alert('รองรับเฉพาะ PNG/JPG');
+    handleTemplateUpload(f);
+  });
+
+  // ===== Boot =====
+  // Starter data (only if completely empty)
+  if(getProducts().length===0 && getUsers().length===0){
+    setProducts([
+      { sku:'SKU-001', name:'Dynamic Mic', priceFlagship:2990, priceMarketplace:2890, priceDealer:2700, costs:1800, expires:'2025-12-31', details:['Cardioid','Metal body','XLR'] },
+      { sku:'SKU-002', name:'Headphones Pro', priceFlagship:4990, priceMarketplace:4790, priceDealer:4500, costs:3200, expires:'', details:['40mm driver','Closed-back'] },
+    ]);
+    setTemplates([]);
+  }
+
+  // If already logged-in, render users too
+  if(getSession()) renderUsers();
+
+  init();
+  </script>
 </body>
 </html>
-
