@@ -1,2 +1,2 @@
-# proplugin-pricetags-ChatGPT5
-ProPlugin’s price-checking website — for Pro only!
+# Proplugin-ProPricing
+ProPlugin’s price-checking and pricetag website — for Pro only!
