@@ -32,7 +32,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-  // TODO: Replace with your Firebase project config (Project settings > General)
   const firebaseConfig = {
     apiKey: "YOUR_API_KEY",
     authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -41,44 +40,40 @@
     messagingSenderId: "000000000000",
     appId: "1:000000000000:web:0000000000000000"
   };
+  let __db = null;
   try{
-    firebase.initializeApp(firebaseConfig);
-  }catch(e){ /* ignore if already initialized */ }
-  const db = firebase.firestore();
-
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    __db = firebase.firestore();
+  }catch(e){
+    console.warn('Firebase init skipped. Fill firebaseConfig to enable cloud sync.');
+  }
+  const cloudReady = ()=>!!__db;
   async function cloudGetHost(){
+    if(!cloudReady()) return null;
     try{
-      const snap = await db.collection('config').doc('host').get();
+      const snap = await __db.collection('config').doc('host').get();
       return snap.exists ? snap.data() : null;
     }catch(e){ console.error('cloudGetHost', e); return null; }
   }
   async function cloudSaveHost(hostUser){
-    try{ await db.collection('config').doc('host').set(hostUser, { merge:true }); }
+    if(!cloudReady()) return;
+    try{ await __db.collection('config').doc('host').set(hostUser, {merge:true}); }
     catch(e){ console.error('cloudSaveHost', e); }
   }
   async function cloudGetState(){
+    if(!cloudReady()) return null;
     try{
-      const snap = await db.collection('app').doc('state').get();
+      const snap = await __db.collection('app').doc('state').get();
       return snap.exists ? snap.data() : null;
     }catch(e){ console.error('cloudGetState', e); return null; }
   }
   async function cloudSaveState(){
+    if(!cloudReady()) return;
     try{
-      if (typeof getAppState === 'function'){
-        const state = getAppState();
-        await db.collection('app').doc('state').set(state, { merge:true });
+      if(typeof getAppState==='function'){
+        await __db.collection('app').doc('state').set(getAppState(), {merge:true});
       }
     }catch(e){ console.error('cloudSaveState', e); }
-  }
-  async function cloudHydrateLocalIfEmpty(){
-    try{
-      if (typeof allUsers === 'function' && typeof setAppState === 'function'){
-        if(allUsers().length===0){
-          const state = await cloudGetState();
-          if(state){ setAppState(state); }
-        }
-      }
-    }catch(e){ console.error('cloudHydrateLocalIfEmpty', e); }
   }
 </script>
 <style>
@@ -451,12 +446,13 @@ function allUsers(){
   try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
   catch { return []; }
 }
-function setUsers(u){ localStorage.setItem(LS.USERS, JSON.stringify(u)); try{ if(typeof cloudSaveState==='function') cloudSaveState(); }catch(e){} }
+function setUsers(u){
+  localStorage.setItem(LS.USERS, JSON.stringify(u));
+}
 async function login(){
   const u=$('#loginUser').value.trim();
   const p=$('#loginPass').value;
   const pHash = await hashPassword(p);
-
   let found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
   if(!found && u==='host'){
     try{
@@ -468,24 +464,16 @@ async function login(){
     }catch(e){ console.error('login cloud host', e); }
   }
   if(!found) return alert('Invalid credentials');
-
   currentUser=found;
   localStorage.setItem(LS.LASTUSER, u);
-  try{
-    const state = await cloudGetState();
-    if(state && typeof setAppState==='function'){ setAppState(state); }
-  }catch(e){ console.error('login cloud state', e); }
-
   $('#loginView').classList.add('hidden');
   $('#appView').classList.remove('hidden');
   $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
   const isHost = currentUser.role==='Host';
   const isAdmin = currentUser.role==='Admin';
   $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  loadState();
-  initFiltersForUser();
-  renderColToggles();
-  renderTable();
+  try{ const state = await cloudGetState(); if(state) setAppState(state); }catch(e){}
+  loadState(); initFiltersForUser(); renderColToggles(); renderTable();
   log('login');
 }
 function logout(){
@@ -1296,7 +1284,7 @@ function renderPreview(item,tpl){
   fit();
   const ro = new ResizeObserver(()=>fit()); ro.observe(box);
 }
-function openPrintTab(list, tpl){
+function openPrintTab(list,tpl){
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
   if(!items.length){ alert('Select at least one SKU.'); return; }
 
@@ -1304,78 +1292,143 @@ function openPrintTab(list, tpl){
   if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
 
   const logo=localStorage.getItem(LS.LOGO)||'';
-  let cols=1, rows=1, pageSize='A4', landscape=false;
+  let cols=1, rows=1, pad='8mm', pageSize='A4';
 
-  if(tpl.kind === 'IMAGE'){ cols=2; rows=2; pageSize='A4'; }
-  else if(tpl.kind==='A4'){ cols=1; rows=1; pageSize='A4'; }
-  else if(tpl.kind==='A5'){ cols=2; rows=1; pageSize='A4'; landscape=true; }
-  else if(tpl.kind==='A6'){ cols=2; rows=2; pageSize='A4'; }
-  else { cols=2; rows=6; pageSize='A4'; }
-
-  const fullW = landscape ? '297mm' : '210mm';
-  const fullH = landscape ? '210mm' : '297mm';
+  if(tpl.kind === 'IMAGE') {
+    cols = 2; rows = 2; pad = '2mm'; pageSize = 'A4';
+  }
+  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
+  else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
+  else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
+  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
 
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-      @page { size: ${landscape ? 'A4 landscape' : 'A4'}; margin: 0; }
+      @page { size: ${pageSize}; margin: 0; }
       html,body{
-        height:100%;
-        margin:0;
+        background:#fff;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
         font-family:'Kanit','Prompt',sans-serif;
-        background:#fff;
       }
       .sheet{
-        width:${fullW}; height:${fullH};
-        margin:0;
-        display:grid;
+        width:  ${pageSize==='A4 landscape' ? '297mm' : '210mm'};
+        height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'};
+        margin: 0 auto; display: grid;
         grid-template-columns: repeat(${cols}, 1fr);
-        grid-template-rows: repeat(${rows}, 1fr);
-        gap:0;
-        page-break-after:always;
-        position:relative;
+        grid-template-rows:    repeat(${rows}, 1fr);
+        gap: 0; page-break-after: always;
       }
-      .tag{ position:relative; width:100%; height:100%; }
-      .card{ position:absolute; inset:0; color:#fff; overflow:hidden; }
-      .card > img.bg{
-        position:absolute; inset:0; width:100%; height:100%;
-        object-fit:cover; object-position:center;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      /* REMOVED padding from .tag to allow background to fill the space */
+      .tag{ width:100%; height:100%; box-sizing:border-box; }
+      .card{
+        position:relative; width:100%; height:100%;
+        border-radius:12px; overflow:hidden; border:2px solid #1f1f22;
+        background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')};
+        color:#fff;
+        background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'};
+        background-size: cover; background-position: center;
       }
       .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-      @media screen {
-        body{ background:#e5e7eb; }
-        .sheet{ box-shadow:0 0 0 1px #d1d5db inset; }
-      }
     </style>
   `;
 
   const perSheet = cols*rows;
   const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-
+  
   const body = pages.map(pg=>{
     const inner=pg.map(p=>{
-      const bgImg = tpl.imageData ? `<img class="bg" alt="" src="${tpl.imageData}">` : '';
       let logoTag = '';
       if(tpl.showLogo && logo) {
         const logoSize = tpl.logoStyles?.size || 64;
         const logoMargin = tpl.logoStyles?.margin || 10;
-        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
+        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
       }
-      const content = renderTagInnerHTML(p, tpl);
-      return `<div class="tag"><div class="card">${bgImg}${logoTag}${content}</div></div>`;
+      // Pass the 'pad' variable to the rendering function
+      const content = renderTagInnerHTML(p, tpl, pad);
+      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
     }).join('');
     return `<div class="sheet">${inner}</div>`;
   }).join('');
 
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
+  w.document.write(\`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>\${style}</head><body>\${body}</body></html>\`);
   w.document.close();
-  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
+  log('open_print', \`\${items.length} tags, tpl=\${tpl.name}\`);
+}
+
+/* ================= EVENTS BINDING ================= */
+function bindEvents() {
+  $('#btnCreateHost').addEventListener('click', async () => {
+  const pass = $('#setupPass').value;
+  const confirmPass = $('#setupPassConfirm').value;
+  if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
+  if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
+  const passwordHash = await hashPassword(pass);
+  const hostUser = { username:'host', passwordHash, role:'Host',
+    channels:[...Channels], canSeeCosts:true, canPrint:true };
+  setUsers([hostUser]);
+  try{ await cloudSaveHost(hostUser); await cloudSaveState(); }catch(e){}
+  $('#setupView').classList.add('hidden');
+  $('#loginView').classList.remove('hidden');
+  alert('Host account created successfully. Please log in.');
+});
+  $('#btnLogin').addEventListener('click', login);
+  $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (!$('#loginView').classList.contains('hidden')) login();
+      if (!$('#setupView').classList.contains('hidden')) $('#btnCreateHost').click();
+    }
+  });
+  $('#btnNewProduct').addEventListener('click', () => openEditor());
+  $('#btnSettings').addEventListener('click',()=>openSettings('data'));
+  $('#btnPrintModal').addEventListener('click', () => {
+    if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown();
+    renderPreview(filteredProducts()[0], templates[0]); togglePrintModal(true);
+  });
+  ['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
+  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
+  $$('.set-tab').forEach(b=>b.addEventListener('click', ()=>openSettings(b.dataset.tab)));
+  $('#btnCloseEditor').addEventListener('click', closeEditor);
+  $('#btnSaveEd').addEventListener('click', saveEditor);
+  $('#btnClosePrintModal').addEventListener('click', () => togglePrintModal(false));
+  $('#btnOpenPrint').addEventListener('click', () => {
+    const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
+    const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
+                    .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
+    const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
+    openPrintTab(list,tpl);
+  });
+  window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
+}
+
+/* ================= STARTUP ================= */
+function init() {
+  bindEvents();
+  const users = allUsers();
+  if (users.length === 0) {
+    $('#setupView').classList.remove('hidden');
+  } else {
+    $('#loginView').classList.remove('hidden');
+    const last=localStorage.getItem(LS.LASTUSER)||'';
+    if(last) $('#loginUser').value=last;
+  }
 }
 
 init();
+(async function cloudKickstart(){
+  try{
+    if(allUsers().length===0){
+      const host = await cloudGetHost();
+      if(host){
+        setUsers([host]);
+        $('#setupView').classList.add('hidden');
+        $('#loginView').classList.remove('hidden');
+      }
+    }
+  }catch(e){ console.error('cloudKickstart', e); }
+})();
 </script>
 
 </body>
