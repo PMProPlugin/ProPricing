@@ -339,11 +339,15 @@ function setAppState(data){
 
 /* ================= CLOUD SYNC (GitHub Gist) ================= */
 async function gistRequest(method, path, body, token){
-  if(!token) throw new Error('GitHub Token is required for this operation.');
-  const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
-  if(body) headers['Content-Type']='application/json';
-  const res = await fetch('https://api.github.com'+path, { method, headers, body: body?JSON.stringify(body):undefined });
-  if(!res.ok){ const t=await res.text(); throw new Error(`GitHub ${res.status}: ${t}`); }
+  const headers = { 'Accept':'application/vnd.github+json' };
+  // Only require token for write ops
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  if (body) headers['Content-Type'] = 'application/json';
+  const res = await fetch('https://api.github.com' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if(!res.ok){
+    const t = await res.text();
+    throw new Error(`GitHub ${res.status}: ${t}`);
+  }
   return res.json();
 }
 async function cloudCreateGist(token){
@@ -358,8 +362,10 @@ async function cloudCreateGist(token){
 async function cloudSave(gistId, token){
   if(!gistId) throw new Error('Gist ID is required');
   const data = getAppState();
+  data.updatedAt = Date.now();
   const body = { files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } };
   await gistRequest('PATCH','/gists/'+gistId, body, token);
+  localStorage.setItem('pp_cloud_updated_at', String(data.updatedAt));
   log('cloud_save', gistId);
 }
 async function cloudLoad(gistId, token){
@@ -399,6 +405,91 @@ function stopAutoSync(){
     }
 }
 
+/* ================= REALTIME CLOUD SYNC (poll + autosave) ================= */
+let cloudPollInterval = null;
+let pendingSaveTimeout = null;
+
+// Read config from URL once (?gist=...&token=...) for first-time bootstrap
+function bootstrapCloudFromURL(){
+  try{
+    const url = new URL(location.href);
+    const gist = url.searchParams.get('gist');
+    const token = url.searchParams.get('token');
+    if(gist){ localStorage.setItem(LS.CLOUD_GIST_ID, gist); }
+    if(token){ localStorage.setItem(LS.CLOUD_TOKEN, token); }
+  }catch(e){ console.warn('URL parse failed', e); }
+}
+
+async function cloudPullOnce(silent=true){
+  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
+  const token = localStorage.getItem(LS.CLOUD_TOKEN);
+  if(!gistId) return false;
+  try{
+    const resp = await gistRequest('GET','/gists/'+gistId, null, token);
+    const file = resp.files?.['proplugin-data.json'];
+    if(!file){ throw new Error('proplugin-data.json not found in gist'); }
+    let data = null;
+    if(file.content && !file.truncated){
+      data = JSON.parse(file.content);
+    }else{
+      // raw_url supports CORS from api.github.com; fetch directly
+      const r = await fetch(file.raw_url);
+      const text = await r.text();
+      data = JSON.parse(text);
+    }
+    const remoteAt = Number(data.updatedAt||0) || Date.parse(resp.updated_at||'') || Date.now();
+    const localAt = Number(localStorage.getItem('pp_cloud_updated_at')||0);
+    if(remoteAt > localAt){
+      setAppState(data);
+      localStorage.setItem('pp_cloud_updated_at', String(remoteAt));
+      if(!silent) console.log('[cloud] Pulled update at', new Date(remoteAt).toISOString());
+    }
+    return true;
+  }catch(e){
+    if(!silent) console.warn('cloudPullOnce failed:', e.message);
+    return false;
+  }
+}
+
+// Debounced save on any local state change (Host/Admin)
+function scheduleCloudSave(reason='change'){
+  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
+  const token = localStorage.getItem(LS.CLOUD_TOKEN);
+  if(!(gistId && currentUser && (currentUser.role==='Host' || currentUser.role==='Admin'))) return;
+  if(pendingSaveTimeout) clearTimeout(pendingSaveTimeout);
+  pendingSaveTimeout = setTimeout(async ()=>{
+    try{
+      await cloudSave(gistId, token);
+      // After push, optionally trigger a pull for other clients quickly
+      console.log('[cloud] Saved due to', reason);
+    }catch(e){
+      console.error('cloudSave failed:', e.message);
+    }
+  }, 800);
+}
+
+// Monkey-patch localStorage.setItem so *any* write to our keys triggers cloud save
+(function patchLocalStorageForCloud(){
+  const keys = new Set([LS.PRODUCTS, LS.USERS, LS.TEMPLATES, LS.DEALER_NAMES, LS.LOGO]);
+  const origSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(k, v){
+    origSetItem(k, v);
+    if(keys.has(k)){ scheduleCloudSave('localStorage:'+k); }
+  };
+})();
+
+function startRealtimeSync(){
+  // Start polling for remote changes for ALL users if cloud is configured
+  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
+  if(!gistId) return;
+  if(cloudPollInterval) clearInterval(cloudPollInterval);
+  const tick = async ()=>{ await cloudPullOnce(true); };
+  tick();
+  cloudPollInterval = setInterval(tick, 10000); // 10s poll
+}
+function stopRealtimeSync(){
+  if(cloudPollInterval){ clearInterval(cloudPollInterval); cloudPollInterval=null; }
+}
 /* ================= AUTH ================= */
 function allUsers(){
   try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
@@ -426,10 +517,10 @@ async function login(){
   initFiltersForUser();
   applyDealerNamesToUI();
   renderTable();
-  log('login');
-  if(isHost) startAutoSync();
+  log('login'); startRealtimeSync(); if(isHost) startAutoSync();
 }
 function logout(){
+  stopRealtimeSync();
   stopAutoSync();
   currentUser=null;
   $('#loginPass').value='';
