@@ -338,17 +338,21 @@ function setAppState(data){
 }
 
 /* ================= CLOUD SYNC (GitHub Gist) ================= */
-async function gistRequest(method, path, body, token){
-  const headers = { 'Accept':'application/vnd.github+json' };
-  // Only require token for write ops
+async async function gistRequest(method, path, body, token){
+  const headers = { 'Accept': 'application/vnd.github+json' };
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  if (body) headers['Content-Type'] = 'application/json';
-  const res = await fetch('https://api.github.com' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if(!res.ok){
-    const t = await res.text();
-    throw new Error(`GitHub ${res.status}: ${t}`);
+  if (body)  headers['Content-Type'] = 'application/json';
+  const res = await fetch('https://api.github.com' + path, {
+    method, headers, body: body ? JSON.stringify(body) : undefined
+  });
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub ${res.status} (${ct || 'no-ct'}): ${text.slice(0,180)}`);
   }
-  return res.json();
+  if (ct.includes('application/json')) return res.json();
+  const text = await res.text();
+  throw new Error(`Non-JSON from GitHub: ${text.slice(0,180)}`);
 }
 async function cloudCreateGist(token){
   const data = getAppState();
@@ -359,8 +363,9 @@ async function cloudCreateGist(token){
   alert('Gist created: '+resp.id);
   return resp.id;
 }
-async function cloudSave(gistId, token){
+async async function cloudSave(gistId, token){
   if(!gistId) throw new Error('Gist ID is required');
+  if(!token) throw new Error('GitHub Token is required for saving.');
   const data = getAppState();
   data.updatedAt = Date.now();
   const body = { files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } };
@@ -368,25 +373,93 @@ async function cloudSave(gistId, token){
   localStorage.setItem('pp_cloud_updated_at', String(data.updatedAt));
   log('cloud_save', gistId);
 }
-async function cloudLoad(gistId, token){
-  if(!gistId) throw new Error('Gist ID is required');
-  const resp = await gistRequest('GET','/gists/'+gistId, null, token);
-  const file = resp.files?.['proplugin-data.json'];
-  if(!file) throw new Error('proplugin-data.json not found in gist');
 
-  // Use a CORS proxy to fetch the raw data
-  const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-  const rawUrl = file.raw_url;
-  
-  const text = await fetch(proxyUrl + rawUrl, { headers: {'Authorization': 'Bearer ' + token} }).then(r=>r.text());
-  const data = JSON.parse(text);
-  
+
+async function cloudPullOnce(gistId, token){
+  if (!gistId) throw new Error('Missing Gist ID');
+  const gist = await gistRequest('GET', '/gists/' + gistId, null, token);
+  const file = gist.files && (gist.files['proplugin-data.json'] || gist.files['PROPLUGIN-DATA.JSON']);
+  if (!file) throw new Error('proplugin-data.json not found in gist');
+
+  let text;
+  if (file.truncated && file.raw_url) {
+    const rawRes = await fetch(file.raw_url);
+    if (!rawRes.ok) throw new Error(`Raw fetch ${rawRes.status}: ${await rawRes.text()}`);
+    text = await rawRes.text();
+  } else {
+    text = file.content;
+  }
+  let json;
+  try { json = JSON.parse(text); }
+  catch(e){ throw new Error(`Invalid JSON in gist: ${e.message}\nHead: ${text.slice(0,120)}`); }
+  return json;
+}
+
+
+// ===== Realtime Sync (poll + autosave) =====
+let _pp_saveTimer = null;
+function scheduleCloudSave(delay=1200){
+  clearTimeout(_pp_saveTimer);
+  _pp_saveTimer = setTimeout(()=>{
+    const gid = localStorage.getItem(LS.CLOUD_GIST_ID);
+    const tok = localStorage.getItem(LS.CLOUD_TOKEN);
+    if (!gid || !tok) return; // no cloud configured
+    if (window.currentUser && (currentUser.role==='Host' || currentUser.role==='Admin')){
+      cloudSave(gid, tok).catch(e=>console.warn('autosave failed:', e.message));
+    }
+  }, delay);
+}
+
+
+// Intercept localStorage.setItem to autosave on important keys
+(function(){
+  const _origSetItem = localStorage.setItem.bind(localStorage);
+  const importantKeys = [LS.PRODUCTS, LS.USERS, LS.TEMPLATES, LS.DEALER_NAMES, LS.LOGO];
+  localStorage.setItem = function(key, value){
+    _origSetItem(key, value);
+    if (importantKeys.includes(key)){
+      scheduleCloudSave();
+    }
+  };
+})();
+
+
+let _pp_pollTimer = null;
+function startRealtimeSync(intervalMs=10000){
+  clearInterval(_pp_pollTimer);
+  _pp_pollTimer = setInterval(async ()=>{
+    const gid = localStorage.getItem(LS.CLOUD_GIST_ID);
+    const tok = localStorage.getItem(LS.CLOUD_TOKEN);
+    if (!gid) return;
+    try{
+      const remote = await cloudPullOnce(gid, tok);
+      const localTs = Number(localStorage.getItem('pp_cloud_updated_at') || 0);
+      const remoteTs = Number(remote.updatedAt || 0);
+      if (remoteTs > localTs){
+        setAppState(remote);
+        localStorage.setItem('pp_cloud_updated_at', String(remoteTs));
+        if (typeof renderTable==='function') renderTable();
+      }
+    }catch(e){
+      console.warn('poll error:', e.message);
+    }
+  }, intervalMs);
+}
+
+
+async async function cloudLoad(gistId, token){
+  if(!gistId) throw new Error('Gist ID is required');
+  const data = await cloudPullOnce(gistId, token);
   setAppState(data);
+  if (data && data.updatedAt) {
+    localStorage.setItem('pp_cloud_updated_at', String(data.updatedAt));
+  }
   log('cloud_load', gistId);
   alert('Loaded from cloud.');
 }
 let cloudSyncInterval = null;
-function startAutoSync(){
+function startAutoSync(){ startRealtimeSync(); return; /* legacy */
+
     const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
     const token = localStorage.getItem(LS.CLOUD_TOKEN);
     if(gistId && token && currentUser?.role === 'Host'){
@@ -405,91 +478,6 @@ function stopAutoSync(){
     }
 }
 
-/* ================= REALTIME CLOUD SYNC (poll + autosave) ================= */
-let cloudPollInterval = null;
-let pendingSaveTimeout = null;
-
-// Read config from URL once (?gist=...&token=...) for first-time bootstrap
-function bootstrapCloudFromURL(){
-  try{
-    const url = new URL(location.href);
-    const gist = url.searchParams.get('gist');
-    const token = url.searchParams.get('token');
-    if(gist){ localStorage.setItem(LS.CLOUD_GIST_ID, gist); }
-    if(token){ localStorage.setItem(LS.CLOUD_TOKEN, token); }
-  }catch(e){ console.warn('URL parse failed', e); }
-}
-
-async function cloudPullOnce(silent=true){
-  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
-  const token = localStorage.getItem(LS.CLOUD_TOKEN);
-  if(!gistId) return false;
-  try{
-    const resp = await gistRequest('GET','/gists/'+gistId, null, token);
-    const file = resp.files?.['proplugin-data.json'];
-    if(!file){ throw new Error('proplugin-data.json not found in gist'); }
-    let data = null;
-    if(file.content && !file.truncated){
-      data = JSON.parse(file.content);
-    }else{
-      // raw_url supports CORS from api.github.com; fetch directly
-      const r = await fetch(file.raw_url);
-      const text = await r.text();
-      data = JSON.parse(text);
-    }
-    const remoteAt = Number(data.updatedAt||0) || Date.parse(resp.updated_at||'') || Date.now();
-    const localAt = Number(localStorage.getItem('pp_cloud_updated_at')||0);
-    if(remoteAt > localAt){
-      setAppState(data);
-      localStorage.setItem('pp_cloud_updated_at', String(remoteAt));
-      if(!silent) console.log('[cloud] Pulled update at', new Date(remoteAt).toISOString());
-    }
-    return true;
-  }catch(e){
-    if(!silent) console.warn('cloudPullOnce failed:', e.message);
-    return false;
-  }
-}
-
-// Debounced save on any local state change (Host/Admin)
-function scheduleCloudSave(reason='change'){
-  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
-  const token = localStorage.getItem(LS.CLOUD_TOKEN);
-  if(!(gistId && currentUser && (currentUser.role==='Host' || currentUser.role==='Admin'))) return;
-  if(pendingSaveTimeout) clearTimeout(pendingSaveTimeout);
-  pendingSaveTimeout = setTimeout(async ()=>{
-    try{
-      await cloudSave(gistId, token);
-      // After push, optionally trigger a pull for other clients quickly
-      console.log('[cloud] Saved due to', reason);
-    }catch(e){
-      console.error('cloudSave failed:', e.message);
-    }
-  }, 800);
-}
-
-// Monkey-patch localStorage.setItem so *any* write to our keys triggers cloud save
-(function patchLocalStorageForCloud(){
-  const keys = new Set([LS.PRODUCTS, LS.USERS, LS.TEMPLATES, LS.DEALER_NAMES, LS.LOGO]);
-  const origSetItem = localStorage.setItem.bind(localStorage);
-  localStorage.setItem = function(k, v){
-    origSetItem(k, v);
-    if(keys.has(k)){ scheduleCloudSave('localStorage:'+k); }
-  };
-})();
-
-function startRealtimeSync(){
-  // Start polling for remote changes for ALL users if cloud is configured
-  const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
-  if(!gistId) return;
-  if(cloudPollInterval) clearInterval(cloudPollInterval);
-  const tick = async ()=>{ await cloudPullOnce(true); };
-  tick();
-  cloudPollInterval = setInterval(tick, 10000); // 10s poll
-}
-function stopRealtimeSync(){
-  if(cloudPollInterval){ clearInterval(cloudPollInterval); cloudPollInterval=null; }
-}
 /* ================= AUTH ================= */
 function allUsers(){
   try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
@@ -517,10 +505,10 @@ async function login(){
   initFiltersForUser();
   applyDealerNamesToUI();
   renderTable();
-  log('login'); startRealtimeSync(); if(isHost) startAutoSync();
+  log('login');
+  startRealtimeSync();
 }
 function logout(){
-  stopRealtimeSync();
   stopAutoSync();
   currentUser=null;
   $('#loginPass').value='';
@@ -1335,9 +1323,9 @@ function openPrintTab(list,tpl){
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-      @page { size: ${pageSize}; margin: 0; }
+      @page { size: ${pageSize}; margin: 12.7mm; }
       html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; }
-      .sheet{ width: ${pageSize==='A4 landscape' ? '297mm' : '210mm'}; height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'}; margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; }
+      .sheet{ width: calc(${pageSize==='A4 landscape' ? '297mm' : '210mm'} - 25.4mm); height: calc(${pageSize==='A4 landscape' ? '210mm' : '297mm'} - 25.4mm); margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; }
       .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; position:relative; }
       .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
       .logo{ position:absolute; }
@@ -1414,17 +1402,46 @@ function bindEvents() {
 }
 
 /* ================= STARTUP ================= */
-function init() {
+async function init() {
   bindEvents();
-  const users = allUsers();
+
+  // Seed from URL ?gist=&token= (once)
+  (function seedCloudFromQuery(){
+    const url = new URL(location.href);
+    const g = url.searchParams.get('gist');
+    const t = url.searchParams.get('token');
+    if (g) localStorage.setItem(LS.CLOUD_GIST_ID, g);
+    if (t) localStorage.setItem(LS.CLOUD_TOKEN, t);
+  })();
+
+  // Try bootstrap from cloud if USERS empty
+  let users = allUsers();
+  if (users.length === 0) {
+    const gid = localStorage.getItem(LS.CLOUD_GIST_ID);
+    const tok = localStorage.getItem(LS.CLOUD_TOKEN);
+    if (gid){
+      try{
+        const remote = await cloudPullOnce(gid, tok);
+        setAppState(remote);
+        if (remote && remote.updatedAt){
+          localStorage.setItem('pp_cloud_updated_at', String(remote.updatedAt));
+        }
+        users = allUsers();
+      }catch(e){
+        console.warn('bootstrap cloud failed:', e.message);
+      }
+    }
+  }
+
   if (users.length === 0) {
     $('#setupView').classList.remove('hidden');
   } else {
     $('#loginView').classList.remove('hidden');
-    const last=localStorage.getItem(LS.LASTUSER)||'';
-    if(last) $('#loginUser').value=last;
+    const last = localStorage.getItem(LS.LASTUSER)||'';
+    if(last) $('#loginUser').value = last;
   }
 }
+
 
 init();
 </script>
