@@ -1339,58 +1339,84 @@ init();
 </script>
 
 
-<!-- CloudSync v2 inline -->
+<!-- CloudOnly v3 inline -->
 <script>
 
-/*! CloudSync v2 — Real‑Time Gist sync + Narrow Print Margins
- *  Drop-in patch: include this file at the very END of <body>.
- *  Works with existing functions:
- *   - getAppState(): object
- *   - setAppState(state): void   -> should overwrite PRODUCTS/USERS/LOGO/TEMPLATES/etc.
- *   - renderTable(): void        -> optional: re-render listing if present
- *   - log(type, data): void      -> optional
+/*! CloudOnly v3 — 100% Cloud Storage (No localStorage persistence)
+ *  - Replaces window.localStorage with an in-memory shim (session-only).
+ *  - All data lives in GitHub Gist (pull for everyone, push only Host/Admin).
+ *  - No reads/writes to the real localStorage.
+ *  - Robust JSON checks; no CORS proxies.
+ *  - Forces Narrow print margins for all print windows.
  *
- *  What you get:
- *   - Bootstrap from cloud automatically if USERS is empty (no more "Create Host" on every new browser).
- *   - Always-on realtime PULL for everyone (Viewer/Staff also see live updates without clicking "Load from Cloud").
- *   - Debounced PUSH for Host/Admin only (auto-save after local edits).
- *   - Robust JSON/content-type checks (no more "Unexpected token 'S'..." from CORS proxies).
- *   - Narrow margins for ALL print pages (0.5in / 12.7mm), injected even into new print windows.
+ *  Drop this AFTER your app scripts (end of <body>).
  */
 (function(){
-  // ===== Config =====
-  const POLL_MS_MIN   = 5000;   // faster UI: 5s
-  const POLL_MS_MAX   = 20000;  // backoff ceiling
-  const SAVE_DEBOUNCE = 1200;   // debounce for autosave
-  const KEY_UPDATED_AT= 'pp_cloud_updated_at';
-  const KEY_REV_SHA   = 'pp_cloud_rev_sha';
-  const DATA_FILENAME = 'proplugin-data.json'; // your gist file
+  // =================== Config ===================
+  const DATA_FILENAME   = 'proplugin-data.json';
+  const POLL_MS_MIN     = 5000;
+  const POLL_MS_MAX     = 20000;
+  const SAVE_DEBOUNCE   = 1200;
 
-  // ===== Utils =====
+  // =================== In-Memory Stores ===================
+  const memStore = Object.create(null);     // replaces localStorage key/values
+  const memMeta  = { updatedAt: 0, sha: '' };
+  const memCreds = { gistId: '', token: '' };
+
+  // =================== localStorage Shim ===================
+  // Keep a copy to avoid accidental use
+  const _realLocal = window.localStorage;
+  // Replace with in-memory implementation
+  Object.defineProperty(window, 'localStorage', {
+    value: {
+      getItem(k){ return Object.prototype.hasOwnProperty.call(memStore, k) ? memStore[k] : null; },
+      setItem(k, v){
+        memStore[k] = String(v);
+        // react to special keys
+        if (k === 'CLOUD_GIST_ID') memCreds.gistId = String(v);
+        if (k === 'CLOUD_TOKEN')    memCreds.token  = String(v);
+        if (['PRODUCTS','USERS','TEMPLATES','DEALER_NAMES','LOGO'].includes(k)){
+          scheduleCloudSave();
+        }
+      },
+      removeItem(k){ delete memStore[k]; },
+      clear(){ for (const k of Object.keys(memStore)) delete memStore[k]; },
+      key(i){ return Object.keys(memStore)[i] || null; },
+      get length(){ return Object.keys(memStore).length; }
+    },
+    configurable: false,
+    writable: false
+  });
+
+  // Parse gist & token from URL (no persistence to disk)
+  (function seedFromURL(){
+    try{
+      const url = new URL(location.href);
+      const g = url.searchParams.get('gist');
+      const t = url.searchParams.get('token');
+      if (g) memCreds.gistId = g;
+      if (t) memCreds.token  = t;
+    }catch{}
+  })();
+
+  // =================== Helpers ===================
+  function dlog(...a){ try{ console.debug('[CloudOnly]', ...a);}catch{} }
+  function wlog(...a){ try{ console.warn('[CloudOnly]', ...a);}catch{} }
+  function elog(...a){ try{ console.error('[CloudOnly]', ...a);}catch{} }
   const sleep = (ms)=> new Promise(r=>setTimeout(r, ms));
 
-  function dlog(...args){ try{ console.debug('[CloudSync]', ...args);}catch{} }
-  function wlog(...args){ try{ console.warn('[CloudSync]', ...args);}catch{} }
-  function elog(...args){ try{ console.error('[CloudSync]', ...args);}catch{} }
-
-  function getGistId(){ return localStorage.getItem('CLOUD_GIST_ID') || localStorage.getItem('pp_gist_id'); }
-  function getToken(){  return localStorage.getItem('CLOUD_TOKEN')   || localStorage.getItem('pp_gist_token'); }
+  function getGistId(){ return memCreds.gistId || (memStore['CLOUD_GIST_ID']||''); }
+  function getToken(){  return memCreds.token  || (memStore['CLOUD_TOKEN']||''); }
 
   function setRevMeta(ts, sha){
-    if (typeof ts === 'number') localStorage.setItem(KEY_UPDATED_AT, String(ts));
-    if (typeof sha === 'string') localStorage.setItem(KEY_REV_SHA, sha);
+    if (typeof ts === 'number') memMeta.updatedAt = ts;
+    if (typeof sha === 'string') memMeta.sha = sha;
   }
-  function getRevMeta(){
-    return {
-      ts:  Number(localStorage.getItem(KEY_UPDATED_AT) || 0),
-      sha: localStorage.getItem(KEY_REV_SHA) || ''
-    };
-  }
+  function getRevMeta(){ return { ts: memMeta.updatedAt||0, sha: memMeta.sha||'' }; }
 
-  // Safe JSON parse with helpful diagnostics
   function tryParseJSON(text){
     try{ return { ok:true, data: JSON.parse(text) }; }
-    catch(e){ return { ok:false, err: e, head: String(text).slice(0,200) }; }
+    catch(e){ return { ok:false, err:e, head: String(text).slice(0,200) }; }
   }
 
   async function gistRequest(method, path, body, token){
@@ -1404,13 +1430,8 @@ init();
 
     const ct = (res.headers.get('content-type') || '').toLowerCase();
     const text = await res.text();
-
-    if (!res.ok){
-      throw new Error(`GitHub ${res.status} (${ct||'no-ct'}): ${text.slice(0,200)}`);
-    }
-    if (!ct.includes('application/json')){
-      throw new Error(`Non-JSON from GitHub: ${text.slice(0,200)}`);
-    }
+    if (!res.ok) throw new Error(`GitHub ${res.status} (${ct||'no-ct'}): ${text.slice(0,200)}`);
+    if (!ct.includes('application/json')) throw new Error(`Non-JSON from GitHub: ${text.slice(0,200)}`);
     const parsed = tryParseJSON(text);
     if (!parsed.ok) throw new Error(`Invalid JSON from GitHub: ${parsed.err?.message}\nHead: ${parsed.head}`);
     return parsed.data;
@@ -1432,8 +1453,6 @@ init();
     }
     const parsed = tryParseJSON(text);
     if (!parsed.ok) throw new Error(`Invalid JSON in ${DATA_FILENAME}: ${parsed.err?.message}\nHead: ${parsed.head}`);
-
-    // latest revision SHA & updated timestamp (prefer remote state.updatedAt if present)
     const sha = (Array.isArray(gist.history) && gist.history[0] && gist.history[0].version) || '';
     const remoteTs = Number(parsed.data.updatedAt || 0);
     return { state: parsed.data, sha, remoteTs };
@@ -1451,78 +1470,59 @@ init();
     return { sha, ts: state.updatedAt };
   }
 
-  // determine if current user can PUSH (Host/Admin)
   function isPrivileged(){
     try{
       if (window.currentUser && (window.currentUser.role === 'Host' || window.currentUser.role === 'Admin')) return true;
-      // fallback: LASTUSER id lookup
-      const last = localStorage.getItem('LASTUSER') || '';
-      const users = JSON.parse(localStorage.getItem('USERS') || '[]');
+      const users = JSON.parse(memStore['USERS'] || '[]');
+      const last  = memStore['LASTUSER'] || '';
       const u = users.find(x => x && (x.username === last || x.name === last));
       return !!(u && (u.role === 'Host' || u.role === 'Admin'));
     }catch{}
     return false;
   }
 
-  // ===== Auto bootstrap from query (?gist=&token=) once =====
-  (function seedCloudFromQuery(){
-    try{
-      const url = new URL(location.href);
-      const qGist  = url.searchParams.get('gist');
-      const qToken = url.searchParams.get('token');
-      if (qGist)  localStorage.setItem('CLOUD_GIST_ID', qGist);
-      if (qToken) localStorage.setItem('CLOUD_TOKEN', qToken);
-    }catch{}
-  })();
-
-  // ===== Bootstrap from Cloud if USERS empty =====
-  async function bootstrapFromCloudIfEmpty(){
-    try{
-      const gistId = getGistId();
-      const users  = JSON.parse(localStorage.getItem('USERS') || '[]');
-      if ((users.length === 0) && gistId){
-        console.debug('[CloudSync] Bootstrapping from cloud...');
-        const { state, sha, remoteTs } = await cloudPullOnce(gistId, getToken());
-        if (typeof window.setAppState === 'function') window.setAppState(state);
-        setRevMeta(remoteTs || Date.now(), sha);
-        if (typeof window.renderTable === 'function') window.renderTable();
-        console.debug('[CloudSync] Bootstrap complete.');
-        return true;
-      }
-    }catch(e){
-      console.warn('[CloudSync] Bootstrap failed:', e.message);
+  function fillMemStoreFromState(state){
+    // Project-specific keys
+    const m = {
+      PRODUCTS: state.PRODUCTS || state.products || [],
+      USERS:    state.USERS    || state.users    || [],
+      LOGO:     state.LOGO     || state.logo     || null,
+      TEMPLATES:state.TEMPLATES|| state.templates|| [],
+      DEALER_NAMES: state.DEALER_NAMES || state.dealerNames || { T1:'T1', T2:'T2', T3:'T3' },
+      LOGS:     state.LOGS     || state.logs     || []
+    };
+    for (const [k,v] of Object.entries(m)){
+      memStore[k] = JSON.stringify(v);
     }
-    return false;
   }
 
-  // ===== Realtime LOOP (Always-on PULL for everyone) =====
+  // =================== Realtime Engine ===================
   let pollMs = POLL_MS_MIN;
   let pollStop = false;
+
   async function realtimePullLoop(){
     while(!pollStop){
-      const gistId = getGistId();
-      if (!gistId){ await sleep(pollMs); continue; }
+      const gid = getGistId();
+      if (!gid){ await sleep(pollMs); continue; }
       try{
-        const { state, sha, remoteTs } = await cloudPullOnce(gistId, getToken());
+        const { state, sha, remoteTs } = await cloudPullOnce(gid, getToken());
         const local = getRevMeta();
         if ((remoteTs && remoteTs > local.ts) || (sha && sha !== local.sha)){
-          console.debug('[CloudSync] Remote newer → apply');
+          console.debug('[CloudOnly] Remote newer → apply');
+          fillMemStoreFromState(state);
           if (typeof window.setAppState === 'function') window.setAppState(state);
           setRevMeta(remoteTs || Date.now(), sha);
           if (typeof window.renderTable === 'function') window.renderTable();
         }
-        // success → shrink interval
         pollMs = Math.max(POLL_MS_MIN, Math.floor(pollMs * 0.75));
       } catch(e){
-        console.warn('[CloudSync] Pull failed:', e.message);
-        // failure → backoff
+        console.warn('[CloudOnly] Pull failed:', e.message);
         pollMs = Math.min(POLL_MS_MAX, Math.floor(pollMs * 1.5));
       }
       await sleep(pollMs);
     }
   }
 
-  // ===== Debounced PUSH on data edits (only Host/Admin) =====
   let saveTimer = null;
   function scheduleCloudSave(delay = SAVE_DEBOUNCE){
     clearTimeout(saveTimer);
@@ -1530,107 +1530,77 @@ init();
       try{
         const gid = getGistId();
         if (!gid) return;
-        if (!isPrivileged()) return; // only Host/Admin push
+        if (!isPrivileged()) return;
         await cloudSave(gid, getToken());
-        pollMs = POLL_MS_MIN; // after save, try fast pull
+        pollMs = POLL_MS_MIN;
       }catch(e){
-        console.warn('[CloudSync] Autosave failed:', e.message);
+        console.warn('[CloudOnly] Autosave failed:', e.message);
       }
     }, delay);
   }
 
-  // Hook localStorage.setItem to detect data changes
-  (function hookLocalStorage(){
-    try{
-      const nativeSet = localStorage.setItem.bind(localStorage);
-      localStorage.setItem = function(k, v){
-        nativeSet(k, v);
-        if (['PRODUCTS','USERS','TEMPLATES','DEALER_NAMES','LOGO'].includes(k)){
-          scheduleCloudSave();
-        }
-      };
-      // Also listen to cross-tab updates
-      window.addEventListener('storage', (e)=>{
-        if (e && ['PRODUCTS','USERS','TEMPLATES','DEALER_NAMES','LOGO'].includes(e.key || '')){
-          // Another tab modified data → pull sooner
-          pollMs = POLL_MS_MIN;
-        }
-      });
-    }catch(e){ console.warn('[CloudSync] hookLocalStorage failed', e); }
-  })();
-
-  // ===== Force Narrow Margins on ALL print windows =====
+  // =================== Narrow Print for all templates ===================
   function buildNarrowStyle(){
     const s = document.createElement('style');
-    s.setAttribute('data-cloudsync-narrow', 'true');
+    s.setAttribute('data-cloudonly-narrow', 'true');
     s.textContent = `@media print{ @page { margin: 12.7mm !important; } html,body{ margin:0 !important; padding:0 !important; } .sheet{ width: calc(var(--page-width,210mm) - 25.4mm) !important; height: calc(var(--page-height,297mm) - 25.4mm) !important; margin: 0 auto !important; } }`;
     return s;
   }
   function injectNarrowStyles(doc){
     try{
-      if (!doc) return;
-      if (!doc.head) return;
-      if (!doc.head.querySelector('style[data-cloudsync-narrow]')){
+      if (!doc || !doc.head) return;
+      if (!doc.head.querySelector('style[data-cloudonly-narrow]')){
         doc.head.appendChild(buildNarrowStyle());
       }
     }catch{}
   }
-  // Inject into current doc for same-window prints
   try{ injectNarrowStyles(document); }catch{}
-
-  // Patch window.open to inject into new print windows
   (function patchWindowOpen(){
     try{
       const _open = window.open.bind(window);
       window.open = function(){
         const w = _open(...arguments);
         try{
-          // try immediate
           injectNarrowStyles(w.document);
-          // and on load
           w.addEventListener('load', ()=> injectNarrowStyles(w.document), { once:true });
-          // as a fallback, observe DOM ready
-          const iv = setInterval(()=>{
-            try{ injectNarrowStyles(w.document); }catch{}
-          }, 300);
+          const iv = setInterval(()=>{ try{ injectNarrowStyles(w.document);}catch{} }, 300);
           w.addEventListener('beforeunload', ()=> clearInterval(iv));
         }catch{}
         return w;
       };
-    }catch(e){ console.warn('[CloudSync] patchWindowOpen failed', e); }
+    }catch(e){ console.warn('[CloudOnly] patchWindowOpen failed', e); }
   })();
 
-  // ===== Start engine =====
+  // =================== Bootstrap ===================
   (async function start(){
-    await bootstrapFromCloudIfEmpty();
-    // start realtime pull for everyone
-    realtimePullLoop(); // fire-and-forget
-    console.debug('[CloudSync] v2 running');
-  })();
-
-  // Expose for debugging
-  window.CloudSync = {
-    pullNow: async function(){
-      try{
-        const gistId = getGistId();
-        if (!gistId) throw new Error('No Gist ID');
-        const { state, sha, remoteTs } = await cloudPullOnce(gistId, getToken());
+    // If USERS empty but gist present → load state from cloud
+    try{
+      const users = JSON.parse(memStore['USERS'] || '[]');
+      const gid = getGistId();
+      if (users.length === 0 && gid){
+        const { state, sha, remoteTs } = await cloudPullOnce(gid, getToken());
+        fillMemStoreFromState(state);
         if (typeof window.setAppState === 'function') window.setAppState(state);
         setRevMeta(remoteTs || Date.now(), sha);
-        if (typeof window.renderTable === 'function') window.renderTable();
-        console.debug('[CloudSync] Manual pull OK');
-      }catch(e){ console.error(e); }
-    },
-    saveNow: async function(){
-      try{
-        await cloudSave(getGistId(), getToken());
-        console.debug('[CloudSync] Manual save OK');
-      }catch(e){ console.error(e); }
-    }
+      }
+    }catch(e){ console.warn('[CloudOnly] Bootstrap pull failed:', e.message); }
+
+    // Start realtime pull for everyone
+    realtimePullLoop();
+
+    console.debug('[CloudOnly] v3 running (no localStorage persistence)');
+  })();
+
+  // Debug helpers
+  window.CloudOnly = {
+    state(){ return (typeof window.getAppState==='function') ? window.getAppState() : {}; },
+    mem(){ return { memStore: JSON.parse(JSON.stringify(memStore)), meta: JSON.parse(JSON.stringify(memMeta)) }; },
+    pullNow: async function(){ const { state, sha, remoteTs } = await cloudPullOnce(getGistId(), getToken()); fillMemStoreFromState(state); if (typeof window.setAppState==='function') window.setAppState(state); setRevMeta(remoteTs||Date.now(), sha); if (typeof window.renderTable==='function') window.renderTable(); },
+    saveNow: async function(){ if (!isPrivileged()) throw new Error('Not privileged'); await cloudSave(getGistId(), getToken()); }
   };
 })();
 
 </script>
-<!-- CloudSync v2 inline -->
+<!-- CloudOnly v3 inline -->
 </body>
 </html>
