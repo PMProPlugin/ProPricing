@@ -23,11 +23,16 @@
   <script>
     // Global error hooks to surface silent failures on first page
     window.addEventListener('error', (e)=>{
-      alert('Script error: '+ (e?.error?.message || e.message || 'unknown'));
-      console.error(e);
+      const loc = `${e.filename||''}:${e.lineno||''}:${e.colno||''}`;
+      const msg = (e?.error?.stack || e?.error?.message || e.message || 'unknown');
+      alert(`Script error at ${loc}
+${msg}`);
+      console.error(e.error||e);
     });
     window.addEventListener('unhandledrejection', (e)=>{
-      alert('Unhandled error: '+ (e?.reason?.message || e.reason || 'unknown'));
+      const r = e?.reason;
+      const msg = (r && (r.stack||r.message)) || JSON.stringify(r) || 'unknown';
+      alert('Unhandled error: '+ msg);
       console.error(e);
     });
   </script>
@@ -304,8 +309,15 @@
   function fmt(n){ if(n===null||n===undefined||n==='') return ''; const x = Number(n); return isFinite(x) ? x.toLocaleString('en-US',{minimumFractionDigits:0, maximumFractionDigits:2}) : n; }
   function todayStr(){ const d = new Date(); const m = (d.getMonth()+1+'').padStart(2,'0'); const dd = (d.getDate()+'').padStart(2,'0'); return `${d.getFullYear()}-${m}-${dd}`; }
   function parseDate(s){ if(!s) return null; const t = new Date(s); return isNaN(t) ? null : t; }
-  function csvEscape(v){ if(v==null) return ''; const s = String(v); return /[",
-]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function csvEscape(v){
+    if(v==null) return '';
+    const s = String(v);
+    const needQuote = s.includes('"') || s.includes(',') || s.includes('
+') || s.includes('
+');
+    const doubled = s.split('"').join('""');
+    return needQuote ? '"'+doubled+'"' : s;
+  }
 
   function saveSessionCreds(token, gist){ sessionStorage.setItem(SKEY_TOKEN, token); sessionStorage.setItem(SKEY_GIST, gist); }
   function getToken(){ return sessionStorage.getItem(SKEY_TOKEN)||''; }
@@ -691,6 +703,11 @@
     const list = appData._expiredReport || [];
     const lines = ['SKU,Description,Normal,Promotion,Expire'];
     for(const r of list){ lines.push([r.sku, csvEscape(r.description), r.normal, r.promotion, r.expire].join(',')); }
+    const blob = new Blob([lines.join('
+')], { type:'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `PromotionExpired_${todayStr()}.csv`; a.click(); URL.revokeObjectURL(url);
+  }
     const blob = new Blob([lines.join('
 ')], { type:'text/csv' });
     const url = URL.createObjectURL(blob);
