@@ -19,7 +19,18 @@
     input[type=number]::-webkit-outer-spin-button,
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance:textfield; }
-  </style>
+    </style>
+  <script>
+    // Global error hooks to surface silent failures on first page
+    window.addEventListener('error', (e)=>{
+      alert('Script error: '+ (e?.error?.message || e.message || 'unknown'));
+      console.error(e);
+    });
+    window.addEventListener('unhandledrejection', (e)=>{
+      alert('Unhandled error: '+ (e?.reason?.message || e.reason || 'unknown'));
+      console.error(e);
+    });
+  </script>
 </head>
 <body class="bg-zinc-900 text-zinc-100">
   <!-- ===== Views: Cloud Setup / Login / App ===== -->
@@ -338,11 +349,18 @@
   const GIST_FILENAME = 'proplugin-data.json';
 
   async function gistRequest(path, opts={}){
-    const token = getToken() || $('#ghToken').value.trim();
-    const headers = Object.assign({ 'Accept':'application/vnd.github+json' }, opts.headers||{});
+    const token = getToken() || $('#ghToken')?.value?.trim();
+    const headers = Object.assign({
+      'Accept':'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28'
+    }, opts.headers||{});
     if(token) headers['Authorization'] = `Bearer ${token}`;
+    if(opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
     const res = await fetch(`https://api.github.com${path}`, { ...opts, headers });
-    if(!res.ok){ const t = await res.text(); throw new Error(`Gist API ${res.status}: ${t}`); }
+    if(!res.ok){
+      const t = await res.text().catch(()=> '');
+      throw new Error(`Gist API ${res.status}: ${t}`);
+    }
     return res.json();
   }
 
@@ -384,6 +402,7 @@
     await cloudLoad();
     sessionStorage.setItem(SKEY_LOADED, '1');
     show('#loginView');
+    $('#loginUser').focus();
   }
 
   function ensureUsers(){
@@ -403,17 +422,18 @@
   async function cloudLoad(){
     const gist = $('#gistId').value.trim() || getGist();
     const token = $('#ghToken').value.trim() || getToken();
-    if(!gist || !token) throw new Error('missing creds');
+    if(!gist || !token) throw new Error('missing creds: กรุณาใส่ Token และ Gist ID');
     saveSessionCreds(token, gist);
     const content = await fetchGistContent(gist);
     let parsed;
     try { parsed = JSON.parse(content); }
-    catch(e){ throw new Error('Invalid JSON in gist file'); }
+    catch(e){ throw new Error('Invalid JSON ในไฟล์ Gist — กรุณาตรวจรูปแบบ'); }
     appData = Object.assign({ products:[], users:[] }, parsed);
     ensureUsers();
-    applyPromoExpiry(); // auto-revert expired promos on load
+    applyPromoExpiry();
     gistConnected = true;
-    await cloudSave(); // persist any expiry changes or user bootstrap
+    await cloudSave();
+    return true;
   }
 
   /********************
@@ -715,13 +735,24 @@
   /********************
    * Events           *
    ********************/
-  // Cloud setup
-  $('#btnCreateGist').addEventListener('click', async ()=>{
-    try { await cloudCreateGist(); } catch(e){ alert(e.message); }
+  // Cloud setup with visible loading state
+  function setBusy(btn, busy, label){
+    if(!btn) return;
+    btn.disabled = !!busy;
+    btn.dataset._label = btn.dataset._label || btn.textContent;
+    btn.textContent = busy ? 'Working…' : (label || btn.dataset._label);
+  }
+  $('#btnCreateGist').addEventListener('click', async (ev)=>{
+    const btn = ev.currentTarget; setBusy(btn, true);
+    try { await cloudCreateGist(); }
+    catch(e){ alert(e.message||e); console.error(e); }
+    finally { setBusy(btn, false); }
   });
-  $('#btnLoadGist').addEventListener('click', async ()=>{
+  $('#btnLoadGist').addEventListener('click', async (ev)=>{
+    const btn = ev.currentTarget; setBusy(btn, true);
     try { await cloudLoad(); show('#loginView'); $('#loginUser').focus(); }
-    catch(e){ alert(e.message); }
+    catch(e){ alert(e.message||e); console.error(e); }
+    finally { setBusy(btn, false); }
   });
 
   // Auth
@@ -754,9 +785,11 @@
   $('#importMasterFile').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) handleFileImport(f, 'master'); e.target.value=''; });
   $('#importPromoFile').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) handleFileImport(f, 'promo'); e.target.value=''; });
 
-  // Init
-  updateChannelVisibility();
-  initStart();
+  // Init after DOM ready (safety)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateChannelVisibility();
+    initStart();
+  });
   </script>
 </body>
 </html>
