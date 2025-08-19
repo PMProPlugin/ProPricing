@@ -1,1606 +1,453 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="th">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>ProPlugin • ProPricing</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    darkMode: 'class',
-    theme: {
-      extend: {
-        fontFamily: { sans: ['Kanit','Prompt','system-ui','sans-serif'] },
-        colors: { brand: { dark:'#0b0b0c', red:'#E11D2E' } },
-        boxShadow: { soft: '0 6px 18px rgba(0,0,0,.25)' }
-      }
-    }
-  }
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
-
-<style>
-  :root { color-scheme: dark; }
-  html,body{ height:100%; background:#0b0b0c }
-  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#222;border-radius:10px}
-  .oneline{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-  .text-elevate{ text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 1px rgba(0,0,0,.7) }
-  @media print { .no-print{display:none!important} .print-only{display:block} }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Price Tag Manager — 100% Online (GitHub Gist)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: dark; }
+    html,body{height:100%}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
+    .hidden{display:none}
+    .card{ @apply rounded-2xl border border-zinc-700 p-5 bg-zinc-900/60 shadow; }
+    .btn{ @apply px-4 py-2 rounded-2xl border border-zinc-700 hover:bg-zinc-800 active:scale-[.99] transition; }
+    .btn-primary{ @apply bg-zinc-100 text-zinc-900 border-transparent hover:bg-white; }
+    .input{ @apply w-full px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700; }
+    .label{ @apply text-sm text-zinc-400; }
+    .muted{ @apply text-xs text-zinc-500; }
+  </style>
 </head>
-
-<body class="text-white font-sans">
-
-<section id="setupView" class="hidden min-h-screen grid place-items-center">
-  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
-        <img src=""
-          style="width:45px; height:45px" alt="">
+<body class="min-h-full bg-[#0a0a0a] text-zinc-100">
+  <header class="sticky top-0 z-10 backdrop-blur bg-black/30 border-b border-zinc-800">
+    <div class="mx-auto max-w-5xl px-4 py-4 flex items-center justify-between">
+      <h1 class="text-lg font-semibold">Price Tag Manager <span class="text-xs text-zinc-400">(100% Online · Gist)</span></h1>
+      <div class="flex items-center gap-2">
+        <button id="btnCloudForget" class="btn" title="ลบการเชื่อมต่อคลาวด์ (ล้างพารามิเตอร์ใน URL)">Forget Cloud</button>
+        <button id="btnLogout" class="btn hidden">Sign Out</button>
       </div>
-      <div class="text-2xl font-semibold">First-Time Setup</div>
-    </div>
-    <div class="text-zinc-400 mb-4">Please create the primary 'host' account to begin.</div>
-    <label class="text-sm text-zinc-400">Username</label>
-    <input id="setupUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" value="host" disabled />
-    <label class="text-sm text-zinc-400 mt-4 block">Choose a strong password</label>
-    <input id="setupPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="password" />
-    <label class="text-sm text-zinc-400 mt-4 block">Confirm password</label>
-    <input id="setupPassConfirm" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="confirm password" />
-    <button id="btnCreateHost" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create Host Account</button>
-  </div>
-</section>
-
-<section id="loginView" class="hidden min-h-screen grid place-items-center">
-  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
-        <img src=""
-          style="width:45px; height:45px" alt="">
-      </div>
-      <div class="text-2xl font-semibold">ProPlugin • ProPricing</div>
-    </div>
-    <label class="text-sm text-zinc-400">Username</label>
-    <input id="loginUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="username" />
-    <label class="text-sm text-zinc-400 mt-4 block">Password</label>
-    <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="password" />
-    <button id="btnLogin" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
-  </div>
-</section>
-
-
-<section id="appView" class="hidden min-h-screen">
-  <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-      <div class="flex items-center gap-3">
-        <div id="logoBox" class="w-10 h-10 rounded-xl bg-zinc-100 text-brand.dark font-black grid place-items-center overflow-hidden select-none">
-          <span id="logoFallback">P</span>
-          <img id="logoImg" class="hidden w-full h-full object-contain" alt="logo">
-        </div>
-        <div class="text-xl sm:text-2xl font-semibold tracking-wide">ProPricing</div>
-        <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
-      </div>
-      <div class="ml-auto flex items-center gap-2">
-        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">⚙️</button>
-        <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
-      </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col lg:flex-row gap-3">
-      <div class="relative flex-1">
-        <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-900 text-white focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="Search (SKU / Product Name)" />
-        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">🔎</div>
-      </div>
-      <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red">
-        <option value="Flagship">Flagship</option>
-        <option value="Marketplace">Marketplace</option>
-        <option value="Dealer">Dealer</option>
-      </select>
-      <div class="px-3 py-2 rounded-2xl bg-zinc-950 border border-zinc-700 flex items-center gap-2">
-        <span class="text-sm text-zinc-400">Date range</span>
-        <input id="dateStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-        <span class="text-zinc-500">→</span>
-        <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-      </div>
-      <button id="btnNewProduct" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Add +</button>
-      <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 py-6">
-    <div class="overflow-auto border border-zinc-800 rounded-2xl">
-      <table class="min-w-[1200px] w-full text-sm">
-        <thead class="bg-zinc-900/70 border-b border-zinc-800">
-          <tr class="[&>th]:px-3 [&>th]:py-3 text-left">
-            <th>SKU</th>
-            <th class="w-64">Description</th>
-            <th class="w-64">Details</th>
-            <th id="thCosts" class="hidden">Costs</th>
+  <main class="mx-auto max-w-5xl px-4 py-8 space-y-8">
+    <!-- Cloud Setup View -->
+    <section id="cloudSetupView" class="card">
+      <h2 class="text-xl font-semibold mb-4">เชื่อมต่อ Cloud (GitHub Gist)</h2>
+      <p class="text-zinc-400 mb-4">ครั้งแรกเท่านั้น: ใส่ <b>GitHub Token</b> และ <b>Gist ID</b> หรือสร้าง Gist ใหม่ จากนั้นระบบจะเพิ่ม <b>#gist=&lt;id&gt;</b> ใน URL ให้เอง เพื่อให้รีเฟรชแล้วโหลดอัตโนมัติ (ไม่ใช้ localStorage)</p>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label">GitHub Token (เขียนข้อมูล)</label>
+          <input id="inpToken" class="input" type="password" placeholder="ghp_xxx หรือ fine-grained token" />
+        </div>
+        <div>
+          <label class="label">Gist ID (มีอยู่แล้ว)</label>
+          <input id="inpGistId" class="input" type="text" placeholder="เช่น a1b2c3d4e5f6..." />
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="inline-flex items-center gap-2 text-sm">
+          <input id="chkRememberToken" type="checkbox" class="rounded" checked>
+          <span>เข้ารหัส Token ด้วยรหัสผ่าน Host และเก็บไว้ในไฟล์ Gist (เพื่อไม่ต้องกรอก Token อีก)</span>
+        </label>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button id="btnLoadExisting" class="btn btn-primary">Load from Existing Gist</button>
+        <button id="btnCreateGist" class="btn">Create New Empty Gist</button>
+      </div>
+      <p class="muted mt-3">ข้อมูลจริงเก็บบน Gist 100% · หน้านี้ไม่ใช้ localStorage/sessionStorage · หลังเชื่อมแล้วระบบจะใส่ <code>#gist=...</code> ที่ URL ให้</p>
+    </section>
 
-            <th class="col-normal">Normal</th>
-            <th class="col-promo">Promotion</th>
-            <th class="col-expire">Expire Date</th>
+    <!-- First-time Host Setup -->
+    <section id="setupView" class="card hidden">
+      <h2 class="text-xl font-semibold mb-4">ตั้งค่า Host ครั้งแรก</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="label">รหัสผ่าน Host</label>
+          <input id="setupPass1" class="input" type="password" placeholder="ตั้งรหัสผ่าน" />
+        </div>
+        <div>
+          <label class="label">ยืนยันรหัสผ่าน</label>
+          <input id="setupPass2" class="input" type="password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
+        </div>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button id="btnCreateHost" class="btn btn-primary">Create Host</button>
+      </div>
+      <p class="muted mt-3">จะสร้างผู้ใช้ <b>host</b> และ (ถ้าเลือกไว้) จะเข้ารหัส Token เก็บในไฟล์ Gist</p>
+    </section>
 
-            <th class="col-market">Marketplace</th>
-            <th class="col-marketgp">Market GP%</th>
+    <!-- Login View -->
+    <section id="loginView" class="card hidden">
+      <h2 class="text-xl font-semibold mb-4">ลงชื่อเข้าใช้</h2>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="label">รหัสผ่าน</label>
+          <input id="loginPass" class="input" type="password" placeholder="กรอกรหัสผ่าน" />
+        </div>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button id="btnLogin" class="btn btn-primary">Log in</button>
+      </div>
+      <p id="loginHint" class="muted mt-3 hidden">พบ Token ที่เข้ารหัสใน Gist — เพียงล็อกอินก็ใช้งานได้</p>
+    </section>
 
-            <th class="col-t1"><span id="lblT1">Dealer T1</span></th>
-            <th class="col-gp1">GP% T1</th>
-            <th class="col-t2"><span id="lblT2">Dealer T2</span></th>
-            <th class="col-gp2">GP% T2</th>
-            <th class="col-t3"><span id="lblT3">Dealer T3</span></th>
-            <th class="col-gp3">GP% T3</th>
+    <!-- App View (Demo minimal) -->
+    <section id="appView" class="hidden">
+      <div class="card">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-semibold">แดชบอร์ด</h2>
+            <p class="text-zinc-400">ยินดีต้อนรับ, <span id="whoami">—</span></p>
+          </div>
+          <div class="flex gap-2">
+            <button id="btnAddDemo" class="btn">Add Demo Item</button>
+            <button id="btnSaveNow" class="btn btn-primary">Save Now</button>
+          </div>
+        </div>
+      </div>
 
-            <th class="w-32">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
-      </table>
-    </div>
-    <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
+      <div class="card">
+        <h3 class="font-medium mb-3">รายการสินค้า (ตัวอย่าง)</h3>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="text-zinc-400">
+                <th class="text-left p-2">SKU</th>
+                <th class="text-left p-2">ชื่อสินค้า</th>
+                <th class="text-right p-2">ราคา</th>
+              </tr>
+            </thead>
+            <tbody id="tblProducts"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
-</section>
 
-<div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
-  <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
-    <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
-      <div class="text-sm text-zinc-400 px-2">Settings</div>
-      <button data-tab="data" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Data</button>
-      <button data-tab="logo" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Logo</button>
-      <button data-tab="dealer" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Dealer Settings</button>
-      <button data-tab="users" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
-      <button data-tab="templates" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Template Management</button>
-      <button data-tab="cloud" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Cloud Sync</button>
-      <button data-tab="history" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Usage History</button>
-      <div class="absolute bottom-3 left-3 right-3">
-        <button id="btnCloseSettings" class="w-full text-sm px-2 py-1.5 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
-      </div>
-    </aside>
-    <section id="settingsContent" class="p-6 overflow-auto"></section>
-  </div>
-</div>
+  <script>
+  // ============================================================
+  // 100% ONLINE IMPLEMENTATION (NO localStorage / sessionStorage)
+  // Persist only on GitHub Gist. Keep runtime secrets in memory.
+  // - First-time: user enters Token + Gist ID (or creates gist)
+  //   -> app sets URL hash: #gist=<id> (bookmarkable)
+  // - Refresh uses the #gist param to auto-load from cloud
+  // - Token can be stored ENCRYPTED inside Gist (optional) so user
+  //   only types password at login; we decrypt to write.
+  // ============================================================
 
-<div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
-  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
-    <div class="flex items-center justify-between p-4 border-b border-zinc-800">
-      <div id="editorTitle" class="text-xl font-semibold">Edit Product</div>
-      <button id="btnCloseEditor" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
-    </div>
-    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
-      <div class="space-y-4">
-        <div><label class="text-sm text-zinc-400">SKU</label><input id="edSku" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-        <div><label class="text-sm text-zinc-400">Description</label><input id="edDesc" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-        <div><label class="text-sm text-zinc-400">Details</label><textarea id="edDetails" rows="6" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></textarea></div>
-        <div><label class="text-sm text-zinc-400">Expires Date</label><input id="edExpire" type="date" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-      </div>
-      <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div><label class="text-sm text-zinc-400">Costs</label><input id="edCosts" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">Normal Price</label><input id="edNormal" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">Promotion Price</label><input id="edPromo" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400">Marketplace Price</label><input id="edMarket" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400"><span id="edLabelT1">Dealer T1</span></label><input id="edT1" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400"><span id="edLabelT2">Dealer T2</span></label><input id="edT2" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-          <div><label class="text-sm text-zinc-400"><span id="edLabelT3">Dealer T3</span></label><input id="edT3" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
-        </div>
-        <button id="btnSaveEd" class="w-full mt-2 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Save</button>
-      </div>
-    </div>
-  </div>
-</div>
+  // -----------------------------
+  // Utilities (DOM, URL, Crypto)
+  // -----------------------------
+  const $ = (sel) => document.querySelector(sel);
+  const show = (sel) => { const el=$(sel); if(el) el.classList.remove('hidden'); };
+  const hide = (sel) => { const el=$(sel); if(el) el.classList.add('hidden'); };
 
-<div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
-  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl grid grid-rows-[auto_1fr] grid-cols-[480px_1fr] min-h-0">
-    <div class="col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
-      <div class="text-xl font-semibold">Print Price Tags</div>
-      <button id="btnClosePrintModal" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
-    </div>
+  function getHashParam(name){
+    // parse #key1=val1&key2=val2
+    const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+    const p = new URLSearchParams(h);
+    return p.get(name);
+  }
+  function setHashParam(name, val){
+    const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+    const p = new URLSearchParams(h);
+    if(val===null || val===undefined || val==='') p.delete(name); else p.set(name, val);
+    const newHash = '#' + p.toString();
+    if(newHash !== location.hash){ history.replaceState(null, '', newHash); }
+  }
 
-    <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
-      <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
-        <div class="grid grid-cols-[1fr_auto] gap-2">
-          <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
-          <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
-        </div>
-        <div class="mt-3 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
-          <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
-          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
-        </div>
-        <div class="text-sm text-zinc-400 mt-2">Select products and set qty per SKU</div>
-      </div>
-      <div id="printList" class="space-y-2 pt-2"></div>
-      <div id="printSummary" class="text-sm text-zinc-400"></div>
-    </div>
+  async function sha256Hex(text){
+    const enc = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
 
-    <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
-      <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
-      <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
-    </div>
-  </div>
-</div>
+  // AES-GCM helpers (PBKDF2 -> key -> encrypt/decrypt)
+  async function deriveKey(password, saltB64, iter=120000){
+    const pw = new TextEncoder().encode(password);
+    const salt = Uint8Array.from(atob(saltB64), c=>c.charCodeAt(0));
+    const keyMat = await crypto.subtle.importKey('raw', pw, 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      {name:'PBKDF2', hash:'SHA-256', salt, iterations: iter},
+      keyMat,
+      {name:'AES-GCM', length:256},
+      false,
+      ['encrypt','decrypt']
+    );
+  }
+  function b64encode(u8){ return btoa(String.fromCharCode(...u8)); }
+  function b64decode(str){ return Uint8Array.from(atob(str), c=>c.charCodeAt(0)); }
+  async function aesEncryptToBundle(plainText, password){
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv   = crypto.getRandomValues(new Uint8Array(12));
+    const key  = await deriveKey(password, b64encode(salt));
+    const ct   = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, new TextEncoder().encode(plainText));
+    return { salt: b64encode(salt), iv: b64encode(iv), ct: b64encode(new Uint8Array(ct)), iter:120000 };
+  }
+  async function aesDecryptFromBundle(bundle, password){
+    const {salt, iv, ct, iter=120000} = bundle || {};
+    const key = await deriveKey(password, salt, iter);
+    const ptBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv: b64decode(iv)}, key, b64decode(ct));
+    return new TextDecoder().decode(ptBuf);
+  }
 
-<script>
-/* ================= CORE STATE / STORAGE ================= */
-const LS = {
-  PRODUCTS: 'pp_products_en_v5',
-  USERS: 'pp_users_en_v5',
-  LOGO: 'pp_logo_base64_v3',
-  TEMPLATES: 'pp_templates_en_v5',
-  LOGS: 'pp_logs_en_v5',
-  LASTUSER: 'pp_last_user_en',
-  DEALER_NAMES: 'pp_dealer_names_en',
-  CLOUD_GIST_ID: 'pp_cloud_gist_id_v1', // Simplified cloud config
-  CLOUD_TOKEN: 'pp_cloud_token_v1' // Token should be saved for automatic sync
-};
-const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
-const Channels = ['Flagship','Marketplace','Dealer'];
-
-const sampleProducts = [{
-  sku:'MP-00010',
-  description:'iCon Pro Audio GoLive Pro',
-  details:'Audio interface for live streaming with remote control\n24-bit/48kHz with onboard DSP (Reverb, EQ, Vocal Tune)\nBuilt-in 5000mAh battery up to 6 hours\nMic input mini-XLR (48V) & 1/4-inch\nBluetooth for music & control',
-  costs:4200, normalPrice:7990, promoPrice:5990, expiresDate:'2099-09-09',
-  marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200
-}];
-
-function defaultTemplates(){
-  return [
-    { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null,
-      logoStyles: { size: 64, margin: 10 },
-      styles:{ sku:{fs:16,color:'#ffffff',mt:0}, description:{fs:30,color:'#ffffff',mt:0},
-        details:{fs:14,color:'#ffffff',mt:0}, price:{fs:72,color:'#ffffff',mt:0},
-        oldPrice:{fs:20,color:'#ff4d4f',mt:0}, expire:{fs:13,color:'#ffffff',mt:0} } },
-    { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null,
-      logoStyles: { size: 50, margin: 8 },
-      styles:{ sku:{fs:14,color:'#ffffff',mt:0}, description:{fs:26,color:'#ffffff',mt:0},
-        details:{fs:13,color:'#ffffff',mt:0}, price:{fs:60,color:'#ffffff',mt:0},
-        oldPrice:{fs:18,color:'#ff4d4f',mt:0}, expire:{fs:12,color:'#ffffff',mt:0} } },
-    { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null,
-      logoStyles: { size: 40, margin: 6 },
-      styles:{ sku:{fs:12,color:'#ffffff',mt:0}, description:{fs:22,color:'#ffffff',mt:0},
-        details:{fs:12,color:'#ffffff',mt:0}, price:{fs:48,color:'#ffffff',mt:0},
-        oldPrice:{fs:16,color:'#ff4d4f',mt:0}, expire:{fs:11,color:'#ffffff',mt:0} } },
-    { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null,
-      logoStyles: { size: 30, margin: 4 },
-      styles:{ sku:{fs:11,color:'#ffffff',mt:2}, description:{fs:15,color:'#ffffff',mt:0, align:'center'},
-        price:{fs:22,color:'#ffffff',mt:0}, oldPrice:{fs:12,color:'#B91C1C',mt:0}, expire:{fs:10,color:'#ffffff',mt:0} } }
-  ];
-}
-
-/* ================= UTILITIES ================= */
-const $  = (s,r=document)=>r.querySelector(s);
-const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-const money = n => isFinite(n) ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
-const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
-const fromExcelDate = v => {
-  if (v instanceof Date) return v.toISOString().slice(0,10);
-  if (typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400*1000)); return d.toISOString().slice(0,10); }
-  if (typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-  return '';
-};
-const gpPct = (price,cost)=> (cost>0 ? ((price - (cost||0))/cost)*100 : 0);
-const log = (action,meta='')=>{
-  try {
-    const logs = JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
-    logs.unshift({ts:new Date().toISOString(), user:currentUser?.username||'-', action, meta});
-    localStorage.setItem(LS.LOGS, JSON.stringify(logs.slice(0,3000)));
-  } catch (e) { console.error("Failed to write log:", e); }
-};
-const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-/* ================= APP STATE ================= */
-let currentUser=null, products=[], templates=[], editingIndex=-1, dealerNames=defaultDealerNames;
-let currentPage = 1;
-const itemsPerPage = 20;
-
-function loadState(){
-  try { products = JSON.parse(localStorage.getItem(LS.PRODUCTS) || 'null') || sampleProducts; } catch { products = sampleProducts; }
-  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
-
-  try { templates = JSON.parse(localStorage.getItem(LS.TEMPLATES) || 'null') || defaultTemplates(); } catch { templates = defaultTemplates(); }
-  localStorage.setItem(LS.TEMPLATES, JSON.stringify(templates));
-
-  try { dealerNames = JSON.parse(localStorage.getItem(LS.DEALER_NAMES) || 'null') || defaultDealerNames; } catch { dealerNames = defaultDealerNames; }
-  localStorage.setItem(LS.DEALER_NAMES, JSON.stringify(dealerNames));
-
-  const base64 = localStorage.getItem(LS.LOGO);
-  if(base64){ $('#logoImg').src=base64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden'); }
-}
-function getAppState(){
-  return {
-    version: 1,
-    products, templates, dealerNames,
-    users: JSON.parse(localStorage.getItem(LS.USERS)||'[]'),
-    logo: localStorage.getItem(LS.LOGO)||'',
-    logs: JSON.parse(localStorage.getItem(LS.LOGS)||'[]')
+  // -----------------------------
+  // State (in memory only)
+  // -----------------------------
+  const defaultAppState = {
+    users: [],               // [{username:'host', role:'host', passHash:'...'}]
+    products: [],
+    templates: [],
+    logo: '',
+    dealerNames: [],
+    logs: [],
+    cloud: { encToken: null } // {salt,iv,ct,iter} if present
   };
-}
-function setAppState(data){
-  if(data.products){ products = data.products; localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); }
-  if(data.templates){ templates = data.templates; localStorage.setItem(LS.TEMPLATES, JSON.stringify(templates)); }
-  if(data.dealerNames){ dealerNames = data.dealerNames; localStorage.setItem(LS.DEALER_NAMES, JSON.stringify(dealerNames)); }
-  if(data.users){ localStorage.setItem(LS.USERS, JSON.stringify(data.users)); }
-  if('logo' in data){ if(data.logo){ localStorage.setItem(LS.LOGO, data.logo); $('#logoImg').src=data.logo; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden'); } else { localStorage.removeItem(LS.LOGO); $('#logoImg').classList.add('hidden'); $('#logoFallback').classList.remove('hidden'); } }
-  if(data.logs){ localStorage.setItem(LS.LOGS, JSON.stringify(data.logs)); }
-  applyDealerNamesToUI(); renderTable();
-}
+  let appData = structuredClone(defaultAppState);
+  let currentUser = null;
+  let runtimeToken = null;   // PAT in memory only (cleared on refresh/signout)
+  let autoSaveTimer = null;
 
-/* ================= CLOUD SYNC (GitHub Gist) ================= */
-async function gistRequest(method, path, body, token){
-  if(!token) throw new Error('GitHub Token is required for this operation.');
-  const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
-  if(body) headers['Content-Type']='application/json';
-  const res = await fetch('https://api.github.com'+path, { method, headers, body: body?JSON.stringify(body):undefined });
-  if(!res.ok){ const t=await res.text(); throw new Error(`GitHub ${res.status}: ${t}`); }
-  return res.json();
-}
-async function cloudCreateGist(token){
-  const data = getAppState();
-  const resp = await gistRequest('POST','/gists',{ public:false, files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } }, token);
-  localStorage.setItem(LS.CLOUD_GIST_ID, resp.id);
-  localStorage.setItem(LS.CLOUD_TOKEN, token); // Save token for auto sync
-  log('cloud_create_gist', resp.id);
-  alert('Gist created: '+resp.id);
-  return resp.id;
-}
-async function cloudSave(gistId, token){
-  if(!gistId) throw new Error('Gist ID is required');
-  const data = getAppState();
-  const body = { files:{ 'proplugin-data.json':{ content: JSON.stringify(data,null,2) } } };
-  await gistRequest('PATCH','/gists/'+gistId, body, token);
-  log('cloud_save', gistId);
-}
-async function cloudLoad(gistId, token){
-  if(!gistId) throw new Error('Gist ID is required');
-  const resp = await gistRequest('GET','/gists/'+gistId, null, token);
-  const file = resp.files?.['proplugin-data.json'];
-  if(!file) throw new Error('proplugin-data.json not found in gist');
-
-  // Use a CORS proxy to fetch the raw data
-  const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-  const rawUrl = file.raw_url;
-  
-  const text = await fetch(proxyUrl + rawUrl, { headers: {'Authorization': 'Bearer ' + token} }).then(r=>r.text());
-  const data = JSON.parse(text);
-  
-  setAppState(data);
-  log('cloud_load', gistId);
-  alert('Loaded from cloud.');
-}
-let cloudSyncInterval = null;
-function startAutoSync(){
-    const gistId = localStorage.getItem(LS.CLOUD_GIST_ID);
-    const token = localStorage.getItem(LS.CLOUD_TOKEN);
-    if(gistId && token && currentUser?.role === 'Host'){
-        console.log("Starting auto-sync interval...");
-        // Auto-save every 5 minutes
-        cloudSyncInterval = setInterval(()=>{
-            cloudSave(gistId, token).then(()=>console.log("Auto-saved to cloud.")).catch(e=>console.error("Auto-save failed:", e.message));
-        }, 5 * 60 * 1000);
+  // -----------------------------
+  // GitHub Gist I/O
+  // -----------------------------
+  async function gistRequest(method, path, body, token){
+    const res = await fetch('https://api.github.com' + path, {
+      method,
+      headers: {
+        'Accept': 'application/vnd.github+json',
+        ...(token ? {'Authorization': `token ${token}`} : {}),
+        ...(body ? {'Content-Type': 'application/json'} : {})
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if(!res.ok){
+      const t = await res.text();
+      throw new Error(`${method} ${path} -> ${res.status}: ${t}`);
     }
-}
-function stopAutoSync(){
-    if(cloudSyncInterval){
-        console.log("Stopping auto-sync interval.");
-        clearInterval(cloudSyncInterval);
-        cloudSyncInterval = null;
+    return res.json();
+  }
+
+  async function cloudCreateGist(token, initialState){
+    if(!token) throw new Error('Missing GitHub Token');
+    const payload = {
+      description: 'Price Tag Manager Data',
+      public: false, // secret gist (unlisted)
+      files: { 'proplugin-data.json': { content: JSON.stringify(initialState ?? defaultAppState, null, 2) } }
+    };
+    const resp = await gistRequest('POST', '/gists', payload, token);
+    return resp.id;
+  }
+
+  async function cloudSave(){
+    const gistId = getHashParam('gist');
+    if(!gistId) throw new Error('No #gist in URL');
+    const token = runtimeToken;
+    if(!token){
+      throw new Error('No write token — โปรดล็อกอินเพื่อปลดล็อก token หรือโหลดใหม่ด้วย Token');
     }
-}
+    const payload = { files: { 'proplugin-data.json': { content: JSON.stringify(appData, null, 2) } } };
+    await gistRequest('PATCH', `/gists/${gistId}`, payload, token);
+  }
 
-/* ================= AUTH ================= */
-function allUsers(){
-  try { return JSON.parse(localStorage.getItem(LS.USERS) || '[]'); }
-  catch { return []; }
-}
-function setUsers(u){
-  localStorage.setItem(LS.USERS, JSON.stringify(u));
-}
-async function login(){
-  const u=$('#loginUser').value.trim();
-  const p=$('#loginPass').value;
-  const pHash = await hashPassword(p);
-  const found = allUsers().find(x=>x.username===u && x.passwordHash===pHash);
-  if(!found) return alert('Invalid credentials');
+  async function cloudLoad(gistId, tokenForWrite){
+    // Read does NOT require auth for secret/public gist
+    const resp = await gistRequest('GET', `/gists/${gistId}`, null, null);
+    const file = resp.files?.['proplugin-data.json'];
+    if(!file) throw new Error('proplugin-data.json not found in gist');
+    const data = JSON.parse(file.content);
+    appData = Object.assign(structuredClone(defaultAppState), data);
 
-  currentUser=found;
-  localStorage.setItem(LS.LASTUSER, u);
-  $('#loginView').classList.add('hidden');
-  $('#appView').classList.remove('hidden');
-  $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
-  const isHost = currentUser.role==='Host';
-  const isAdmin = currentUser.role==='Admin';
-  $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
-  loadState();
-  initFiltersForUser();
-  applyDealerNamesToUI();
-  renderTable();
-  log('login');
-  if(isHost) startAutoSync();
-}
-function logout(){
-  stopAutoSync();
-  currentUser=null;
-  $('#loginPass').value='';
-  $('#appView').classList.add('hidden');
-  $('#loginView').classList.remove('hidden');
-}
+    // If we have a fresh token (from setup), keep it in memory this session
+    runtimeToken = tokenForWrite || runtimeToken || null;
 
-/* ================= FILTERS & COLUMN VISIBILITY ================= */
-function initFiltersForUser(){
-  const sel=$('#channelSelect'); sel.innerHTML='';
-  currentUser.channels.forEach(ch=>{ const o=document.createElement('option'); o.textContent=ch; sel.appendChild(o); });
-  sel.value=currentUser.channels[0];
-  $('#btnPrintModal').classList.toggle('hidden', !currentUser.canPrint);
-  $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
-  updateColumnVisibility();
-}
-function updateColumnVisibility(){
-  const ch=$('#channelSelect').value;
-  const show={normal:false,promo:false,expire:false,market:false,marketgp:false,t1:false,gp1:false,t2:false,gp2:false,t3:false,gp3:false};
-  if(ch==='Flagship'){ show.normal=show.promo=show.expire=true; }
-  if(ch==='Marketplace'){ show.market=show.marketgp=true; }
-  if(ch==='Dealer'){ show.t1=show.gp1=show.t2=show.gp2=show.t3=show.gp3=true; }
-  const map={ 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
-  Object.entries(map).forEach(([cls,v])=> $$('.'+cls).forEach(el=>el.classList.toggle('hidden',!v)));
-}
+    // Hint on login page if encrypted token exists in gist
+    if(appData?.cloud?.encToken){ show('#loginHint'); } else { hide('#loginHint'); }
+  }
 
-/* ================= APPLY DEALER NAMES ================= */
-function applyDealerNamesToUI(){
-  $('#lblT1').textContent = dealerNames.t1 || 'Dealer T1';
-  $('#lblT2').textContent = dealerNames.t2 || 'Dealer T2';
-  $('#lblT3').textContent = dealerNames.t3 || 'Dealer T3';
-  $('#edLabelT1').textContent = dealerNames.t1 || 'Dealer T1';
-  $('#edLabelT2').textContent = dealerNames.t2 || 'Dealer T2';
-  $('#edLabelT3').textContent = dealerNames.t3 || 'Dealer T3';
-}
+  function scheduleAutoSave(){
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(()=>cloudSave().catch(e=>console.error('autosave failed', e)), 600);
+  }
 
-/* ================= TABLE & PAGINATION ================= */
-function filteredProducts(){
-  const q=$('#searchInput').value.trim().toLowerCase();
-  const ds=$('#dateStart').value, de=$('#dateEnd').value;
-  const isFlagship = $('#channelSelect').value==='Flagship';
-  return products.filter(p=>{
-    const hit = !q || (p.sku||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
-    let dateOk = true;
-    if(isFlagship && (ds||de)){
-      const ex = p.expiresDate ? new Date(p.expiresDate) : null;
-      if(!ex) dateOk=false;
-      if(ds && ex < new Date(ds)) dateOk=false;
-      if(de && ex > new Date(de+'T23:59:59')) dateOk=false;
+  // -----------------------------
+  // Routing helpers
+  // -----------------------------
+  function gotoApp(){
+    $('#whoami').textContent = currentUser?.username ?? '—';
+    hide('#cloudSetupView'); hide('#setupView'); hide('#loginView'); show('#appView');
+    $('#btnLogout').classList.remove('hidden');
+    renderProducts();
+  }
+  function gotoLogin(){
+    hide('#cloudSetupView'); hide('#setupView'); hide('#appView'); show('#loginView');
+    $('#btnLogout').classList.add('hidden'); $('#loginPass').value='';
+  }
+  function gotoCloud(){
+    hide('#loginView'); hide('#setupView'); hide('#appView'); show('#cloudSetupView');
+    $('#btnLogout').classList.add('hidden');
+  }
+  function gotoSetup(){
+    hide('#cloudSetupView'); hide('#loginView'); hide('#appView'); show('#setupView');
+    $('#btnLogout').classList.add('hidden');
+  }
+
+  // -----------------------------
+  // Boot — ONE-TIME load via URL #gist
+  // -----------------------------
+  let __BOOTED = false;
+  async function ensureCloudBoot(){
+    if(__BOOTED) return; __BOOTED = true;
+    const gistId = getHashParam('gist');
+    if(gistId){
+      hide('#cloudSetupView'); // prevent flicker
+      try{
+        await cloudLoad(gistId, null);
+        if((appData.users?.length ?? 0) === 0) gotoSetup(); else gotoLogin();
+      }catch(err){
+        console.error('Auto cloud load failed:', err);
+        gotoCloud();
+      }
+      return;
     }
-    return hit && dateOk;
+    // no gist param yet — first time on this device
+    gotoCloud();
+  }
+
+  // -----------------------------
+  // Cloud Setup UI
+  // -----------------------------
+  $('#btnLoadExisting').addEventListener('click', async ()=>{
+    const token = $('#inpToken').value.trim();
+    const gistId = $('#inpGistId').value.trim();
+    if(!token || !gistId){ alert('กรุณากรอก Token และ Gist ID'); return; }
+    try{
+      // Load and remember in URL only
+      await cloudLoad(gistId, token);
+      setHashParam('gist', gistId);
+
+      if((appData.users?.length ?? 0) === 0){
+        // Prepare empty skeleton then go create host
+        if($('#chkRememberToken').checked){
+          // we will encrypt & store token after host password is set
+        }
+        // save initial file (ensures file exists)
+        await cloudSave();
+        gotoSetup();
+      }else{
+        // Existing app: if remember checked, we will encrypt token after login
+        gotoLogin();
+      }
+    }catch(e){ alert('โหลดจาก Gist ไม่สำเร็จ: ' + e.message); }
   });
-}
-function renderPagination(totalItems) {
-  const pageBox = $('#pagination');
-  pageBox.innerHTML = '';
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  if (totalPages <= 1) return;
-  for (let i = 1; i <= totalPages; i++) {
-    const btn = document.createElement('button');
-    btn.textContent = i;
-    btn.className = `px-3 py-1 rounded-lg text-sm border ${currentPage === i ? 'bg-brand.red border-red-700' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`;
-    btn.onclick = () => { currentPage = i; renderTable(); };
-    pageBox.appendChild(btn);
-  }
-}
-function renderTable(){
-  const body=$('#productBody'); body.innerHTML='';
-  const showCosts = (currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role));
-  const canEdit = ['Host','Admin'].includes(currentUser.role);
-  const allFiltered = filteredProducts();
-  const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  paginatedItems.forEach(p=>{
-    const tr=document.createElement('tr');
-    tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
-    const gpM = gpPct(p.marketplacePrice, p.costs);
-    const gp1 = gpPct(p.dealer1, p.costs);
-    const gp2 = gpPct(p.dealer2, p.costs);
-    const gp3 = gpPct(p.dealer3, p.costs);
-    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
-    tr.innerHTML = `
-      <td class="px-3 py-3 oneline" title="${p.sku}">${p.sku}</td>
-      <td class="px-3 py-3 oneline" title="${p.description}"><div class="oneline" style="max-width:16rem">${p.description}</div></td>
-      <td class="px-3 py-3 oneline" title="${detailsOneLine}"><div class="oneline" style="max-width:18rem">${detailsOneLine}</div></td>
-      <td class="px-3 py-3 ${showCosts?'':'hidden'} oneline" title="${p.costs?money(p.costs):'-'}">${p.costs?money(p.costs):'-'}</td>
-      <td class="px-3 py-3 col-normal oneline" title="${p.normalPrice?money(p.normalPrice):'-'}">${p.normalPrice?money(p.normalPrice):'-'}</td>
-      <td class="px-3 py-3 col-promo oneline"  title="${p.promoPrice?money(p.promoPrice):'-'}">${p.promoPrice?money(p.promoPrice):'-'}</td>
-      <td class="px-3 py-3 col-expire oneline" title="${p.expiresDate?toDateInput(p.expiresDate):'-'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
-      <td class="px-3 py-3 col-market oneline"   title="${p.marketplacePrice?money(p.marketplacePrice):'-'}">${p.marketplacePrice?money(p.marketplacePrice):'-'}</td>
-      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t1 oneline"  title="${p.dealer1?money(p.dealer1):'-'}">${p.dealer1?money(p.dealer1):'-'}</td>
-      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t2 oneline"  title="${p.dealer2?money(p.dealer2):'-'}">${p.dealer2?money(p.dealer2):'-'}</td>
-      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t3 oneline"  title="${p.dealer3?money(p.dealer3):'-'}">${p.dealer3?money(p.dealer3):'-'}</td>
-      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
-      <td class="px-3 py-3">
-        ${canEdit? `
-          <div class="flex items-center gap-2">
-            <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
-            <button title="Delete" class="px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>
-          </div>` : '-'}
-      </td>
-    `;
-    body.appendChild(tr);
+
+  $('#btnCreateGist').addEventListener('click', async ()=>{
+    const token = $('#inpToken').value.trim();
+    if(!token){ alert('กรุณากรอก GitHub Token'); return; }
+    try{
+      const id = await cloudCreateGist(token, defaultAppState);
+      // remember only in URL
+      setHashParam('gist', id);
+      runtimeToken = token;
+      alert('สร้าง Gist สำเร็จ: ' + id + '
+(ระบบจะจำผ่าน URL #gist และใช้งานแบบออนไลน์ 100%)');
+      gotoSetup();
+    }catch(e){ alert('สร้าง Gist ไม่สำเร็จ: ' + e.message); }
   });
-  $$('button[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.getAttribute('data-edit'))));
-  $$('button[data-del]').forEach(b=>b.addEventListener('click',()=>{
-    const sku=b.getAttribute('data-del');
-    if(confirm(`Delete SKU ${sku}? This cannot be undone.`)){
-      products = products.filter(x=>x.sku!==sku);
-      localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
-      log('delete_sku', sku); renderTable();
+
+  $('#btnCloudForget').addEventListener('click', ()=>{
+    if(confirm('ลืมการเชื่อมต่อคลาวด์ (ล้าง #gist จาก URL) ใช่ไหม?')){
+      setHashParam('gist','');
+      location.reload();
     }
-  }));
-  renderPagination(allFiltered.length);
-  updateColumnVisibility();
-}
+  });
 
-/* ================= EDITOR ================= */
-function openEditor(sku = null) {
-  if(!['Host','Admin'].includes(currentUser.role)) return;
-  if (sku) {
-    editingIndex = products.findIndex(x=>x.sku===sku);
-    const p = products[editingIndex];
-    $('#editorTitle').textContent = 'Edit Product';
-    $('#edSku').value = p.sku;
-    $('#edSku').disabled = true;
-    $('#edDesc').value = p.description;
-    $('#edDetails').value = p.details||'';
-    $('#edExpire').value = toDateInput(p.expiresDate);
-    $('#edCosts').value = p.costs||'';
-    $('#edNormal').value = p.normalPrice||'';
-    $('#edPromo').value = p.promoPrice||'';
-    $('#edMarket').value = p.marketplacePrice||'';
-    $('#edT1').value = p.dealer1||'';
-    $('#edT2').value = p.dealer2||'';
-    $('#edT3').value = p.dealer3||'';
-  } else {
-    editingIndex = -1;
-    $('#editorTitle').textContent = 'Add New Product';
-    $('#edSku').value = '';
-    $('#edSku').disabled = false;
-    $('#edDesc').value = '';
-    $('#edDetails').value = '';
-    $('#edExpire').value = '';
-    $('#edCosts').value = '';
-    $('#edNormal').value = '';
-    $('#edPromo').value = '';
-    $('#edMarket').value = '';
-    $('#edT1').value = '';
-    $('#edT2').value = '';
-    $('#edT3').value = '';
-  }
-  applyDealerNamesToUI();
-  $('#editorModal').classList.remove('hidden');
-}
-function closeEditor(){ $('#editorModal').classList.add('hidden'); }
-function saveEditor() {
-  const sku = $('#edSku').value.trim();
-  if (!sku) { alert('SKU is required.'); return; }
-  const newProductData = {
-    sku: sku,
-    description:$('#edDesc').value.trim(), details:$('#edDetails').value.trim(),
-    expiresDate:$('#edExpire').value||'', costs:parseFloat($('#edCosts').value)||0,
-    normalPrice:parseFloat($('#edNormal').value)||0, promoPrice:parseFloat($('#edPromo').value)||0,
-    marketplacePrice:parseFloat($('#edMarket').value)||0, dealer1:parseFloat($('#edT1').value)||0,
-    dealer2:parseFloat($('#edT2').value)||0, dealer3:parseFloat($('#edT3').value)||0
-  };
-  if (editingIndex > -1) {
-    Object.assign(products[editingIndex], newProductData);
-    log('edit_product', sku);
-  } else {
-    if (products.some(p => p.sku === sku)) {
-      alert(`SKU "${sku}" already exists. Please use a unique SKU.`); return;
+  // -----------------------------
+  // Host Setup UI
+  // -----------------------------
+  $('#btnCreateHost').addEventListener('click', async ()=>{
+    const p1 = $('#setupPass1').value; const p2 = $('#setupPass2').value;
+    if(!p1 || p1 !== p2){ alert('รหัสผ่านไม่ตรงกัน'); return; }
+    const passHash = await sha256Hex(p1);
+    appData.users = [{ username:'host', role:'host', passHash }];
+
+    // If we have a runtime token from setup and user chooses to remember, encrypt to Gist
+    if(runtimeToken && $('#chkRememberToken').checked){
+      try{
+        appData.cloud.encToken = await aesEncryptToBundle(runtimeToken, p1);
+      }catch(e){ console.warn('Encrypt token failed:', e); }
     }
-    products.unshift(newProductData);
-    log('add_product', sku);
-  }
-  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products));
-  closeEditor(); renderTable();
-}
 
-/* ================= SETTINGS ================= */
-function openSettings(tab){
-  if(!['Host','Admin'].includes(currentUser.role)) return;
-  $('#settingsPanel').classList.remove('hidden');
-  renderSettings(tab);
-}
-function fileToBase64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); }); }
+    try{ await cloudSave(); }catch(e){ alert('บันทึกขึ้นคลาวด์ไม่สำเร็จ: '+e.message); return; }
+    gotoLogin();
+  });
 
-function renderSettings(tab){
-  const box=$('#settingsContent');
-  $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
-  const btn=$(`.set-tab[data-tab="${tab}"]`); if(btn) btn.classList.add('ring-2','ring-brand.red');
-  const isHost=currentUser.role==='Host';
-  const isAdmin=currentUser.role==='Admin';
-  $$('.only-host').forEach(el=>el.classList.toggle('hidden', !isHost));
-  $$('.only-host-admin').forEach(el=>el.classList.toggle('hidden', !(isHost||isAdmin)));
+  // -----------------------------
+  // Login / Logout
+  // -----------------------------
+  $('#btnLogin').addEventListener('click', async ()=>{
+    const pass = $('#loginPass').value;
+    const hash = await sha256Hex(pass);
+    const host = appData.users?.find(u=>u.username==='host');
+    if(host && host.passHash === hash){
+      currentUser = host;
+      // If token not in memory but encrypted token exists, decrypt using password
+      if(!runtimeToken && appData?.cloud?.encToken){
+        try{ runtimeToken = await aesDecryptFromBundle(appData.cloud.encToken, pass); }
+        catch(e){ alert('ถอดรหัส Token ไม่ได้ — โปรดโหลดใหม่ด้วย Token สักครั้ง'); }
+      }
+      gotoApp();
+      return;
+    }
+    alert('รหัสผ่านไม่ถูกต้อง');
+  });
 
-  if(tab==='data'){
-    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Manage Data</div>
-      <div class="text-zinc-400 mb-4">Import / Export Excel (A–O columns; GP% auto-calculated)</div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Import (.xlsx)</div>
-          <input id="fileImport" type="file" accept=".xlsx,.xls" class="w-full">
-          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Market GP% (ignored), J Dealer T1, K GP% T1 (ignored), L Dealer T2, M GP% T2 (ignored), N Dealer T3, O GP% T3 (ignored)</p>
-          <button id="btnDoImport" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import</button>
-        </div>
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Export (.xlsx)</div>
-          <button id="btnExport" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Excel</button>
-          <p class="text-xs text-zinc-400 mt-2">Export colors: D = light green, F & G = yellow. GP% (Market/T1/T2/T3 & Promotion) auto-calculated.</p>
-        </div>
-      </div>
-    `;
-    $('#btnDoImport').onclick=doImport;
-    $('#btnExport').onclick=doExport;
-  }
-  if(tab==='logo'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const base64 = localStorage.getItem(LS.LOGO)||'';
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Manage Logo</div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Upload logo</div>
-          <input type="file" id="logoFile" accept="image/*">
-          <p class="text-xs text-zinc-400 mt-2">PNG/JPG/SVG. Used on default templates.</p>
-          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save logo</button>
-          <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Remove</button>
-        </div>
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Preview</div>
-          <div class="h-40 w-40 bg-white rounded-xl overflow-hidden grid place-items-center p-2">
-            ${base64?`<img src="${base64}" class="max-h-full max-w-full object-contain">`:'<div class="text-zinc-800 text-4xl font-black">P</div>'}
-          </div>
-        </div>
-      </div>
-    `;
-    $('#btnSaveLogo').onclick=async()=>{
-      const f=$('#logoFile').files[0]; if(!f) return alert('Choose a file.');
-      const b64=await fileToBase64(f); localStorage.setItem(LS.LOGO,b64);
-      $('#logoImg').src=b64; $('#logoImg').classList.remove('hidden'); $('#logoFallback').classList.add('hidden');
-      log('update_logo'); openSettings('logo');
-    };
-    $('#btnRemoveLogo').onclick=()=>{ localStorage.removeItem(LS.LOGO); $('#logoImg').classList.add('hidden'); $('#logoFallback').classList.remove('hidden'); log('remove_logo'); openSettings('logo'); }
-  }
-  if(tab==='dealer'){
-    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
-    const names = JSON.parse(localStorage.getItem(LS.DEALER_NAMES)||'{}');
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-4">Dealer Settings</div>
-      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-        <div class="grid md:grid-cols-3 gap-3">
-          <div><label class="text-xs text-zinc-400">Name for Dealer T1</label><input id="nameT1" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t1||'Dealer T1'}"></div>
-          <div><label class="text-xs text-zinc-400">Name for Dealer T2</label><input id="nameT2" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t2||'Dealer T2'}"></div>
-          <div><label class="text-xs text-zinc-400">Name for Dealer T3</label><input id="nameT3" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t3||'Dealer T3'}"></div>
-        </div>
-        <button id="btnSaveDealer" class="mt-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save Names</button>
-      </div>
-    `;
-    $('#btnSaveDealer').onclick=()=>{
-      dealerNames = {t1:$('#nameT1').value.trim()||'Dealer T1', t2:$('#nameT2').value.trim()||'Dealer T2', t3:$('#nameT3').value.trim()||'Dealer T3'};
-      localStorage.setItem(LS.DEALER_NAMES, JSON.stringify(dealerNames));
-      applyDealerNamesToUI();
-      alert('Saved'); log('save_dealer_names', JSON.stringify(dealerNames));
-    };
-  }
-  if(tab==='users'){
-    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Host/Admin only.</div>'; return; }
-    box.innerHTML=`
-      <div class="flex items-center justify-between">
-        <div class="text-2xl font-semibold mb-2">User Management</div>
-        <button id="btnAddUser" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Add User</button>
-      </div>
-      <div id="addUserBox" class="hidden p-4 mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-        <div class="grid md:grid-cols-2 gap-3">
-          <input id="nuName" placeholder="username" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-          <input id="nuPass" placeholder="password" type="password" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-          <select id="nuRole" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-            <option>User</option><option>Admin</option>${isHost?'<option>Host</option>':''}
-          </select>
-          <div class="flex items-center gap-4">
-            <label class="text-sm"><input type="checkbox" id="nuSeeCosts"> See Costs</label>
-            <label class="text-sm"><input type="checkbox" id="nuCanPrint" checked> Can Print</label>
-          </div>
-          <div class="md:col-span-2">
-            ${Channels.map(ch=>`<label class="mr-3 text-sm"><input type="checkbox" class="nuCh" value="${ch}" ${ch==='Flagship'?'checked':''}> ${ch}</label>`).join('')}
-          </div>
-        </div>
-        <div class="mt-3"><button id="nuCreate" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Create</button></div>
-      </div>
-      <div class="overflow-auto border border-zinc-800 rounded-2xl">
-        <table class="min-w-[900px] w-full text-sm">
-          <thead class="bg-zinc-900/70 border-b border-zinc-800">
-            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>User</th><th>Role</th><th>Channels</th><th>See Costs</th><th>Can Print</th><th>New Pwd</th><th></th></tr>
-          </thead>
-          <tbody id="userRows"></tbody>
-        </table>
-      </div>
-    `;
-    $('#btnAddUser').onclick=()=>$('#addUserBox').classList.toggle('hidden');
-    $('#nuCreate').onclick=async ()=>{
-      const name=$('#nuName').value.trim(); const pass=$('#nuPass').value.trim(); if(!name||!pass) return alert('Username & password required');
-      if(allUsers().some(u=>u.username===name)) return alert('Username already exists');
-      const role=$('#nuRole').value; const canSee=$('#nuSeeCosts').checked; const canPrint=$('#nuCanPrint').checked;
-      const chs=$$('.nuCh').filter(x=>x.checked).map(x=>x.value); if(!chs.length) return alert('Select at least one channel');
-      const passHash = await hashPassword(pass);
-      const list=allUsers(); list.push({username:name, passwordHash:passHash, role, channels:chs, canSeeCosts:canSee, canPrint});
-      setUsers(list); log('add_user',name); openSettings('users'); alert('User created');
-    };
-    const tbody=$('#userRows'); tbody.innerHTML='';
-    allUsers().forEach((u,i)=>{
-      const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
-      tr.innerHTML=`
-        <td class="px-3 py-2">${u.username}</td>
-        <td class="px-3 py-2">
-          <select data-role="${i}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700" ${u.username==='host'?'disabled':''}>
-            ${['Host','Admin','User'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
-          </select>
-        </td>
-        <td class="px-3 py-2">
-          ${Channels.map(ch=>`<label class="mr-2"><input type="checkbox" data-ch="${i}|${ch}" ${u.channels.includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>`).join('')}
-        </td>
-        <td class="px-3 py-2"><input type="checkbox" data-cost="${i}" ${u.canSeeCosts?'checked':''}></td>
-        <td class="px-3 py-2"><input type="checkbox" data-print="${i}" ${u.canPrint?'checked':''}></td>
-        <td class="px-3 py-2"><input type="text" data-pass="${i}" placeholder="Set new" class="w-28 px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700"></td>
-        <td class="px-3 py-2">
-          <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu="${i}">Save</button>
-          ${u.username==='host' ? '' : `<button class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-delu="${i}">❌</button>`}
-        </td>
+  $('#btnLogout').addEventListener('click', ()=>{
+    currentUser = null;
+    runtimeToken = null; // forget token in memory on logout
+    gotoLogin();
+  });
+
+  // -----------------------------
+  // Demo products
+  // -----------------------------
+  function renderProducts(){
+    const tbody = $('#tblProducts');
+    tbody.innerHTML = '';
+    for(const p of appData.products){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="p-2">${p.sku}</td>
+        <td class="p-2">${p.name}</td>
+        <td class="p-2 text-right">${Number(p.price||0).toLocaleString()}</td>
       `;
       tbody.appendChild(tr);
-    });
-    $$('button[data-saveu]').forEach(b=>b.addEventListener('click', async (e) => {
-      const i=+e.target.getAttribute('data-saveu'); const list=allUsers(); const u=list[i];
-      u.role=$(`select[data-role="${i}"]`).value;
-      u.canSeeCosts=$(`input[data-cost="${i}"]`).checked;
-      u.canPrint=$(`input[data-print="${i}"]`).checked;
-      const newPass = $(`input[data-pass="${i}"]`).value.trim();
-      if(newPass) { u.passwordHash = await hashPassword(newPass); }
-      u.channels=Channels.filter(ch=> $(`input[data-ch="${i}|${ch}"]`).checked );
-      setUsers(list);
-      if(currentUser.username===u.username){ currentUser=u; initFiltersForUser(); renderTable(); }
-      log('update_user',u.username); alert('Saved.');
-      openSettings('users');
-    }));
-    $$('button[data-delu]').forEach(b=>b.addEventListener('click', (e) => {
-      const i=+e.target.getAttribute('data-delu'); const list=allUsers(); const u=list[i];
-      if(u.username==='host') return alert('Cannot delete the default host account.');
-      if(confirm(`Delete user "${u.username}"?`)){
-        list.splice(i,1); setUsers(list); log('delete_user',u.username); openSettings('users');
-      }
-    }));
-  }
-  if(tab==='templates'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const arr = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-    box.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="text-2xl font-semibold mb-2">Template Management</div>
-        <div class="flex items-center gap-2">
-          <label class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 cursor-pointer">
-            <input type="file" id="tplUploadNew" accept="image/png, image/jpeg" class="hidden">
-            Upload New Template
-          </label>
-        </div>
-      </div>
-      <div class="text-sm text-zinc-400 mb-3">All templates are fully customizable.</div>
-      <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
-    `;
-
-    const listBox = $('#tplList'); listBox.innerHTML='';
-    arr.forEach((t,i)=>{
-      const card = document.createElement('div');
-      card.className = 'p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
-      const safe = (v, d) => (v===undefined || v===null) ? d : v;
-      t.styles = t.styles || {};
-      ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-        t.styles[k] = t.styles[k] || {fs:14,color:'#ffffff',mt:0};
-        t.styles[k].fs = safe(parseInt(t.styles[k].fs), 14);
-        t.styles[k].color = t.styles[k].color || '#ffffff';
-        t.styles[k].mt = safe(parseInt(t.styles[k].mt), 0);
-      });
-      t.logoStyles = t.logoStyles || {size:64, margin:10};
-
-      card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <input data-name="${i}" value="${t.name||'Untitled Template'}" class="bg-transparent text-white text-lg font-semibold px-2 py-1 outline-none border-b border-zinc-700 focus:border-brand.red">
-          <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del="${i}">Delete</button>
-        </div>
-        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-sm font-semibold mb-2">Background Image</div>
-            <img src="${t.imageData||''}" alt="template" class="w-full rounded-lg border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
-            <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
-            <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
-              <input type="file" data-img="${i}" accept="image/png, image/jpeg" class="hidden">
-              Upload/Change Image
-            </label>
-          </div>
-          <div>
-            <div class="text-sm font-semibold mb-2">Logo Settings</div>
-            <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> Show logo
-            </label>
-            <div class="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label class="text-xs text-zinc-400">Size (px)</label>
-                <input type="number" step="1" data-logosize="${i}" value="${safe(parseInt(t.logoStyles.size),64)}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-              </div>
-              <div>
-                <label class="text-xs text-zinc-400">Margin (px)</label>
-                <input type="number" step="1" data-logomargin="${i}" value="${safe(parseInt(t.logoStyles.margin),10)}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 mt-4">
-          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
-            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-              <div class="text-xs text-zinc-400 mb-1 capitalize">${k.replace('oldPrice','Old Price')}</div>
-              <label class="text-xs">Font size</label>
-              <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k].fs}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
-              <label class="text-xs">Color</label>
-              <input type="color" data-color="${i}|${k}" value="${t.styles[k].color}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
-              <label class="text-xs">Top margin (px)</label>
-              <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k].mt}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-            </div>
-          `).join('')}
-        </div>
-        <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savtpl="${i}">Save Template</button>
-      `;
-      listBox.appendChild(card);
-    });
-
-    listBox.addEventListener('click', (ev)=>{
-      const saveBtn = ev.target.closest('button[data-savtpl]');
-      if(saveBtn){
-        const i = +saveBtn.getAttribute('data-savtpl');
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        const t = list[i]; if(!t) return;
-        t.name = $(`#settingsContent input[data-name="${i}"]`)?.value?.trim() || t.name || 'Untitled Template';
-        ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-          const fs = parseInt($(`#settingsContent input[data-fs="${i}|${k}"]`)?.value)||14;
-          const color = $(`#settingsContent input[data-color="${i}|${k}"]`)?.value||'#ffffff';
-          const mt = parseInt($(`#settingsContent input[data-mt="${i}|${k}"]`)?.value)||0;
-          t.styles = t.styles || {}; t.styles[k] = {fs, color, mt};
-        });
-        t.showLogo = !!$(`#settingsContent input[data-logo="${i}"]`)?.checked;
-        t.logoStyles = t.logoStyles || {};
-        t.logoStyles.size = parseInt($(`#settingsContent input[data-logosize="${i}"]`)?.value)||64;
-        t.logoStyles.margin = parseInt($(`#settingsContent input[data-logomargin="${i}"]`)?.value)||10;
-        localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-        templates = list;
-        log('save_template', t.name);
-        alert('Template saved');
-        return;
-      }
-      const delBtn = ev.target.closest('button[data-del]');
-      if(delBtn){
-        const i = +delBtn.getAttribute('data-del');
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        const t = list[i]; if(!t) return;
-        if(confirm(`Delete template "${t.name}"?`)){
-          list.splice(i,1);
-          localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-          templates = list;
-          log('delete_template', t.name);
-          openSettings('templates');
-        }
-      }
-    });
-
-    listBox.addEventListener('change', async (ev)=>{
-      const fInput = ev.target.closest('input[type="file"][data-img]');
-      if(fInput){
-        const i = +fInput.getAttribute('data-img');
-        const file = fInput.files && fInput.files[0];
-        if(!file) return;
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        const t = list[i]; if(!t) return;
-        try{
-          const b64 = await fileToBase64(file);
-          t.imageData = b64; t.kind = t.kind || 'IMAGE';
-          localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-          templates = list;
-          log('update_template_image', t.name);
-          openSettings('templates');
-        }catch(err){ alert('Failed to update image: '+err.message); }
-        fInput.value = '';
-      }
-    });
-
-    $('#settingsContent #tplUploadNew').onchange = async (e)=>{
-      const f = e.target.files && e.target.files[0]; if(!f) return;
-      const nm = prompt('Enter a name for this new template:'); if(!nm){ e.target.value=''; return; }
-      try{
-        const imageData = await fileToBase64(f);
-        const id = 'user-' + Math.random().toString(36).slice(2,10);
-        const base = defaultTemplates()[2] || {styles:{}};
-        const newTpl = {
-          id, name: nm, kind: 'IMAGE', imageData,
-          showLogo: false,
-          logoStyles: { size: 40, margin: 6 },
-          styles: JSON.parse(JSON.stringify(base.styles||{}))
-        };
-        const list = JSON.parse(localStorage.getItem(LS.TEMPLATES)||'[]');
-        list.push(newTpl);
-        localStorage.setItem(LS.TEMPLATES, JSON.stringify(list));
-        templates = list;
-        log('create_template_image', nm);
-        openSettings('templates');
-        alert('New template created.');
-      }catch(err){ alert('Failed to create template: '+err.message); }
-      e.target.value='';
-    };
-  }
-  if(tab==='cloud'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const gistId = localStorage.getItem(LS.CLOUD_GIST_ID) || '';
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Cloud Sync (GitHub Gist)</div>
-      <p class="text-sm text-zinc-400 mb-4">Sync data via a private GitHub Gist.</p>
-      <div class="grid md:grid-cols-2 gap-6">
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-          <label class="text-xs text-zinc-400">GitHub Personal Access Token (scope: gist)</label>
-          <input id="cloudToken" type="password" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="ghp_..." value="${localStorage.getItem(LS.CLOUD_TOKEN)||''}">
-          <label class="text-xs text-zinc-400">Gist ID</label>
-          <input id="cloudGistId" class="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4..." value="${gistId}">
-          <div class="flex flex-wrap gap-2">
-            <button id="cloudCreate" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Create New Gist</button>
-            <button id="cloudSave" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Save to Cloud</button>
-            <button id="cloudLoad" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Load from Cloud</button>
-          </div>
-        </div>
-        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Notes</div>
-          <ul class="list-disc pl-6 text-sm text-zinc-400 space-y-1">
-            <li>After creating a new Gist, its ID and token will be saved locally.</li>
-            <li>Once configured, data will auto-sync to the cloud every 5 minutes.</li>
-          </ul>
-        </div>
-      </div>
-    `;
-    $('#cloudGistId').oninput = (e) => localStorage.setItem(LS.CLOUD_GIST_ID, e.target.value.trim());
-    $('#cloudToken').oninput = (e) => localStorage.setItem(LS.CLOUD_TOKEN, e.target.value.trim());
-
-    $('#cloudCreate').onclick=async()=>{
-      const token = $('#cloudToken').value.trim();
-      try {
-        const newGistId = await cloudCreateGist(token);
-        $('#cloudGistId').value = newGistId;
-      } catch(e){ alert(e.message); }
-    };
-    $('#cloudSave').onclick=async()=>{
-      const token = $('#cloudToken').value.trim();
-      const gistId = $('#cloudGistId').value.trim();
-      try { await cloudSave(gistId, token); alert('Saved to cloud.'); } catch(e){ alert(e.message); }
-    };
-    $('#cloudLoad').onclick=async()=>{
-      const token = $('#cloudToken').value.trim();
-      const gistId = $('#cloudGistId').value.trim();
-      try { await cloudLoad(gistId, token); } catch(e){ alert(e.message); }
-    };
-  }
-  if(tab==='history'){
-    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const logs=JSON.parse(localStorage.getItem(LS.LOGS)||'[]');
-    box.innerHTML=`
-      <div class="text-2xl font-semibold mb-2">Usage History</div>
-      <div class="max-h-[65vh] overflow-auto border border-zinc-800 rounded-2xl">
-        <table class="min-w-[700px] w-full text-sm">
-          <thead class="bg-zinc-900/70 border-b border-zinc-800">
-            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
-          </thead>
-          <tbody>${logs.map(l=>`<tr class="border-b border-zinc-800"><td class="px-3 py-2">${new Date(l.ts).toLocaleString('th-TH')}</td><td class="px-3 py-2">${l.user}</td><td class="px-3 py-2">${l.action}</td><td class="px-3 py-2 text-zinc-400">${l.meta||''}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>
-    `;
-  }
-}
-
-/* ================= IMPORT / EXPORT ================= */
-async function doImport(){
-  const fi=$('#fileImport'); if(!fi.files[0]) return alert('Choose a file');
-  const data=await fi.files[0].arrayBuffer();
-  const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-  const headerRowIndex = rows.findIndex(r => (r[0]||'').toString().toLowerCase().trim() === 'sku');
-  if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
-  const start=headerRowIndex + 1;
-  const newItems=[], importedSkus = new Set();
-  for(let i=start;i<rows.length;i++){
-    const r=rows[i]; const sku = (r[0]||'').toString().trim(); if(!sku) continue;
-    if (importedSkus.has(sku) || products.some(p => p.sku === sku)) {
-      console.warn(`Skipping duplicate SKU: ${sku}`); continue;
-    }
-    importedSkus.add(sku);
-    newItems.push({
-      sku:sku, description:(r[1]||'').toString().trim(), details:(r[2]||'').toString().trim(),
-      costs:parseFloat(r[3]||0)||0, normalPrice:parseFloat(r[4]||0)||0, promoPrice:parseFloat(r[5]||0)||0,
-      expiresDate:fromExcelDate(r[6]||''), marketplacePrice:parseFloat(r[7]||0)||0, dealer1:parseFloat(r[9]||0)||0,
-      dealer2:parseFloat(r[11]||0)||0, dealer3:parseFloat(r[13]||0)||0
-    });
-  }
-  if(!newItems.length) return alert('No new valid products found to import.');
-  products=[...newItems, ...products];
-  localStorage.setItem(LS.PRODUCTS, JSON.stringify(products)); renderTable(); log('import_excel', `${newItems.length} rows`);
-  alert('Imported: '+newItems.length+' new rows. Duplicates were skipped.');
-}
-async function doExport(){
-  const wb=await XlsxPopulate.fromBlankAsync(); const sh=wb.sheet(0).name('PriceData');
-  const header=['SKU','Description','Details','Costs','Normal Price','Promotion Price','Expires Date','Marketplace Price','Marketplace GP%','Dealer Price Tier 1','GP% T1','Dealer Price Tier 2','GP% T2','Dealer Price Tier 3','GP% T3','Promotion GP%'];
-  const dataRows = products.map(p=>[
-    p.sku,p.description,p.details,p.costs,p.normalPrice,p.promoPrice,p.expiresDate?toDateInput(p.expiresDate):'',
-    p.marketplacePrice, +gpPct(p.marketplacePrice,p.costs).toFixed(2),
-    p.dealer1, +gpPct(p.dealer1,p.costs).toFixed(2),
-    p.dealer2, +gpPct(p.dealer2,p.costs).toFixed(2),
-    p.dealer3, +gpPct(p.dealer3,p.costs).toFixed(2),
-    +gpPct(p.promoPrice,p.costs).toFixed(2)
-  ]);
-  const matrix=[header,...dataRows];
-  sh.cell('A1').value(matrix);
-  sh.row(1).style({bold:true});
-  const lastRow=matrix.length;
-  if(lastRow>1){
-    sh.range(`D2:D${lastRow}`).style({fill:'FFCCFFCC'});
-    sh.range(`F2:G${lastRow}`).style({fill:'FFFFFF99'});
-  }
-  [12,28,50,12,14,16,16,16,14,14,12,14,12,14,12,14].forEach((w,i)=>sh.column(i+1).width(w));
-  const blob=await wb.outputAsync();
-  const url=URL.createObjectURL(new Blob([blob],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-  const a=document.createElement('a'); a.href=url; a.download='price_data_export.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  log('export_excel', `${products.length} rows`);
-}
-
-/* ================= PRINT FLOW ================= */
-function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
-function buildPrintList(){
-  const box=$('#printList'); box.innerHTML='';
-  const items=filteredProducts();
-  const frag=document.createDocumentFragment();
-  items.forEach(p=>{
-    const row=document.createElement('div');
-    row.className='flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-2';
-    row.innerHTML=`
-      <label class="flex items-center gap-2 w-6"><input type="checkbox" data-sel="${p.sku}"></label>
-      <div class="flex-1">
-        <div class="font-medium oneline" title="${p.sku}">${p.sku}</div>
-        <div class="text-xs text-zinc-400 oneline" title="${p.description}">${ellip(p.description, 46)}</div>
-      </div>
-      <div class="flex items-center gap-1">
-        <span class="text-xs text-zinc-400">Qty</span>
-        <input type="number" min="1" value="1" data-qty="${p.sku}" class="w-20 px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
-      </div>
-    `;
-    frag.appendChild(row);
-  });
-  box.appendChild(frag);
-  $('#printCheckAll').checked=false;
-  $('#printCheckAll').onchange=()=> $$('#printList input[type="checkbox"]').forEach(c=>c.checked=$('#printCheckAll').checked);
-  $('#printSearch').oninput=()=>{
-    const q=$('#printSearch').value.toLowerCase();
-    $$('#printList > div').forEach(div=>{
-      const sku=div.querySelector('[data-sel]').getAttribute('data-sel').toLowerCase();
-      const desc=div.querySelector('.text-xs').getAttribute('title').toLowerCase();
-      div.style.display = (!q || sku.includes(q) || desc.includes(q)) ? '' : 'none';
-    });
-  };
-  updatePrintSummary();
-  $$('#printList input').forEach(i=>i.oninput=updatePrintSummary);
-}
-function updatePrintSummary(){
-  const selected=$$('#printList input[type="checkbox"]:checked');
-  let count=0; selected.forEach(c=>{ const sku=c.getAttribute('data-sel'); const qty=parseInt($(`[data-qty="${sku}"]`).value)||0; count+=qty; });
-  $('#printSummary').textContent = `${selected.length} SKUs selected • ${count} tags total`;
-}
-function fillTemplateDropdown(){
-  const dd=$('#printTemplate'); dd.innerHTML='';
-  templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
-  dd.onchange=()=>{ 
-    const firstSelectedSku = $('#printList input[type="checkbox"]:checked')?.getAttribute('data-sel');
-    const firstItem = products.find(p => p.sku === firstSelectedSku) || filteredProducts()[0];
-    renderPreview(firstItem, templates.find(t=>t.id===dd.value)); 
-  };
-}
-function baseSize(kind){
-  if(kind==='A4') return {w:744,h:1052};
-  if(kind==='A5') return {w:526,h:744};
-  if(kind==='A6') return {w:372,h:526};
-  return {w:640,h:320}; // ACC or default for IMAGE
-}
-function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
-function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
-function renderTagInnerHTML(p,tpl){
-  const innerPadding = tpl.kind === 'IMAGE' ? '20mm' : '10mm'; // Add slight padding for image to not be exactly at the edge
-  const content = `
-    <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
-        <div style="${styleInline(tpl.styles.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
-        <div style="font-weight:800;line-height:1.2;${styleInline(tpl.styles.description)}" class="mt-2 text-elevate">${p.description}</div>
-        <div class="mt-3 space-y-1">${(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
-            <div class="flex gap-2 items-start text-elevate" style="${styleInline(tpl.styles.details)}"><span>•</span><span>${t}</span></div>`).join('')}</div>
-        <div class="mt-auto flex items-end justify-between">
-            <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-            <div class="text-right">
-            <div style="${styleInline(tpl.styles.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-            <div style="font-weight:900;${styleInline(tpl.styles.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-            </div>
-        </div>
-    </div>
-  `;
-  if(tpl.kind==='ACC'){
-      const s=tpl.styles;
-      return `
-      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
-      <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
-          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${truncateMiddle(p.description, 44)}</div>
-      </div>
-      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
-          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-      </div>
-      `;
-  }
-  return content;
-}
-function buildPreviewTag(p,tpl){
-  let w, h;
-  if(tpl.imageData) {
-      const img = new Image();
-      img.src = tpl.imageData;
-      w = img.width || 640;
-      h = img.height || 360;
-  } else {
-      const size = baseSize(tpl.kind);
-      w = size.w;
-      h = size.h;
-  }
-  const outer=document.createElement('div');
-  outer.style.width=w+'px'; outer.style.height=h+'px';
-  outer.style.borderRadius='12px'; outer.style.overflow='hidden';
-  outer.style.border='2px solid #1f1f22';
-  outer.style.background = tpl.imageData ? `url(${tpl.imageData})` : (tpl.kind==='ACC'?'#000':'#0b0b0c');
-  outer.style.backgroundSize = 'cover';
-  outer.style.backgroundPosition = 'center';
-  outer.style.color='#fff'; outer.style.position='relative';
-  if(tpl.showLogo){
-    const logo=localStorage.getItem(LS.LOGO);
-    const logoSize = tpl.logoStyles?.size || 64;
-    const logoMargin = tpl.logoStyles?.margin || 10;
-    outer.innerHTML += logo? `<img src="${logo}" style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
-                           : `<div style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;color:#fff;font-weight:800;text-align:right">P</div>`;
-  }
-  const inner=document.createElement('div');
-  inner.innerHTML=renderTagInnerHTML(p,tpl);
-  inner.style.width='100%'; inner.style.height='100%';
-  outer.appendChild(inner);
-  return {node:outer, w, h};
-}
-function renderPreview(item,tpl){
-  const box=$('#previewBox'); box.innerHTML='';
-  if(!item || !tpl){ box.innerHTML='<div class="text-zinc-500">No items or template selected</div>'; return; }
-  const {node,w,h}=buildPreviewTag(item,tpl);
-  node.style.transformOrigin='top left';
-  const holder=document.createElement('div');
-  holder.style.position='relative';
-  holder.appendChild(node);
-  box.appendChild(holder);
-  function fit(){
-    const availW=box.clientWidth;
-    const availH=box.clientHeight;
-    const scale=Math.max(0.1, Math.min(availW/w, availH/h));
-    node.style.transform=`scale(${scale})`;
-    holder.style.width=(w*scale)+'px';
-    holder.style.height=(h*scale)+'px';
-    holder.style.margin='auto';
-  }
-  fit();
-  const ro = new ResizeObserver(()=>fit()); ro.observe(box);
-}
-function openPrintTab(list,tpl){
-  const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
-  if(!items.length){ alert('Select at least one SKU.'); return; }
-  const w=window.open('', '_blank');
-  if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
-  const logo=localStorage.getItem(LS.LOGO)||'';
-  let cols=1, rows=1, pad='8mm', pageSize='A4';
-
-  // แก้ไข: ปรับการตั้งค่าสำหรับเทมเพลต IMAGE เพื่อให้เต็มหน้ากระดาษ A4
-  if(tpl.kind === 'IMAGE') {
-      cols = 1;
-      rows = 1;
-      pad = '0mm'; // ไม่มี padding เพื่อให้รูปภาพเต็มหน้ากระดาษ
-      pageSize = 'A4';
-  } else if(tpl.kind==='A4'){
-      cols=1; rows=1; pad='10mm'; pageSize='A4';
-  } else if(tpl.kind==='A5'){
-      cols=2; rows=1; pad='10mm'; pageSize='A4 landscape';
-  } else if(tpl.kind==='A6'){
-      cols=2; rows=2; pad='8mm'; pageSize='A4';
-  } else {
-      cols=2; rows=6; pad='6mm'; pageSize='A4';
-  }
-
-  const style=`
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-      @page { size: ${pageSize}; margin: 0; }
-      html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; }
-      .sheet{ width: ${pageSize==='A4 landscape' ? '297mm' : '210mm'}; height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'}; margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; }
-      .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; position:relative; }
-      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
-      .logo{ position:absolute; }
-      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-    </style>
-  `;
-  const perSheet = cols*rows;
-  const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
-  const body = pages.map(pg=>{
-    const inner=pg.map(p=>{
-      let logoTag = '';
-      if(tpl.showLogo && logo) {
-        const logoSize = tpl.logoStyles?.size || 64;
-        const logoMargin = tpl.logoStyles?.margin || 10;
-        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
-      }
-      const content = renderTagInnerHTML(p, tpl);
-      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
-    }).join('');
-    return `<div class="sheet">${inner}</div>`;
-  }).join('');
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
-  w.document.close();
-  w.focus(); // Focus on the new window
-  w.print(); // Trigger print
-  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
-}
-
-/* ================= EVENTS BINDING ================= */
-function bindEvents() {
-  $('#btnCreateHost').addEventListener('click', async () => {
-    const pass = $('#setupPass').value;
-    const confirmPass = $('#setupPassConfirm').value;
-    if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
-    if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
-    const passwordHash = await hashPassword(pass);
-    const hostUser = {
-        username: 'host', passwordHash, role: 'Host',
-        channels: [...Channels], canSeeCosts: true, canPrint: true
-    };
-    setUsers([hostUser]);
-    $('#setupView').classList.add('hidden');
-    $('#loginView').classList.remove('hidden');
-    alert('Host account created successfully. Please log in.');
-  });
-  $('#btnLogin').addEventListener('click', login);
-  $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      if (!$('#loginView').classList.contains('hidden')) login();
-      if (!$('#setupView').classList.contains('hidden')) $('#btnCreateHost').click();
-    }
-  });
-  $('#btnNewProduct').addEventListener('click', () => openEditor());
-  $('#btnSettings').addEventListener('click',()=>openSettings('data'));
-  $('#btnPrintModal').addEventListener('click', () => {
-    if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown();
-    renderPreview(filteredProducts()[0], templates.find(t=>t.id===$('#printTemplate').value) || templates[0]); togglePrintModal(true);
-  });
-  ['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
-  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
-  $$('.set-tab').forEach(b=>b.addEventListener('click', ()=>openSettings(b.dataset.tab)));
-  $('#btnCloseEditor').addEventListener('click', closeEditor);
-  $('#btnSaveEd').addEventListener('click', saveEditor);
-  $('#btnClosePrintModal').addEventListener('click', () => togglePrintModal(false));
-  $('#btnOpenPrint').addEventListener('click', () => {
-    const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
-    const list=picks.map(sku=>products.find(p=>p.sku===sku)).filter(Boolean)
-                    .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
-    const tpl=templates.find(t=>t.id===$('#printTemplate').value) || templates[0];
-    openPrintTab(list,tpl);
-  });
-  window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
-}
-
-/* ================= STARTUP ================= */
-function init() {
-  bindEvents();
-  const users = allUsers();
-  if (users.length === 0) {
-    $('#setupView').classList.remove('hidden');
-  } else {
-    $('#loginView').classList.remove('hidden');
-    const last=localStorage.getItem(LS.LASTUSER)||'';
-    if(last) $('#loginUser').value=last;
-  }
-}
-
-init();
-</script>
-
-
-<!-- CloudOnly v3 inline -->
-<script>
-
-/*! CloudOnly v3 — 100% Cloud Storage (No localStorage persistence)
- *  - Replaces window.localStorage with an in-memory shim (session-only).
- *  - All data lives in GitHub Gist (pull for everyone, push only Host/Admin).
- *  - No reads/writes to the real localStorage.
- *  - Robust JSON checks; no CORS proxies.
- *  - Forces Narrow print margins for all print windows.
- *
- *  Drop this AFTER your app scripts (end of <body>).
- */
-(function(){
-  // =================== Config ===================
-  const DATA_FILENAME   = 'proplugin-data.json';
-  const POLL_MS_MIN     = 5000;
-  const POLL_MS_MAX     = 20000;
-  const SAVE_DEBOUNCE   = 1200;
-
-  // =================== In-Memory Stores ===================
-  const memStore = Object.create(null);     // replaces localStorage key/values
-  const memMeta  = { updatedAt: 0, sha: '' };
-  const memCreds = { gistId: '', token: '' };
-
-  // =================== localStorage Shim ===================
-  // Keep a copy to avoid accidental use
-  const _realLocal = window.localStorage;
-  // Replace with in-memory implementation
-  Object.defineProperty(window, 'localStorage', {
-    value: {
-      getItem(k){ return Object.prototype.hasOwnProperty.call(memStore, k) ? memStore[k] : null; },
-      setItem(k, v){
-        memStore[k] = String(v);
-        // react to special keys
-        if (k === 'CLOUD_GIST_ID') memCreds.gistId = String(v);
-        if (k === 'CLOUD_TOKEN')    memCreds.token  = String(v);
-        if (['PRODUCTS','USERS','TEMPLATES','DEALER_NAMES','LOGO'].includes(k)){
-          scheduleCloudSave();
-        }
-      },
-      removeItem(k){ delete memStore[k]; },
-      clear(){ for (const k of Object.keys(memStore)) delete memStore[k]; },
-      key(i){ return Object.keys(memStore)[i] || null; },
-      get length(){ return Object.keys(memStore).length; }
-    },
-    configurable: false,
-    writable: false
-  });
-
-  // Parse gist & token from URL (no persistence to disk)
-  (function seedFromURL(){
-    try{
-      const url = new URL(location.href);
-      const g = url.searchParams.get('gist');
-      const t = url.searchParams.get('token');
-      if (g) memCreds.gistId = g;
-      if (t) memCreds.token  = t;
-    }catch{}
-  })();
-
-  // =================== Helpers ===================
-  function dlog(...a){ try{ console.debug('[CloudOnly]', ...a);}catch{} }
-  function wlog(...a){ try{ console.warn('[CloudOnly]', ...a);}catch{} }
-  function elog(...a){ try{ console.error('[CloudOnly]', ...a);}catch{} }
-  const sleep = (ms)=> new Promise(r=>setTimeout(r, ms));
-
-  function getGistId(){ return memCreds.gistId || (memStore['CLOUD_GIST_ID']||''); }
-  function getToken(){  return memCreds.token  || (memStore['CLOUD_TOKEN']||''); }
-
-  function setRevMeta(ts, sha){
-    if (typeof ts === 'number') memMeta.updatedAt = ts;
-    if (typeof sha === 'string') memMeta.sha = sha;
-  }
-  function getRevMeta(){ return { ts: memMeta.updatedAt||0, sha: memMeta.sha||'' }; }
-
-  function tryParseJSON(text){
-    try{ return { ok:true, data: JSON.parse(text) }; }
-    catch(e){ return { ok:false, err:e, head: String(text).slice(0,200) }; }
-  }
-
-  async function gistRequest(method, path, body, token){
-    const headers = { 'Accept':'application/vnd.github+json' };
-    if (token) headers['Authorization'] = 'Bearer '+token;
-    if (body)  headers['Content-Type'] = 'application/json';
-
-    const res = await fetch('https://api.github.com' + path, {
-      method, headers, body: body ? JSON.stringify(body) : undefined, cache:'no-store'
-    });
-
-    const ct = (res.headers.get('content-type') || '').toLowerCase();
-    const text = await res.text();
-    if (!res.ok) throw new Error(`GitHub ${res.status} (${ct||'no-ct'}): ${text.slice(0,200)}`);
-    if (!ct.includes('application/json')) throw new Error(`Non-JSON from GitHub: ${text.slice(0,200)}`);
-    const parsed = tryParseJSON(text);
-    if (!parsed.ok) throw new Error(`Invalid JSON from GitHub: ${parsed.err?.message}\nHead: ${parsed.head}`);
-    return parsed.data;
-  }
-
-  async function cloudPullOnce(gistId, token){
-    if (!gistId) throw new Error('Missing Gist ID');
-    const gist = await gistRequest('GET', '/gists/'+gistId, null, token);
-    const file = gist.files && (gist.files[DATA_FILENAME] || gist.files[DATA_FILENAME.toUpperCase()]);
-    if (!file) throw new Error(`${DATA_FILENAME} not found in gist`);
-
-    let text;
-    if (file.truncated && file.raw_url){
-      const raw = await fetch(file.raw_url, { cache:'no-store' });
-      if (!raw.ok) throw new Error(`Raw fetch ${raw.status}: ` + await raw.text());
-      text = await raw.text();
-    } else {
-      text = file.content || '';
-    }
-    const parsed = tryParseJSON(text);
-    if (!parsed.ok) throw new Error(`Invalid JSON in ${DATA_FILENAME}: ${parsed.err?.message}\nHead: ${parsed.head}`);
-    const sha = (Array.isArray(gist.history) && gist.history[0] && gist.history[0].version) || '';
-    const remoteTs = Number(parsed.data.updatedAt || 0);
-    return { state: parsed.data, sha, remoteTs };
-  }
-
-  async function cloudSave(gistId, token){
-    if (!gistId) throw new Error('Missing Gist ID');
-    const state = (typeof window.getAppState === 'function') ? window.getAppState() : {};
-    state.updatedAt = Date.now();
-    const body = { files: { [DATA_FILENAME]: { content: JSON.stringify(state, null, 2) } } };
-    const res = await gistRequest('PATCH', '/gists/'+gistId, body, token);
-    const sha = (Array.isArray(res.history) && res.history[0] && res.history[0].version) || '';
-    setRevMeta(state.updatedAt, sha);
-    if (typeof window.log === 'function') { try { window.log('cloud_save', gistId); } catch {} }
-    return { sha, ts: state.updatedAt };
-  }
-
-  function isPrivileged(){
-    try{
-      if (window.currentUser && (window.currentUser.role === 'Host' || window.currentUser.role === 'Admin')) return true;
-      const users = JSON.parse(memStore['USERS'] || '[]');
-      const last  = memStore['LASTUSER'] || '';
-      const u = users.find(x => x && (x.username === last || x.name === last));
-      return !!(u && (u.role === 'Host' || u.role === 'Admin'));
-    }catch{}
-    return false;
-  }
-
-  function fillMemStoreFromState(state){
-    // Project-specific keys
-    const m = {
-      PRODUCTS: state.PRODUCTS || state.products || [],
-      USERS:    state.USERS    || state.users    || [],
-      LOGO:     state.LOGO     || state.logo     || null,
-      TEMPLATES:state.TEMPLATES|| state.templates|| [],
-      DEALER_NAMES: state.DEALER_NAMES || state.dealerNames || { T1:'T1', T2:'T2', T3:'T3' },
-      LOGS:     state.LOGS     || state.logs     || []
-    };
-    for (const [k,v] of Object.entries(m)){
-      memStore[k] = JSON.stringify(v);
     }
   }
 
-  // =================== Realtime Engine ===================
-  let pollMs = POLL_MS_MIN;
-  let pollStop = false;
+  $('#btnAddDemo').addEventListener('click', ()=>{
+    const n = (appData.products?.length || 0) + 1;
+    appData.products.push({ sku: 'SKU' + String(n).padStart(4,'0'), name: 'Demo Item ' + n, price: 100*n });
+    renderProducts();
+    scheduleAutoSave();
+  });
 
-  async function realtimePullLoop(){
-    while(!pollStop){
-      const gid = getGistId();
-      if (!gid){ await sleep(pollMs); continue; }
-      try{
-        const { state, sha, remoteTs } = await cloudPullOnce(gid, getToken());
-        const local = getRevMeta();
-        if ((remoteTs && remoteTs > local.ts) || (sha && sha !== local.sha)){
-          console.debug('[CloudOnly] Remote newer → apply');
-          fillMemStoreFromState(state);
-          if (typeof window.setAppState === 'function') window.setAppState(state);
-          setRevMeta(remoteTs || Date.now(), sha);
-          if (typeof window.renderTable === 'function') window.renderTable();
-        }
-        pollMs = Math.max(POLL_MS_MIN, Math.floor(pollMs * 0.75));
-      } catch(e){
-        console.warn('[CloudOnly] Pull failed:', e.message);
-        pollMs = Math.min(POLL_MS_MAX, Math.floor(pollMs * 1.5));
-      }
-      await sleep(pollMs);
-    }
-  }
+  $('#btnSaveNow').addEventListener('click', async ()=>{
+    try{ await cloudSave(); alert('บันทึกขึ้นคลาวด์แล้ว'); }
+    catch(e){ alert('บันทึกไม่สำเร็จ: ' + e.message); }
+  });
 
-  let saveTimer = null;
-  function scheduleCloudSave(delay = SAVE_DEBOUNCE){
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      try{
-        const gid = getGistId();
-        if (!gid) return;
-        if (!isPrivileged()) return;
-        await cloudSave(gid, getToken());
-        pollMs = POLL_MS_MIN;
-      }catch(e){
-        console.warn('[CloudOnly] Autosave failed:', e.message);
-      }
-    }, delay);
-  }
+  // -----------------------------
+  // Boot
+  // -----------------------------
+  function boot(){ ensureCloudBoot().catch(e=>console.error(e)); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot, {once:true});
+  else boot();
+  window.addEventListener('pageshow', ()=>ensureCloudBoot(), {passive:true});
 
-  // =================== Narrow Print for all templates ===================
-  function buildNarrowStyle(){
-    const s = document.createElement('style');
-    s.setAttribute('data-cloudonly-narrow', 'true');
-    s.textContent = `@media print{ @page { margin: 12.7mm !important; } html,body{ margin:0 !important; padding:0 !important; } .sheet{ width: calc(var(--page-width,210mm) - 25.4mm) !important; height: calc(var(--page-height,297mm) - 25.4mm) !important; margin: 0 auto !important; } }`;
-    return s;
-  }
-  function injectNarrowStyles(doc){
-    try{
-      if (!doc || !doc.head) return;
-      if (!doc.head.querySelector('style[data-cloudonly-narrow]')){
-        doc.head.appendChild(buildNarrowStyle());
-      }
-    }catch{}
-  }
-  try{ injectNarrowStyles(document); }catch{}
-  (function patchWindowOpen(){
-    try{
-      const _open = window.open.bind(window);
-      window.open = function(){
-        const w = _open(...arguments);
-        try{
-          injectNarrowStyles(w.document);
-          w.addEventListener('load', ()=> injectNarrowStyles(w.document), { once:true });
-          const iv = setInterval(()=>{ try{ injectNarrowStyles(w.document);}catch{} }, 300);
-          w.addEventListener('beforeunload', ()=> clearInterval(iv));
-        }catch{}
-        return w;
-      };
-    }catch(e){ console.warn('[CloudOnly] patchWindowOpen failed', e); }
-  })();
-
-  // =================== Bootstrap ===================
-  (async function start(){
-    // If USERS empty but gist present → load state from cloud
-    try{
-      const users = JSON.parse(memStore['USERS'] || '[]');
-      const gid = getGistId();
-      if (users.length === 0 && gid){
-        const { state, sha, remoteTs } = await cloudPullOnce(gid, getToken());
-        fillMemStoreFromState(state);
-        if (typeof window.setAppState === 'function') window.setAppState(state);
-        setRevMeta(remoteTs || Date.now(), sha);
-      }
-    }catch(e){ console.warn('[CloudOnly] Bootstrap pull failed:', e.message); }
-
-    // Start realtime pull for everyone
-    realtimePullLoop();
-
-    console.debug('[CloudOnly] v3 running (no localStorage persistence)');
-  })();
-
-  // Debug helpers
-  window.CloudOnly = {
-    state(){ return (typeof window.getAppState==='function') ? window.getAppState() : {}; },
-    mem(){ return { memStore: JSON.parse(JSON.stringify(memStore)), meta: JSON.parse(JSON.stringify(memMeta)) }; },
-    pullNow: async function(){ const { state, sha, remoteTs } = await cloudPullOnce(getGistId(), getToken()); fillMemStoreFromState(state); if (typeof window.setAppState==='function') window.setAppState(state); setRevMeta(remoteTs||Date.now(), sha); if (typeof window.renderTable==='function') window.renderTable(); },
-    saveNow: async function(){ if (!isPrivileged()) throw new Error('Not privileged'); await cloudSave(getGistId(), getToken()); }
-  };
-})();
-
-</script>
-<!-- CloudOnly v3 inline -->
+  </script>
 </body>
 </html>
