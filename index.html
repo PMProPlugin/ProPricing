@@ -3,42 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Price Tag Management — Cloud Only</title>
-  <!-- Tailwind via CDN -->
+  <title>Price Tag Management - Cloud Only</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- XLSX -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
   <style>
-    :root { --accent: #16a34a; }
-    html, body { font-family: 'Kanit', 'Prompt', system-ui, -apple-system, sans-serif; }
-    /* Hide number input arrows */
+    html, body { font-family: 'Kanit','Prompt',system-ui,-apple-system,sans-serif; }
     input[type=number]::-webkit-outer-spin-button,
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance:textfield; }
-    </style>
-  <script>
-    // Global error hooks to surface silent failures on first page
-    window.addEventListener('error', (e)=>{
-      const loc = `${e.filename||''}:${e.lineno||''}:${e.colno||''}`;
-      const msg = (e?.error?.stack || e?.error?.message || e.message || 'unknown');
-      alert(`Script error at ${loc}
-${msg}`);
-      console.error(e.error||e);
+  </style>
+  <script type="text/javascript">
+    'use strict';
+    // Basic error surfaces
+    window.addEventListener('error', function(e){
+      var loc = (e.filename||'')+':' + (e.lineno||'') + ':' + (e.colno||'');
+      var msg = (e && e.error && e.error.stack) ? e.error.stack : (e && e.error && e.error.message) ? e.error.message : (e && e.message) ? e.message : 'unknown';
+      alert('Script error at ' + loc + '
+' + msg);
+      try { console.error(e.error||e); } catch(_) {}
     });
-    window.addEventListener('unhandledrejection', (e)=>{
-      const r = e?.reason;
-      const msg = (r && (r.stack||r.message)) || JSON.stringify(r) || 'unknown';
-      alert('Unhandled error: '+ msg);
-      console.error(e);
+    window.addEventListener('unhandledrejection', function(e){
+      var r = e && e.reason; var msg = (r && (r.stack||r.message)) ? (r.stack||r.message) : (r!==undefined? String(r): 'unknown');
+      alert('Unhandled error: ' + msg);
+      try { console.error(e); } catch(_) {}
     });
   </script>
 </head>
 <body class="bg-zinc-900 text-zinc-100">
-  <!-- ===== Views: Cloud Setup / Login / App ===== -->
   <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
     <!-- Cloud Setup -->
     <section id="cloudSetupView" class="rounded-2xl border border-zinc-800 p-6 bg-zinc-950">
@@ -56,7 +50,7 @@ ${msg}`);
         <button id="btnCreateGist" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Create New Gist</button>
         <button id="btnLoadGist" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700">Load from Existing Gist</button>
       </div>
-      <p class="text-xs text-zinc-400 mt-3">* ระบบจะจำ Token และ Gist ID ไว้เฉพาะแท็บ (sessionStorage) เพื่อไม่ต้องกด Load ซ้ำ — ข้อมูลจริงทั้งหมดถูกเก็บใน GitHub Gist เท่านั้น</p>
+      <p class="text-xs text-zinc-400 mt-3">ระบบจะจำ Token และ Gist ID ไว้เฉพาะแท็บ (sessionStorage) ข้อมูลจริงเก็บบน GitHub Gist</p>
     </section>
 
     <!-- Login -->
@@ -73,12 +67,11 @@ ${msg}`);
       <div class="flex items-center gap-3 mt-4">
         <button id="btnSignIn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Sign in</button>
       </div>
-      <p class="text-xs text-zinc-400 mt-2">ถ้ายังไม่มีผู้ใช้ ระบบจะสร้าง <b>host / host123</b> ให้โดยอัตโนมัติ</p>
+      <p class="text-xs text-zinc-400 mt-2">ถ้ายังไม่มีผู้ใช้ ระบบจะสร้าง host / host123 ให้โดยอัตโนมัติ</p>
     </section>
 
     <!-- App View -->
     <section id="appView" class="hidden">
-      <!-- Header -->
       <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-2xl bg-emerald-600 grid place-items-center font-bold">PP</div>
@@ -104,7 +97,6 @@ ${msg}`);
         </div>
       </header>
 
-      <!-- Table -->
       <div class="mt-4 rounded-2xl border border-zinc-800 overflow-hidden">
         <div class="overflow-x-auto">
           <table class="min-w-[1080px] w-full text-sm">
@@ -125,7 +117,6 @@ ${msg}`);
                 <th class="px-3 py-2">Dealer T3</th>
                 <th class="px-3 py-2">Actions</th>
               </tr>
-              <!-- Per-column filters row -->
               <tr class="border-t border-zinc-800">
                 <th class="px-3 py-1"><input data-col="sku" class="col-filter w-36 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
                 <th class="px-3 py-1"><input data-col="brand" class="col-filter w-32 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
@@ -223,7 +214,6 @@ ${msg}`);
         <button class="w-full text-left px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="closeSettings()">Close</button>
       </aside>
       <section class="col-span-12 md:col-span-9 rounded-2xl bg-zinc-950 border border-zinc-800 p-4 overflow-y-auto">
-        <!-- Manage Data -->
         <div id="tab-data" class="tab hidden">
           <h3 class="text-xl font-semibold mb-3">Master Data (no Promotion/Expire columns)</h3>
           <div class="flex flex-wrap gap-2 mb-3">
@@ -231,10 +221,9 @@ ${msg}`);
             <button class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="document.getElementById('importMasterFile').click()">Import Master File (.xlsx)</button>
             <button class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="exportMaster()">Export Master File</button>
           </div>
-          <p class="text-sm text-zinc-400">ไฟล์ Master จะ <b>ไม่มี</b> Promotion Price และ Expire Date ตามที่ต้องการ</p>
+          <p class="text-sm text-zinc-400">ไฟล์ Master จะไม่มี Promotion และ Expire</p>
         </div>
 
-        <!-- Manage Promotion -->
         <div id="tab-promo" class="tab hidden">
           <h3 class="text-xl font-semibold mb-3">Promotion Data (SKU, Description, Normal, Promotion, Expire)</h3>
           <div class="flex flex-wrap gap-2 mb-3">
@@ -242,13 +231,12 @@ ${msg}`);
             <button class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="document.getElementById('importPromoFile').click()">Import Promotion File (.xlsx)</button>
             <button class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="exportPromotion()">Export Promotion File</button>
           </div>
-          <p class="text-sm text-zinc-400">ใช้เพื่อบริหารโปรโมชั่นแยกจาก Master · UI หน้ายังคงเหมือนเดิม</p>
+          <p class="text-sm text-zinc-400">ใช้เพื่อบริหารโปรโมชั่นแยกจาก Master (UI ยังเหมือนเดิม)</p>
         </div>
 
-        <!-- Report -->
         <div id="tab-report" class="tab hidden">
           <h3 class="text-xl font-semibold mb-3">Report: Promotion Expired</h3>
-          <p class="text-sm text-zinc-400 mb-2">รายการที่โปรโมชั่นหมดอายุ (ก่อนหรือเท่ากับวันนี้) จะปรับกลับเป็นราคาปกติอัตโนมัติเมื่อโหลด/บันทึกข้อมูล</p>
+          <p class="text-sm text-zinc-400 mb-2">เมื่อโหลด/บันทึก ระบบจะปรับโปรที่หมดอายุกลับเป็นราคาปกติอัตโนมัติ</p>
           <div class="flex items-center gap-2 mb-3">
             <button class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="refreshExpireReport()">Refresh</button>
             <button class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="exportExpireReport()">Export CSV</button>
@@ -272,149 +260,88 @@ ${msg}`);
     </div>
   </div>
 
-  <script>
-  /********************
-   * State & Defaults *
-   ********************/
-  const SKEY_TOKEN = 'pp_cloud_token_v2';
-  const SKEY_GIST  = 'pp_cloud_gist_id_v2';
-  const SKEY_LOADED = 'pp_gist_loaded_v2';
+  <script type="text/javascript">
+  'use strict';
+  // Keys stored only in sessionStorage
+  var SKEY_TOKEN = 'pp_cloud_token_v2';
+  var SKEY_GIST  = 'pp_cloud_gist_id_v2';
+  var SKEY_LOADED = 'pp_gist_loaded_v2';
+  var GIST_FILENAME = 'proplugin-data.json';
 
-  let appData = {
+  // State
+  var appData = {
     products: [
       { sku:'SKU-1001', brand:'Acme', category:'Cable', description:'Mic Cable 3m', details:['XLR','OFHC'], costs:120, normal:199, promotion:179, expire:'2025-12-31', marketplace:189, dealerT1:170, dealerT2:165, dealerT3:160 },
-      { sku:'SKU-1002', brand:'Acme', category:'Adapter', description:'3.5mm to 6.35mm', details:['Gold'], costs:40, normal:79, promotion:null, expire:'', marketplace:75, dealerT1:70, dealerT2:68, dealerT3:65 },
+      { sku:'SKU-1002', brand:'Acme', category:'Adapter', description:'3.5mm to 6.35mm', details:['Gold'], costs:40, normal:79, promotion:null, expire:'', marketplace:75, dealerT1:70, dealerT2:68, dealerT3:65 }
     ],
     users: [
       { username:'host', password:'host123', role:'Host', canSeeCosts:true, canPrint:true, channels:['Flagship','Marketplace','Dealer'] },
       { username:'admin', password:'admin123', role:'Admin', canSeeCosts:true, canPrint:true, channels:['Flagship','Marketplace','Dealer'] },
-      { username:'staff', password:'staff123', role:'Staff', canSeeCosts:false, canPrint:true, channels:['Flagship'] },
+      { username:'staff', password:'staff123', role:'Staff', canSeeCosts:false, canPrint:true, channels:['Flagship'] }
     ],
-    logo: '',
-    logs: [],
-    templates: { default: 'A4' }
+    logo: '', logs: [], templates: { default:'A4' }
   };
+  var currentUser = null; var gistConnected = false; var page=1, pageSize=10;
+  var colFilters = { sku:'', brand:'', category:'', description:'', details:'', costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
 
-  let currentUser = null;
-  let gistConnected = false;
-  let page = 1, pageSize = 10;
-  const colFilters = { sku:'', brand:'', category:'', description:'', details:'', costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
+  // Dom helpers
+  function $(sel){ return document.querySelector(sel); }
+  function $$(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
 
-  /********************
-   * Utilities        *
-   ********************/
-  const $ = sel => document.querySelector(sel);
-  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  // Utils
+  function fmt(n){ if(n===null||n===undefined||n==='') return ''; var x=Number(n); return isFinite(x)? x.toLocaleString('en-US',{minimumFractionDigits:0, maximumFractionDigits:2}) : n; }
+  function todayStr(){ var d=new Date(); var m=String(d.getMonth()+1); if(m.length<2)m='0'+m; var dd=String(d.getDate()); if(dd.length<2)dd='0'+dd; return d.getFullYear()+'-'+m+'-'+dd; }
+  function parseDate(s){ if(!s) return null; var t=new Date(s); return isNaN(t)? null : t; }
+  function csvEscape(v){ if(v==null) return ''; var s=String(v); var need=(s.indexOf('"')>-1)||(s.indexOf(',')>-1)||(s.indexOf('
+')>-1)||(s.indexOf('
+')>-1); var doubled=s.split('"').join('""'); return need? '"'+doubled+'"' : s; }
 
-  function fmt(n){ if(n===null||n===undefined||n==='') return ''; const x = Number(n); return isFinite(x) ? x.toLocaleString('en-US',{minimumFractionDigits:0, maximumFractionDigits:2}) : n; }
-  function todayStr(){ const d = new Date(); const m = (d.getMonth()+1+'').padStart(2,'0'); const dd = (d.getDate()+'').padStart(2,'0'); return `${d.getFullYear()}-${m}-${dd}`; }
-  function parseDate(s){ if(!s) return null; const t = new Date(s); return isNaN(t) ? null : t; }
-  function csvEscape(v){
-    if(v==null) return '';
-    const s = String(v);
-    const needQuote = s.includes('"') || s.includes(',') || s.includes('
-') || s.includes('
-');
-    const doubled = s.split('"').join('""');
-    return needQuote ? '"'+doubled+'"' : s;
-  }
-
-  function saveSessionCreds(token, gist){ sessionStorage.setItem(SKEY_TOKEN, token); sessionStorage.setItem(SKEY_GIST, gist); }
+  function saveSessionCreds(token,gist){ sessionStorage.setItem(SKEY_TOKEN, token); sessionStorage.setItem(SKEY_GIST, gist); }
   function getToken(){ return sessionStorage.getItem(SKEY_TOKEN)||''; }
   function getGist(){ return sessionStorage.getItem(SKEY_GIST)||''; }
 
-  function addLog(msg){ appData.logs.push({ ts:new Date().toISOString(), msg }); }
-
-  /********************
-   * View Switching   *
-   ********************/
-  function show(view){
-    $('#cloudSetupView').classList.add('hidden');
-    $('#loginView').classList.add('hidden');
-    $('#appView').classList.add('hidden');
-    $(view).classList.remove('hidden');
-  }
+  function show(view){ $('#cloudSetupView').classList.add('hidden'); $('#loginView').classList.add('hidden'); $('#appView').classList.add('hidden'); $(view).classList.remove('hidden'); }
 
   function initStart(){
-    const token = getToken();
-    const gist = getGist();
+    var token=getToken(), gist=getGist();
     if(token && gist){
-      gistConnected = true;
-      cloudLoad().then(()=>{
-        sessionStorage.setItem(SKEY_LOADED, '1');
-        show('#loginView');
-        $('#loginUser').focus();
-      }).catch((e)=>{
-        console.error(e);
-        // ยังเข้า Login ได้ด้วยข้อมูลดีฟอลต์
-        show('#loginView');
-        $('#loginUser').focus();
-      });
-    } else {
-      show('#cloudSetupView');
-    }
+      gistConnected=true;
+      cloudLoad().then(function(){ sessionStorage.setItem(SKEY_LOADED,'1'); show('#loginView'); $('#loginUser').focus(); })
+                 .catch(function(){ show('#loginView'); $('#loginUser').focus(); });
+    } else { show('#cloudSetupView'); }
   }
 
-  /********************
-   * GitHub Gist API  *
-   ********************/
-  const GIST_FILENAME = 'proplugin-data.json';
-
-  async function gistRequest(path, opts={}){
-    const token = getToken() || $('#ghToken')?.value?.trim();
-    const headers = Object.assign({
-      'Accept':'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28'
-    }, opts.headers||{});
-    if(token) headers['Authorization'] = `Bearer ${token}`;
-    if(opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    const res = await fetch(`https://api.github.com${path}`, { ...opts, headers });
-    if(!res.ok){
-      const t = await res.text().catch(()=> '');
-      throw new Error(`Gist API ${res.status}: ${t}`);
-    }
+  // GitHub API
+  async function gistRequest(path, opts){
+    opts = opts || {}; var token = getToken() || ($('#ghToken')? $('#ghToken').value.trim(): '');
+    var headers = { 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' };
+    if(opts.headers){ for(var k in opts.headers){ headers[k]=opts.headers[k]; } }
+    if(token) headers['Authorization']='Bearer '+token;
+    if(opts.body && !headers['Content-Type']) headers['Content-Type']='application/json';
+    var res = await fetch('https://api.github.com'+path, { method:opts.method||'GET', headers:headers, body:opts.body||undefined });
+    if(!res.ok){ var t=''; try{ t=await res.text(); }catch(_){} throw new Error('Gist API '+res.status+': '+t); }
     return res.json();
   }
 
   async function fetchGistContent(gistId){
-    // ดึงเนื้อหาไฟล์จาก API โดยตรง (ไม่อาศัย raw_url เพื่อหลีกเลี่ยงปัญหา private gist)
-    const meta = await gistRequest(`/gists/${gistId}`);
-    let f = meta.files[GIST_FILENAME];
-    if(!f) throw new Error(`${GIST_FILENAME} not found in gist`);
+    var meta = await gistRequest('/gists/'+gistId);
+    var f = meta.files[GIST_FILENAME];
+    if(!f) throw new Error(GIST_FILENAME+' not found in gist');
     if(f.content && !f.truncated) return f.content;
-    // ถ้าถูกตัด ให้ลองไล่ตาม history ทีละเวอร์ชันจนเจอที่ไม่ truncated
     if(Array.isArray(meta.history)){
-      for(const h of meta.history){
-        const snap = await gistRequest(`/gists/${gistId}/${h.version}`);
-        const ff = snap.files[GIST_FILENAME];
+      for(var i=0;i<meta.history.length;i++){
+        var h = meta.history[i];
+        var snap = await gistRequest('/gists/'+gistId+'/'+h.version);
+        var ff = snap.files[GIST_FILENAME];
         if(ff && ff.content && !ff.truncated) return ff.content;
       }
     }
-    // สุดท้าย พยายามดึงจาก raw_url (อาจใช้ได้ในบางกรณี)
     if(f.raw_url){
-      const token = getToken();
-      const res = await fetch(f.raw_url, token? { headers:{ 'Authorization': `Bearer ${token}` } } : {});
+      var token = getToken();
+      var res = await fetch(f.raw_url, token? { headers:{ 'Authorization':'Bearer '+token } } : {});
       if(res.ok) return await res.text();
     }
     throw new Error('Cannot read gist file content');
-  }
-
-  async function cloudCreateGist(){
-    const token = $('#ghToken').value.trim();
-    if(!token) return alert('กรุณาใส่ GitHub Token');
-    const body = {
-      description: 'ProPlugin price tag data',
-      public: false,
-      files: { [GIST_FILENAME]: { content: JSON.stringify(appData, null, 2) } }
-    };
-    sessionStorage.setItem(SKEY_TOKEN, token);
-    const data = await gistRequest('/gists', { method:'POST', body: JSON.stringify(body) });
-    sessionStorage.setItem(SKEY_GIST, data.id);
-    gistConnected = true;
-    await cloudLoad();
-    sessionStorage.setItem(SKEY_LOADED, '1');
-    show('#loginView');
-    $('#loginUser').focus();
   }
 
   function ensureUsers(){
@@ -423,390 +350,149 @@ ${msg}`);
     }
   }
 
-  async function cloudSave(){
-    if(!gistConnected) return;
-    const gist = getGist();
-    const body = { files: { [GIST_FILENAME]: { content: JSON.stringify(appData) } } };
-    await gistRequest(`/gists/${gist}`, { method:'PATCH', body: JSON.stringify(body) });
-    addLog('cloudSave');
+  async function cloudCreateGist(){
+    var token = $('#ghToken').value.trim(); if(!token){ alert('Please enter GitHub Token'); return; }
+    var body = { description:'ProPlugin price tag data', public:false, files:{} }; body.files[GIST_FILENAME] = { content: JSON.stringify(appData, null, 2) };
+    sessionStorage.setItem(SKEY_TOKEN, token);
+    var data = await gistRequest('/gists', { method:'POST', body: JSON.stringify(body) });
+    sessionStorage.setItem(SKEY_GIST, data.id);
+    gistConnected = true; await cloudLoad(); sessionStorage.setItem(SKEY_LOADED,'1'); show('#loginView'); $('#loginUser').focus();
   }
+
+  async function cloudSave(){ if(!gistConnected) return; var gist=getGist(); var body={ files:{} }; body.files[GIST_FILENAME]={ content: JSON.stringify(appData) }; await gistRequest('/gists/'+gist, { method:'PATCH', body: JSON.stringify(body) }); }
 
   async function cloudLoad(){
-    const gist = $('#gistId').value.trim() || getGist();
-    const token = $('#ghToken').value.trim() || getToken();
-    if(!gist || !token) throw new Error('missing creds: กรุณาใส่ Token และ Gist ID');
+    var gist = $('#gistId').value.trim() || getGist(); var token = $('#ghToken').value.trim() || getToken();
+    if(!gist || !token) throw new Error('Missing Token or Gist ID');
     saveSessionCreds(token, gist);
-    const content = await fetchGistContent(gist);
-    let parsed;
-    try { parsed = JSON.parse(content); }
-    catch(e){ throw new Error('Invalid JSON ในไฟล์ Gist — กรุณาตรวจรูปแบบ'); }
+    var content = await fetchGistContent(gist);
+    var parsed; try{ parsed = JSON.parse(content); } catch(e){ throw new Error('Invalid JSON in gist'); }
     appData = Object.assign({ products:[], users:[] }, parsed);
-    ensureUsers();
-    applyPromoExpiry();
-    gistConnected = true;
-    await cloudSave();
-    return true;
+    ensureUsers(); applyPromoExpiry(); gistConnected=true; await cloudSave(); return true;
   }
 
-  /********************
-   * Auth             *
-   ********************/
+  // Auth
   function signIn(){
-    const u = $('#loginUser').value.trim();
-    const p = $('#loginPass').value.trim();
-    const user = (appData.users||[]).find(x=>x.username===u && String(x.password)===p);
+    var u=$('#loginUser').value.trim(); var p=$('#loginPass').value.trim();
+    var user = (appData.users||[]).find(function(x){ return x.username===u && String(x.password)===p; });
     if(!user){ alert('Invalid credentials'); return; }
-    currentUser = user;
-    $('#roleBadge').textContent = user.role||'User';
-    updateChannelVisibility();
-    renderTable();
-    show('#appView');
+    currentUser = user; $('#roleBadge').textContent = user.role||'User'; updateChannelVisibility(); renderTable(); show('#appView');
   }
+  function signOut(){ currentUser=null; show('#loginView'); $('#loginUser').focus(); }
 
-  function signOut(){
-    currentUser = null;
-    // คง Token+Gist ใน sessionStorage เพื่อไม่ต้อง Load ใหม่
-    show('#loginView');
-    $('#loginUser').focus();
-  }
-
-  /********************
-   * Filters + Table  *
-   ********************/
-  function updateChannelVisibility(){
-    const ch = $('#channelSelect').value;
-    $('#flagshipStart').classList.toggle('hidden', ch!=='Flagship');
-    $('#flagshipEnd').classList.toggle('hidden', ch!=='Flagship');
-  }
-
-  function applyPromoExpiry(){
-    const today = parseDate(todayStr());
-    const expiredList = [];
-    for(const p of appData.products||[]){
-      const exp = parseDate(p.expire);
-      if(p.promotion!=null && p.promotion!=='' && exp && exp <= today){
-        expiredList.push({ sku:p.sku, description:p.description, normal:p.normal, promotion:p.promotion, expire:p.expire });
-        p.promotion = null; p.expire = '';
-      }
-    }
-    appData._expiredReport = expiredList;
-  }
-
+  // Filters and table
+  function updateChannelVisibility(){ var ch=$('#channelSelect').value; $('#flagshipStart').classList.toggle('hidden', ch!=='Flagship'); $('#flagshipEnd').classList.toggle('hidden', ch!=='Flagship'); }
+  function applyPromoExpiry(){ var today=parseDate(todayStr()); var expired=[]; (appData.products||[]).forEach(function(p){ var exp=parseDate(p.expire); if(p.promotion!=null && p.promotion!=='' && exp && exp<=today){ expired.push({sku:p.sku,description:p.description,normal:p.normal,promotion:p.promotion,expire:p.expire}); p.promotion=null; p.expire=''; } }); appData._expiredReport=expired; }
   function passesFilters(p){
-    function contains(a,b){ return (a??'').toString().toLowerCase().includes((b??'').toString().toLowerCase()); }
-    function geq(num, th){ if(th===''||th==null) return true; const n = Number(num); const t = Number(th); if(isNaN(t)) return true; return Number.isFinite(n) ? n>=t : true; }
-
-    if(colFilters.sku && !contains(p.sku, colFilters.sku)) return false;
-    if(colFilters.brand && !contains(p.brand, colFilters.brand)) return false;
-    if(colFilters.category && !contains(p.category, colFilters.category)) return false;
-    if(colFilters.description && !contains(p.description, colFilters.description)) return false;
+    function contains(a,b){ a=(a==null?'':String(a)).toLowerCase(); b=(b==null?'':String(b)).toLowerCase(); return a.indexOf(b)>-1; }
+    function geq(num,th){ if(th===''||th==null) return true; var n=Number(num); var t=Number(th); if(isNaN(t)) return true; return isFinite(n)? n>=t : true; }
+    if(colFilters.sku && !contains(p.sku,colFilters.sku)) return false;
+    if(colFilters.brand && !contains(p.brand,colFilters.brand)) return false;
+    if(colFilters.category && !contains(p.category,colFilters.category)) return false;
+    if(colFilters.description && !contains(p.description,colFilters.description)) return false;
     if(colFilters.details && !contains((p.details||[]).join(','), colFilters.details)) return false;
     if(!geq(p.costs, colFilters.costs)) return false;
     if(!geq(p.normal, colFilters.normal)) return false;
     if(!geq(p.promotion, colFilters.promotion)) return false;
-    if(colFilters.expire){ const ed = parseDate(p.expire); const flt = parseDate(colFilters.expire); if(!(ed && flt && ed >= flt)) return false; }
+    if(colFilters.expire){ var ed=parseDate(p.expire); var flt=parseDate(colFilters.expire); if(!(ed && flt && ed>=flt)) return false; }
     if(!geq(p.marketplace, colFilters.marketplace)) return false;
     if(!geq(p.dealerT1, colFilters.dealerT1)) return false;
     if(!geq(p.dealerT2, colFilters.dealerT2)) return false;
     if(!geq(p.dealerT3, colFilters.dealerT3)) return false;
-
-    const ch = $('#channelSelect').value;
-    if(ch==='Flagship'){
-      const s = $('#flagshipStart').value; const e = $('#flagshipEnd').value;
-      if(s){ const d = parseDate(p.expire); const ss = parseDate(s); if(!(d && d>=ss)) return false; }
-      if(e){ const d = parseDate(p.expire); const ee = parseDate(e); if(!(d && d<=ee)) return false; }
-    }
-    const q = $('#globalSearch').value.trim().toLowerCase();
-    if(q){
-      const hay = [p.sku, p.brand, p.category, p.description, (p.details||[]).join(',' )].join(' ').toLowerCase();
-      if(!hay.includes(q)) return false;
-    }
+    var ch=$('#channelSelect').value; if(ch==='Flagship'){ var s=$('#flagshipStart').value; var e=$('#flagshipEnd').value; if(s){ var d1=parseDate(p.expire); var s1=parseDate(s); if(!(d1 && d1>=s1)) return false; } if(e){ var d2=parseDate(p.expire); var e1=parseDate(e); if(!(d2 && d2<=e1)) return false; } }
+    var q=$('#globalSearch').value.trim().toLowerCase(); if(q){ var hay=[p.sku,p.brand,p.category,p.description,(p.details||[]).join(',')].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
   }
-
   function renderTable(){
-    applyPromoExpiry();
-    const canSeeCosts = currentUser?.canSeeCosts;
-
-    const all = (appData.products||[]).filter(p=>passesFilters(p));
-    const total = all.length;
-    const pages = Math.max(1, Math.ceil(total / pageSize));
-    if(page>pages) page = pages;
-    const slice = all.slice((page-1)*pageSize, page*pageSize);
-
-    const rows = slice.map(p=>{
-      const details = (p.details||[]).filter(Boolean).map(x=>`• ${x}`).join('<br>');
-      return `<tr>
-        <td class="px-3 py-2 align-top">${p.sku||''}</td>
-        <td class="px-3 py-2 align-top">${p.brand||''}</td>
-        <td class="px-3 py-2 align-top">${p.category||''}</td>
-        <td class="px-3 py-2 align-top font-medium">${p.description||''}</td>
-        <td class="px-3 py-2 align-top text-zinc-300">${details||''}</td>
-        <td class="px-3 py-2 align-top ${canSeeCosts?'':'opacity-30'}">${canSeeCosts? fmt(p.costs): '—'}</td>
-        <td class="px-3 py-2 align-top">${fmt(p.normal)}</td>
-        <td class="px-3 py-2 align-top font-semibold text-red-500">${p.promotion? fmt(p.promotion): ''}</td>
-        <td class="px-3 py-2 align-top font-semibold text-red-500">${p.expire||''}</td>
-        <td class="px-3 py-2 align-top">${fmt(p.marketplace)}</td>
-        <td class="px-3 py-2 align-top">${fmt(p.dealerT1)}</td>
-        <td class="px-3 py-2 align-top">${fmt(p.dealerT2)}</td>
-        <td class="px-3 py-2 align-top">${fmt(p.dealerT3)}</td>
-        <td class="px-3 py-2 align-top">
-          ${currentUser && (currentUser.role==='Host' || currentUser.role==='Admin') ? `
-          <button class="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" onclick="openEditor('${p.sku}')">Edit</button>
-          <button class="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 ml-1" onclick="deleteItem('${p.sku}')">Del</button>` : ''}
-        </td>
-      </tr>`;
+    applyPromoExpiry(); var canSeeCosts = (currentUser && currentUser.canSeeCosts);
+    var all=(appData.products||[]).filter(function(p){ return passesFilters(p); }); var total=all.length; var pages=Math.max(1, Math.ceil(total/pageSize)); if(page>pages) page=pages; var slice=all.slice((page-1)*pageSize, page*pageSize);
+    var rows = slice.map(function(p){ var details=(p.details||[]).filter(function(x){return !!x;}).map(function(x){return '• '+x;}).join('<br>');
+      return '<tr>'+
+        '<td class="px-3 py-2 align-top">'+(p.sku||'')+'</td>'+
+        '<td class="px-3 py-2 align-top">'+(p.brand||'')+'</td>'+
+        '<td class="px-3 py-2 align-top">'+(p.category||'')+'</td>'+
+        '<td class="px-3 py-2 align-top font-medium">'+(p.description||'')+'</td>'+
+        '<td class="px-3 py-2 align-top text-zinc-300">'+(details||'')+'</td>'+
+        '<td class="px-3 py-2 align-top '+(canSeeCosts? '' : 'opacity-30')+'">'+(canSeeCosts? fmt(p.costs): '—')+'</td>'+
+        '<td class="px-3 py-2 align-top">'+fmt(p.normal)+'</td>'+
+        '<td class="px-3 py-2 align-top font-semibold text-red-500">'+(p.promotion? fmt(p.promotion): '')+'</td>'+
+        '<td class="px-3 py-2 align-top font-semibold text-red-500">'+(p.expire||'')+'</td>'+
+        '<td class="px-3 py-2 align-top">'+fmt(p.marketplace)+'</td>'+
+        '<td class="px-3 py-2 align-top">'+fmt(p.dealerT1)+'</td>'+
+        '<td class="px-3 py-2 align-top">'+fmt(p.dealerT2)+'</td>'+
+        '<td class="px-3 py-2 align-top">'+fmt(p.dealerT3)+'</td>'+
+        '<td class="px-3 py-2 align-top">'+(currentUser && (currentUser.role==='Host' || currentUser.role==='Admin') ? ('<button class="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" onclick="openEditor(\''+p.sku+'\')">Edit</button><button class="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 ml-1" onclick="deleteItem(\''+p.sku+'\')">Del</button>') : '')+'</td>'+
+      '</tr>';
     }).join('');
-
-    $('#tableBody').innerHTML = rows || `<tr><td colspan="14" class="px-3 py-6 text-center text-zinc-400">No data</td></tr>`;
-    $('#paginationInfo').textContent = `Showing ${(page-1)*pageSize+1}-${Math.min(page*pageSize,total)} of ${total}`;
-
-    cloudSave().catch(()=>{});
+    $('#tableBody').innerHTML = rows || '<tr><td colspan="14" class="px-3 py-6 text-center text-zinc-400">No data</td></tr>';
+    $('#paginationInfo').textContent = 'Showing '+(((page-1)*pageSize)+1)+'-'+(Math.min(page*pageSize,total))+' of '+total;
+    cloudSave().catch(function(){});
   }
 
   function openEditor(sku){
-    const p = (appData.products||[]).find(x=>x.sku===sku) || { sku:'', brand:'', category:'', description:'', details:[], costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
-    $('#editorTitle').textContent = p.sku? `Edit: ${p.sku}` : 'Add Item';
-    $('#edSku').value = p.sku||'';
-    $('#edBrand').value = p.brand||'';
-    $('#edCategory').value = p.category||'';
-    $('#edDesc').value = p.description||'';
-    $('#edDetails').value = (p.details||[]).join(',');
-    $('#edCosts').value = p.costs||'';
-    $('#edNormal').value = p.normal||'';
-    $('#edPromo').value = p.promotion||'';
-    $('#edExpire').value = p.expire||'';
-    $('#edMarketplace').value = p.marketplace||'';
-    $('#edT1').value = p.dealerT1||'';
-    $('#edT2').value = p.dealerT2||'';
-    $('#edT3').value = p.dealerT3||'';
+    var p=(appData.products||[]).find(function(x){ return x.sku===sku; }) || { sku:'', brand:'', category:'', description:'', details:[], costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
+    $('#editorTitle').textContent = p.sku? ('Edit: '+p.sku) : 'Add Item';
+    $('#edSku').value=p.sku||''; $('#edBrand').value=p.brand||''; $('#edCategory').value=p.category||''; $('#edDesc').value=p.description||''; $('#edDetails').value=(p.details||[]).join(',');
+    $('#edCosts').value=p.costs||''; $('#edNormal').value=p.normal||''; $('#edPromo').value=p.promotion||''; $('#edExpire').value=p.expire||''; $('#edMarketplace').value=p.marketplace||''; $('#edT1').value=p.dealerT1||''; $('#edT2').value=p.dealerT2||''; $('#edT3').value=p.dealerT3||'';
     $('#editorModal').classList.remove('hidden');
   }
   function closeEditor(){ $('#editorModal').classList.add('hidden'); }
   function saveEditor(){
-    const obj = {
-      sku: $('#edSku').value.trim(),
-      brand: $('#edBrand').value.trim(),
-      category: $('#edCategory').value.trim(),
-      description: $('#edDesc').value.trim(),
-      details: $('#edDetails').value.split(',').map(s=>s.trim()).filter(Boolean),
-      costs: Number($('#edCosts').value)||'',
-      normal: Number($('#edNormal').value)||'',
-      promotion: $('#edPromo').value!=='' ? Number($('#edPromo').value) : null,
-      expire: $('#edExpire').value,
-      marketplace: Number($('#edMarketplace').value)||'',
-      dealerT1: Number($('#edT1').value)||'',
-      dealerT2: Number($('#edT2').value)||'',
-      dealerT3: Number($('#edT3').value)||'',
+    var obj = {
+      sku: $('#edSku').value.trim(), brand: $('#edBrand').value.trim(), category: $('#edCategory').value.trim(), description: $('#edDesc').value.trim(),
+      details: $('#edDetails').value.split(',').map(function(s){ return s.trim(); }).filter(function(x){return !!x;}),
+      costs: Number($('#edCosts').value)||'', normal: Number($('#edNormal').value)||'', promotion: $('#edPromo').value!=='' ? Number($('#edPromo').value): null,
+      expire: $('#edExpire').value, marketplace: Number($('#edMarketplace').value)||'', dealerT1: Number($('#edT1').value)||'', dealerT2: Number($('#edT2').value)||'', dealerT3: Number($('#edT3').value)||''
     };
-    if(!obj.sku) return alert('SKU is required');
-    const idx = (appData.products||[]).findIndex(x=>x.sku===obj.sku);
-    if(idx>=0) appData.products[idx] = obj; else (appData.products||[]).push(obj);
-    closeEditor();
-    renderTable();
+    if(!obj.sku){ alert('SKU is required'); return; }
+    var idx=(appData.products||[]).findIndex(function(x){ return x.sku===obj.sku; }); if(idx>=0) appData.products[idx]=obj; else appData.products.push(obj);
+    closeEditor(); renderTable();
   }
-  function deleteItem(sku){
-    if(!confirm('Delete this item?')) return;
-    const i = (appData.products||[]).findIndex(x=>x.sku===sku);
-    if(i>=0){ appData.products.splice(i,1); renderTable(); }
-  }
+  function deleteItem(sku){ if(!confirm('Delete this item?')) return; var i=(appData.products||[]).findIndex(function(x){ return x.sku===sku; }); if(i>=0){ appData.products.splice(i,1); renderTable(); } }
 
-  /********************
-   * Import / Export  *
-   ********************/
-  function exportXlsx(filename, rows){
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-    XLSX.writeFile(wb, filename);
-  }
+  // Import/Export
+  function exportXlsx(filename, rows){ var ws=XLSX.utils.json_to_sheet(rows); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1'); XLSX.writeFile(wb, filename); }
+  function exportMaster(){ var rows=(appData.products||[]).map(function(p){ return { SKU:p.sku, Brand:p.brand||'', Category:p.category||'', Description:p.description||'', Details:(p.details||[]).join(', '), Costs:p.costs||'', Normal:p.normal||'', Marketplace:p.marketplace||'', Dealer_T1:p.dealerT1||'', Dealer_T2:p.dealerT2||'', Dealer_T3:p.dealerT3||'' }; }); exportXlsx('Master_'+todayStr()+'.xlsx', rows); }
+  function exportPromotion(){ var rows=(appData.products||[]).map(function(p){ return { SKU:p.sku, Description:p.description||'', Normal:p.normal||'', Promotion:p.promotion||'', Expire:p.expire||'' }; }); exportXlsx('Promotion_'+todayStr()+'.xlsx', rows); }
+  function importFromSheetMaster(sheet){ var rows=XLSX.utils.sheet_to_json(sheet,{defval:''}); rows.forEach(function(r){ var sku=String(r.SKU||r.sku||'').trim(); if(!sku) return; var obj=(appData.products||[]).find(function(x){return x.sku===sku; }) || { sku:sku };
+      obj.brand=r.Brand||r.brand||obj.brand||''; obj.category=r.Category||r.category||obj.category||''; obj.description=r.Description||r.description||obj.description||''; var det=r.Details||r.details||''; obj.details=det? String(det).split(',').map(function(s){return s.trim();}).filter(function(x){return !!x;}):[]; obj.costs=r.Costs!==''? Number(r.Costs): (obj.costs||''); obj.normal=r.Normal!==''? Number(r.Normal): (obj.normal||''); obj.marketplace=r.Marketplace!==''? Number(r.Marketplace): (obj.marketplace||''); obj.dealerT1=r.Dealer_T1!==''? Number(r.Dealer_T1): (obj.dealerT1||''); obj.dealerT2=r.Dealer_T2!==''? Number(r.Dealer_T2): (obj.dealerT2||''); obj.dealerT3=r.Dealer_T3!==''? Number(r.Dealer_T3): (obj.dealerT3||''); var idx=(appData.products||[]).findIndex(function(x){return x.sku===sku;}); if(idx>=0) appData.products[idx]=obj; else appData.products.push(obj); }); }
+  function importFromSheetPromotion(sheet){ var rows=XLSX.utils.sheet_to_json(sheet,{defval:''}); rows.forEach(function(r){ var sku=String(r.SKU||r.sku||'').trim(); if(!sku) return; var obj=(appData.products||[]).find(function(x){return x.sku===sku; }) || { sku:sku, details:[] }; obj.description=r.Description||obj.description||''; if(r.Normal!=='' && r.Normal!=null) obj.normal=Number(r.Normal); obj.promotion=(r.Promotion!=='' && r.Promotion!=null)? Number(r.Promotion): null; obj.expire=r.Expire||''; var idx=(appData.products||[]).findIndex(function(x){return x.sku===sku;}); if(idx>=0) appData.products[idx]=obj; else appData.products.push(obj); }); }
+  function handleFileImport(file, kind){ var reader=new FileReader(); reader.onload=function(e){ var data=new Uint8Array(e.target.result); var wb=XLSX.read(data,{type:'array'}); var sheet=wb.Sheets[wb.SheetNames[0]]; if(kind==='master') importFromSheetMaster(sheet); else importFromSheetPromotion(sheet); renderTable(); }; reader.readAsArrayBuffer(file); }
 
-  function exportMaster(){
-    const rows = (appData.products||[]).map(p=>({
-      SKU: p.sku, Brand: p.brand||'', Category: p.category||'', Description: p.description||'', Details: (p.details||[]).join(', '),
-      Costs: p.costs||'', Normal: p.normal||'', Marketplace: p.marketplace||'', Dealer_T1: p.dealerT1||'', Dealer_T2: p.dealerT2||'', Dealer_T3: p.dealerT3||''
-    }));
-    exportXlsx(`Master_${todayStr()}.xlsx`, rows);
-  }
+  // Reports
+  function refreshExpireReport(){ applyPromoExpiry(); var list=appData._expiredReport||[]; var rows=list.map(function(x){ return '<tr><td class="px-3 py-2">'+x.sku+'</td><td class="px-3 py-2">'+x.description+'</td><td class="px-3 py-2">'+fmt(x.normal)+'</td><td class="px-3 py-2 text-red-500 font-semibold">'+fmt(x.promotion)+'</td><td class="px-3 py-2 text-red-500 font-semibold">'+x.expire+'</td></tr>'; }).join(''); $('#expireReportBody').innerHTML = rows || '<tr><td colspan="5" class="px-3 py-4 text-center text-zinc-400">(none)</td></tr>'; }
+  function exportExpireReport(){ var list=appData._expiredReport||[]; var lines=['SKU,Description,Normal,Promotion,Expire']; for(var i=0;i<list.length;i++){ var r=list[i]; lines.push([r.sku, csvEscape(r.description), r.normal, r.promotion, r.expire].join(',')); } var blob=new Blob([lines.join('
+')],{type:'text/csv'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='PromotionExpired_'+todayStr()+'.csv'; a.click(); URL.revokeObjectURL(url); }
 
-  function exportPromotion(){
-    const rows = (appData.products||[]).map(p=>({
-      SKU: p.sku, Description: p.description||'', Normal: p.normal||'', Promotion: p.promotion||'', Expire: p.expire||''
-    }));
-    exportXlsx(`Promotion_${todayStr()}.xlsx`, rows);
-  }
+  // Printing (A4 full-bleed)
+  function buildTagHTML(p){ var price=(p.promotion!=null && p.promotion!=='')? '<div class="text-3xl font-bold text-red-600">฿'+fmt(p.promotion)+'</div>' : '<div class="text-3xl font-bold">฿'+fmt(p.normal)+'</div>'; var expire=p.expire? '<div class="text-xs mt-1 text-red-600">Expire: '+p.expire+'</div>' : ''; return '<div class="p-2 border border-zinc-300 rounded-lg">'+'<div class="text-xs text-zinc-500">'+(p.brand||'')+' · '+(p.category||'')+'</div>'+'<div class="font-semibold">'+(p.description||'')+'</div>'+price+expire+'</div>'; }
+  function openPrint(){ var items=(appData.products||[]).filter(function(p){return passesFilters(p);}); openPrintTab(items); }
+  function openPrintTab(items){ var w=window.open('', '_blank'); var styles='<style>@page{size:A4;margin:0} html,body{margin:0;padding:0} *{-webkit-print-color-adjust:exact;print-color-adjust:exact} body{width:210mm;height:297mm} .sheet{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:99mm;gap:3mm;padding:3mm;box-sizing:border-box} .tag{break-inside:avoid}</style>'; var html=items.map(function(p){ return '<div class="tag">'+buildTagHTML(p)+'</div>'; }).join(''); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'+styles+'</head><body><div class="sheet">'+html+'</div><script>window.onload=function(){setTimeout(function(){window.print()},100)}<\/script></body></html>'); w.document.close(); }
 
-  function importFromSheetMaster(sheet){
-    const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
-    for(const r of rows){
-      const sku = String(r.SKU||r.sku||'').trim();
-      if(!sku) continue;
-      const obj = (appData.products||[]).find(x=>x.sku===sku) || { sku };
-      obj.brand = r.Brand||r.brand||obj.brand||'';
-      obj.category = r.Category||r.category||obj.category||'';
-      obj.description = r.Description||r.description||obj.description||'';
-      const det = r.Details||r.details||''; obj.details = det? String(det).split(',').map(s=>s.trim()).filter(Boolean) : [];
-      obj.costs = r.Costs!==''? Number(r.Costs): obj.costs||'';
-      obj.normal = r.Normal!==''? Number(r.Normal): obj.normal||'';
-      obj.marketplace = r.Marketplace!==''? Number(r.Marketplace): obj.marketplace||'';
-      obj.dealerT1 = r.Dealer_T1!==''? Number(r.Dealer_T1): obj.dealerT1||'';
-      obj.dealerT2 = r.Dealer_T2!==''? Number(r.Dealer_T2): obj.dealerT2||'';
-      obj.dealerT3 = r.Dealer_T3!==''? Number(r.Dealer_T3): obj.dealerT3||'';
-      const idx = (appData.products||[]).findIndex(x=>x.sku===sku);
-      if(idx>=0) appData.products[idx] = obj; else appData.products.push(obj);
-    }
-  }
+  // UI events
+  function setBusy(btn,busy){ if(!btn) return; btn.disabled=!!busy; if(!btn.getAttribute('data-label')) btn.setAttribute('data-label', btn.textContent); btn.textContent = busy? 'Working…' : btn.getAttribute('data-label'); }
+  document.getElementById('btnCreateGist').addEventListener('click', function(ev){ var btn=ev.currentTarget; setBusy(btn,true); cloudCreateGist().catch(function(e){ alert(e.message||e); }).finally(function(){ setBusy(btn,false); }); });
+  document.getElementById('btnLoadGist').addEventListener('click', function(ev){ var btn=ev.currentTarget; setBusy(btn,true); cloudLoad().then(function(){ show('#loginView'); $('#loginUser').focus(); }).catch(function(e){ alert(e.message||e); }).finally(function(){ setBusy(btn,false); }); });
 
-  function importFromSheetPromotion(sheet){
-    const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
-    for(const r of rows){
-      const sku = String(r.SKU||r.sku||'').trim();
-      if(!sku) continue;
-      const obj = (appData.products||[]).find(x=>x.sku===sku) || { sku, details:[] };
-      obj.description = r.Description||obj.description||'';
-      if(r.Normal!=='' && r.Normal!=null) obj.normal = Number(r.Normal);
-      obj.promotion = (r.Promotion!=='' && r.Promotion!=null) ? Number(r.Promotion) : null;
-      obj.expire = r.Expire||'';
-      const idx = (appData.products||[]).findIndex(x=>x.sku===sku);
-      if(idx>=0) appData.products[idx] = obj; else appData.products.push(obj);
-    }
-  }
+  document.getElementById('btnSignIn').addEventListener('click', signIn);
+  document.getElementById('loginUser').addEventListener('keydown', function(e){ if(e.key==='Enter') signIn(); });
+  document.getElementById('loginPass').addEventListener('keydown', function(e){ if(e.key==='Enter') signIn(); });
+  document.getElementById('btnSignOut').addEventListener('click', signOut);
 
-  function handleFileImport(file, kind){
-    const reader = new FileReader();
-    reader.onload = e => {
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type:'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      if(kind==='master') importFromSheetMaster(sheet); else importFromSheetPromotion(sheet);
-      renderTable();
-    };
-    reader.readAsArrayBuffer(file);
-  }
+  $$('#channelSelect, #globalSearch, #flagshipStart, #flagshipEnd').forEach(function(el){ el.addEventListener('input', function(){ updateChannelVisibility(); renderTable(); }); });
+  $$('.col-filter').forEach(function(el){ el.addEventListener('input', function(e){ colFilters[e.target.getAttribute('data-col')] = e.target.value; page=1; renderTable(); }); });
+  document.getElementById('prevPage').addEventListener('click', function(){ if(page>1){ page--; renderTable(); } });
+  document.getElementById('nextPage').addEventListener('click', function(){ page++; renderTable(); });
+  document.getElementById('btnAdd').addEventListener('click', function(){ openEditor(''); });
+  document.getElementById('btnPrint').addEventListener('click', openPrint);
+  document.getElementById('btnSettings').addEventListener('click', function(){ document.getElementById('settingsPanel').classList.remove('hidden'); openTab('data'); });
+  function closeSettings(){ document.getElementById('settingsPanel').classList.add('hidden'); }
+  function openTab(name){ $$('.tab').forEach(function(x){ x.classList.add('hidden'); }); document.getElementById('tab-'+name).classList.remove('hidden'); }
+  $$('.tablink').forEach(function(btn){ btn.addEventListener('click', function(){ openTab(btn.getAttribute('data-tab')); }); });
+  document.getElementById('importMasterFile').addEventListener('change', function(e){ var f=e.target.files[0]; if(f) handleFileImport(f,'master'); e.target.value=''; });
+  document.getElementById('importPromoFile').addEventListener('change', function(e){ var f=e.target.files[0]; if(f) handleFileImport(f,'promo'); e.target.value=''; });
 
-  /********************
-   * Reports          *
-   ********************/
-  function refreshExpireReport(){
-    applyPromoExpiry();
-    const list = appData._expiredReport || [];
-    const rows = list.map(x=>`<tr>
-      <td class="px-3 py-2">${x.sku}</td>
-      <td class="px-3 py-2">${x.description}</td>
-      <td class="px-3 py-2">${fmt(x.normal)}</td>
-      <td class="px-3 py-2 text-red-500 font-semibold">${fmt(x.promotion)}</td>
-      <td class="px-3 py-2 text-red-500 font-semibold">${x.expire}</td>
-    </tr>`).join('');
-    $('#expireReportBody').innerHTML = rows || `<tr><td colspan="5" class="px-3 py-4 text-center text-zinc-400">(ไม่มี)</td></tr>`;
-  }
-  function exportExpireReport(){
-    const list = appData._expiredReport || [];
-    const lines = ['SKU,Description,Normal,Promotion,Expire'];
-    for(const r of list){ lines.push([r.sku, csvEscape(r.description), r.normal, r.promotion, r.expire].join(',')); }
-    const blob = new Blob([lines.join('
-')], { type:'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `PromotionExpired_${todayStr()}.csv`; a.click(); URL.revokeObjectURL(url);
-  }
-    const blob = new Blob([lines.join('
-')], { type:'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `PromotionExpired_${todayStr()}.csv`; a.click(); URL.revokeObjectURL(url);
-  }
-
-  /********************
-   * Printing (A4 Fit) *
-   ********************/
-  function buildTagHTML(p){
-    const price = (p.promotion!=null && p.promotion!=='') ? `<div class="text-3xl font-bold text-red-600">฿${fmt(p.promotion)}</div>` : `<div class="text-3xl font-bold">฿${fmt(p.normal)}</div>`;
-    const expire = p.expire ? `<div class="text-xs mt-1 text-red-600">Expire: ${p.expire}</div>` : '';
-    return `<div class="p-2 border border-zinc-300 rounded-lg">
-      <div class="text-xs text-zinc-500">${p.brand||''} · ${p.category||''}</div>
-      <div class="font-semibold">${p.description||''}</div>
-      ${price}
-      ${expire}
-    </div>`;
-  }
-
-  function openPrint(){
-    const items = (appData.products||[]).filter(p=>passesFilters(p));
-    openPrintTab(items);
-  }
-
-  function openPrintTab(items){
-    const w = window.open('', '_blank');
-    const styles = `
-      <style>
-        @page { size: A4; margin: 0; }
-        html, body { margin: 0; padding: 0; }
-        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { width: 210mm; height: 297mm; }
-        .sheet { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 99mm; gap: 3mm; padding: 3mm; box-sizing: border-box; }
-        .tag { break-inside: avoid; }
-      </style>`;
-    const html = items.map(p=>`<div class="tag">${buildTagHTML(p)}</div>`).join('');
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">${styles}</head><body><div class="sheet">${html}</div><script>window.onload=()=>{setTimeout(()=>window.print(),100)}<\/script></body></html>`);
-    w.document.close();
-  }
-
-  /********************
-   * Events           *
-   ********************/
-  // Cloud setup with visible loading state
-  function setBusy(btn, busy, label){
-    if(!btn) return;
-    btn.disabled = !!busy;
-    btn.dataset._label = btn.dataset._label || btn.textContent;
-    btn.textContent = busy ? 'Working…' : (label || btn.dataset._label);
-  }
-  $('#btnCreateGist').addEventListener('click', async (ev)=>{
-    const btn = ev.currentTarget; setBusy(btn, true);
-    try { await cloudCreateGist(); }
-    catch(e){ alert(e.message||e); console.error(e); }
-    finally { setBusy(btn, false); }
-  });
-  $('#btnLoadGist').addEventListener('click', async (ev)=>{
-    const btn = ev.currentTarget; setBusy(btn, true);
-    try { await cloudLoad(); show('#loginView'); $('#loginUser').focus(); }
-    catch(e){ alert(e.message||e); console.error(e); }
-    finally { setBusy(btn, false); }
-  });
-
-  // Auth
-  $('#btnSignIn').addEventListener('click', signIn);
-  $('#loginUser').addEventListener('keydown', (e)=>{ if(e.key==='Enter') signIn(); });
-  $('#loginPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') signIn(); });
-  $('#btnSignOut').addEventListener('click', signOut);
-
-  // Filters
-  $$('#channelSelect, #globalSearch, #flagshipStart, #flagshipEnd').forEach(el=> el.addEventListener('input', ()=>{ updateChannelVisibility(); renderTable(); }));
-  $$('.col-filter').forEach(el=> el.addEventListener('input', (e)=>{ colFilters[e.target.dataset.col] = e.target.value; page=1; renderTable(); }));
-
-  // Pagination
-  $('#prevPage').addEventListener('click', ()=>{ if(page>1){ page--; renderTable(); } });
-  $('#nextPage').addEventListener('click', ()=>{ page++; renderTable(); });
-
-  // Add/Edit
-  $('#btnAdd').addEventListener('click', ()=> openEditor(''));
-
-  // Print
-  $('#btnPrint').addEventListener('click', openPrint);
-
-  // Settings panel
-  $('#btnSettings').addEventListener('click', ()=>{ $('#settingsPanel').classList.remove('hidden'); openTab('data'); });
-  function closeSettings(){ $('#settingsPanel').classList.add('hidden'); }
-  function openTab(name){ $$('.tab').forEach(x=>x.classList.add('hidden')); $(`#tab-${name}`).classList.remove('hidden'); }
-  $$('.tablink').forEach(btn=> btn.addEventListener('click', ()=> openTab(btn.dataset.tab)) );
-
-  // Manage Data: imports
-  $('#importMasterFile').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) handleFileImport(f, 'master'); e.target.value=''; });
-  $('#importPromoFile').addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) handleFileImport(f, 'promo'); e.target.value=''; });
-
-  // Init after DOM ready (safety)
-  document.addEventListener('DOMContentLoaded', ()=>{
-    updateChannelVisibility();
-    initStart();
-  });
+  document.addEventListener('DOMContentLoaded', function(){ updateChannelVisibility(); initStart(); });
   </script>
 </body>
 </html>
