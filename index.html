@@ -19,7 +19,6 @@
     input[type=number]::-webkit-outer-spin-button,
     input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance:textfield; }
-    /* Print helpers (used in popup) are injected dynamically as well */
   </style>
 </head>
 <body class="bg-zinc-900 text-zinc-100">
@@ -41,8 +40,7 @@
         <button id="btnCreateGist" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Create New Gist</button>
         <button id="btnLoadGist" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700">Load from Existing Gist</button>
       </div>
-      <p class="text-xs text-zinc-400 mt-3">* ระบบจะจดจำ Token และ Gist ID ไว้ชั่วคราวเฉพาะแท็บ (sessionStorage) เพื่อไม่ต้องกด Load ซ้ำ
-        — ข้อมูลจริงทั้งหมดถูกเก็บใน GitHub Gist เท่านั้น</p>
+      <p class="text-xs text-zinc-400 mt-3">* ระบบจะจำ Token และ Gist ID ไว้เฉพาะแท็บ (sessionStorage) เพื่อไม่ต้องกด Load ซ้ำ — ข้อมูลจริงทั้งหมดถูกเก็บใน GitHub Gist เท่านั้น</p>
     </section>
 
     <!-- Login -->
@@ -59,6 +57,7 @@
       <div class="flex items-center gap-3 mt-4">
         <button id="btnSignIn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Sign in</button>
       </div>
+      <p class="text-xs text-zinc-400 mt-2">ถ้ายังไม่มีผู้ใช้ ระบบจะสร้าง <b>host / host123</b> ให้โดยอัตโนมัติ</p>
     </section>
 
     <!-- App View -->
@@ -92,7 +91,7 @@
       <!-- Table -->
       <div class="mt-4 rounded-2xl border border-zinc-800 overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="min-w-[1024px] w-full text-sm">
+          <table class="min-w-[1080px] w-full text-sm">
             <thead class="bg-zinc-950/70">
               <tr class="text-left">
                 <th class="px-3 py-2">SKU</th>
@@ -294,7 +293,8 @@
   function fmt(n){ if(n===null||n===undefined||n==='') return ''; const x = Number(n); return isFinite(x) ? x.toLocaleString('en-US',{minimumFractionDigits:0, maximumFractionDigits:2}) : n; }
   function todayStr(){ const d = new Date(); const m = (d.getMonth()+1+'').padStart(2,'0'); const dd = (d.getDate()+'').padStart(2,'0'); return `${d.getFullYear()}-${m}-${dd}`; }
   function parseDate(s){ if(!s) return null; const t = new Date(s); return isNaN(t) ? null : t; }
-  function csvEscape(v){ if(v==null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+  function csvEscape(v){ if(v==null) return ''; const s = String(v); return /[",
+]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 
   function saveSessionCreds(token, gist){ sessionStorage.setItem(SKEY_TOKEN, token); sessionStorage.setItem(SKEY_GIST, gist); }
   function getToken(){ return sessionStorage.getItem(SKEY_TOKEN)||''; }
@@ -313,7 +313,6 @@
   }
 
   function initStart(){
-    // Auto-connect if creds exist
     const token = getToken();
     const gist = getGist();
     if(token && gist){
@@ -322,8 +321,9 @@
         sessionStorage.setItem(SKEY_LOADED, '1');
         show('#loginView');
         $('#loginUser').focus();
-      }).catch(()=>{
-        // still allow login with local defaults
+      }).catch((e)=>{
+        console.error(e);
+        // ยังเข้า Login ได้ด้วยข้อมูลดีฟอลต์
         show('#loginView');
         $('#loginUser').focus();
       });
@@ -338,18 +338,40 @@
   const GIST_FILENAME = 'proplugin-data.json';
 
   async function gistRequest(path, opts={}){
-    const token = getToken();
+    const token = getToken() || $('#ghToken').value.trim();
     const headers = Object.assign({ 'Accept':'application/vnd.github+json' }, opts.headers||{});
     if(token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`https://api.github.com${path}`, { ...opts, headers });
-    if(!res.ok){ throw new Error('Gist API error '+res.status); }
+    if(!res.ok){ const t = await res.text(); throw new Error(`Gist API ${res.status}: ${t}`); }
     return res.json();
+  }
+
+  async function fetchGistContent(gistId){
+    // ดึงเนื้อหาไฟล์จาก API โดยตรง (ไม่อาศัย raw_url เพื่อหลีกเลี่ยงปัญหา private gist)
+    const meta = await gistRequest(`/gists/${gistId}`);
+    let f = meta.files[GIST_FILENAME];
+    if(!f) throw new Error(`${GIST_FILENAME} not found in gist`);
+    if(f.content && !f.truncated) return f.content;
+    // ถ้าถูกตัด ให้ลองไล่ตาม history ทีละเวอร์ชันจนเจอที่ไม่ truncated
+    if(Array.isArray(meta.history)){
+      for(const h of meta.history){
+        const snap = await gistRequest(`/gists/${gistId}/${h.version}`);
+        const ff = snap.files[GIST_FILENAME];
+        if(ff && ff.content && !ff.truncated) return ff.content;
+      }
+    }
+    // สุดท้าย พยายามดึงจาก raw_url (อาจใช้ได้ในบางกรณี)
+    if(f.raw_url){
+      const token = getToken();
+      const res = await fetch(f.raw_url, token? { headers:{ 'Authorization': `Bearer ${token}` } } : {});
+      if(res.ok) return await res.text();
+    }
+    throw new Error('Cannot read gist file content');
   }
 
   async function cloudCreateGist(){
     const token = $('#ghToken').value.trim();
     if(!token) return alert('กรุณาใส่ GitHub Token');
-    // create new gist with initial appData
     const body = {
       description: 'ProPlugin price tag data',
       public: false,
@@ -364,6 +386,12 @@
     show('#loginView');
   }
 
+  function ensureUsers(){
+    if(!appData.users || !Array.isArray(appData.users) || appData.users.length===0){
+      appData.users = [ { username:'host', password:'host123', role:'Host', canSeeCosts:true, canPrint:true, channels:['Flagship','Marketplace','Dealer'] } ];
+    }
+  }
+
   async function cloudSave(){
     if(!gistConnected) return;
     const gist = getGist();
@@ -376,17 +404,16 @@
     const gist = $('#gistId').value.trim() || getGist();
     const token = $('#ghToken').value.trim() || getToken();
     if(!gist || !token) throw new Error('missing creds');
-    // persist in session (not localStorage)
     saveSessionCreds(token, gist);
-    const data = await gistRequest(`/gists/${gist}`);
-    const file = data.files[GIST_FILENAME];
-    if(!file) throw new Error('file not found in gist');
-    const content = await fetch(file.raw_url).then(r=>r.text());
-    const parsed = JSON.parse(content);
-    appData = parsed;
+    const content = await fetchGistContent(gist);
+    let parsed;
+    try { parsed = JSON.parse(content); }
+    catch(e){ throw new Error('Invalid JSON in gist file'); }
+    appData = Object.assign({ products:[], users:[] }, parsed);
+    ensureUsers();
     applyPromoExpiry(); // auto-revert expired promos on load
     gistConnected = true;
-    await cloudSave(); // persist changes after applying expiry
+    await cloudSave(); // persist any expiry changes or user bootstrap
   }
 
   /********************
@@ -395,10 +422,10 @@
   function signIn(){
     const u = $('#loginUser').value.trim();
     const p = $('#loginPass').value.trim();
-    const user = appData.users.find(x=>x.username===u && x.password===p);
-    if(!user) return alert('Invalid credentials');
+    const user = (appData.users||[]).find(x=>x.username===u && String(x.password)===p);
+    if(!user){ alert('Invalid credentials'); return; }
     currentUser = user;
-    $('#roleBadge').textContent = user.role;
+    $('#roleBadge').textContent = user.role||'User';
     updateChannelVisibility();
     renderTable();
     show('#appView');
@@ -406,7 +433,7 @@
 
   function signOut(){
     currentUser = null;
-    // keep gist connection & creds so no need to Load again
+    // คง Token+Gist ใน sessionStorage เพื่อไม่ต้อง Load ใหม่
     show('#loginView');
     $('#loginUser').focus();
   }
@@ -416,7 +443,6 @@
    ********************/
   function updateChannelVisibility(){
     const ch = $('#channelSelect').value;
-    // Flagship shows Expire filters
     $('#flagshipStart').classList.toggle('hidden', ch!=='Flagship');
     $('#flagshipEnd').classList.toggle('hidden', ch!=='Flagship');
   }
@@ -424,16 +450,13 @@
   function applyPromoExpiry(){
     const today = parseDate(todayStr());
     const expiredList = [];
-    for(const p of appData.products){
+    for(const p of appData.products||[]){
       const exp = parseDate(p.expire);
       if(p.promotion!=null && p.promotion!=='' && exp && exp <= today){
         expiredList.push({ sku:p.sku, description:p.description, normal:p.normal, promotion:p.promotion, expire:p.expire });
-        // auto revert
-        p.promotion = null;
-        p.expire = '';
+        p.promotion = null; p.expire = '';
       }
     }
-    // store the latest expired list to show in report tab
     appData._expiredReport = expiredList;
   }
 
@@ -449,23 +472,18 @@
     if(!geq(p.costs, colFilters.costs)) return false;
     if(!geq(p.normal, colFilters.normal)) return false;
     if(!geq(p.promotion, colFilters.promotion)) return false;
-    if(colFilters.expire){
-      const ed = parseDate(p.expire); const flt = parseDate(colFilters.expire);
-      if(!(ed && flt && ed >= flt)) return false;
-    }
+    if(colFilters.expire){ const ed = parseDate(p.expire); const flt = parseDate(colFilters.expire); if(!(ed && flt && ed >= flt)) return false; }
     if(!geq(p.marketplace, colFilters.marketplace)) return false;
     if(!geq(p.dealerT1, colFilters.dealerT1)) return false;
     if(!geq(p.dealerT2, colFilters.dealerT2)) return false;
     if(!geq(p.dealerT3, colFilters.dealerT3)) return false;
 
-    // Flagship date range filter (global inputs)
     const ch = $('#channelSelect').value;
     if(ch==='Flagship'){
       const s = $('#flagshipStart').value; const e = $('#flagshipEnd').value;
       if(s){ const d = parseDate(p.expire); const ss = parseDate(s); if(!(d && d>=ss)) return false; }
       if(e){ const d = parseDate(p.expire); const ee = parseDate(e); if(!(d && d<=ee)) return false; }
     }
-    // Global search
     const q = $('#globalSearch').value.trim().toLowerCase();
     if(q){
       const hay = [p.sku, p.brand, p.category, p.description, (p.details||[]).join(',' )].join(' ').toLowerCase();
@@ -477,10 +495,8 @@
   function renderTable(){
     applyPromoExpiry();
     const canSeeCosts = currentUser?.canSeeCosts;
-    const canPrint = currentUser?.canPrint;
 
-    // Build rows
-    const all = appData.products.filter(p=>passesFilters(p));
+    const all = (appData.products||[]).filter(p=>passesFilters(p));
     const total = all.length;
     const pages = Math.max(1, Math.ceil(total / pageSize));
     if(page>pages) page = pages;
@@ -513,12 +529,11 @@
     $('#tableBody').innerHTML = rows || `<tr><td colspan="14" class="px-3 py-6 text-center text-zinc-400">No data</td></tr>`;
     $('#paginationInfo').textContent = `Showing ${(page-1)*pageSize+1}-${Math.min(page*pageSize,total)} of ${total}`;
 
-    // Save after rendering (to commit expiry changes)
     cloudSave().catch(()=>{});
   }
 
   function openEditor(sku){
-    const p = appData.products.find(x=>x.sku===sku) || { sku:'', brand:'', category:'', description:'', details:[], costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
+    const p = (appData.products||[]).find(x=>x.sku===sku) || { sku:'', brand:'', category:'', description:'', details:[], costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
     $('#editorTitle').textContent = p.sku? `Edit: ${p.sku}` : 'Add Item';
     $('#edSku').value = p.sku||'';
     $('#edBrand').value = p.brand||'';
@@ -553,14 +568,14 @@
       dealerT3: Number($('#edT3').value)||'',
     };
     if(!obj.sku) return alert('SKU is required');
-    const idx = appData.products.findIndex(x=>x.sku===obj.sku);
-    if(idx>=0) appData.products[idx] = obj; else appData.products.push(obj);
+    const idx = (appData.products||[]).findIndex(x=>x.sku===obj.sku);
+    if(idx>=0) appData.products[idx] = obj; else (appData.products||[]).push(obj);
     closeEditor();
     renderTable();
   }
   function deleteItem(sku){
     if(!confirm('Delete this item?')) return;
-    const i = appData.products.findIndex(x=>x.sku===sku);
+    const i = (appData.products||[]).findIndex(x=>x.sku===sku);
     if(i>=0){ appData.products.splice(i,1); renderTable(); }
   }
 
@@ -575,16 +590,15 @@
   }
 
   function exportMaster(){
-    const rows = appData.products.map(p=>({
+    const rows = (appData.products||[]).map(p=>({
       SKU: p.sku, Brand: p.brand||'', Category: p.category||'', Description: p.description||'', Details: (p.details||[]).join(', '),
       Costs: p.costs||'', Normal: p.normal||'', Marketplace: p.marketplace||'', Dealer_T1: p.dealerT1||'', Dealer_T2: p.dealerT2||'', Dealer_T3: p.dealerT3||''
-      // Note: No Promotion/Expire in Master
     }));
     exportXlsx(`Master_${todayStr()}.xlsx`, rows);
   }
 
   function exportPromotion(){
-    const rows = appData.products.map(p=>({
+    const rows = (appData.products||[]).map(p=>({
       SKU: p.sku, Description: p.description||'', Normal: p.normal||'', Promotion: p.promotion||'', Expire: p.expire||''
     }));
     exportXlsx(`Promotion_${todayStr()}.xlsx`, rows);
@@ -595,7 +609,7 @@
     for(const r of rows){
       const sku = String(r.SKU||r.sku||'').trim();
       if(!sku) continue;
-      const obj = appData.products.find(x=>x.sku===sku) || { sku };
+      const obj = (appData.products||[]).find(x=>x.sku===sku) || { sku };
       obj.brand = r.Brand||r.brand||obj.brand||'';
       obj.category = r.Category||r.category||obj.category||'';
       obj.description = r.Description||r.description||obj.description||'';
@@ -606,8 +620,7 @@
       obj.dealerT1 = r.Dealer_T1!==''? Number(r.Dealer_T1): obj.dealerT1||'';
       obj.dealerT2 = r.Dealer_T2!==''? Number(r.Dealer_T2): obj.dealerT2||'';
       obj.dealerT3 = r.Dealer_T3!==''? Number(r.Dealer_T3): obj.dealerT3||'';
-      // keep promotion & expire untouched
-      const idx = appData.products.findIndex(x=>x.sku===sku);
+      const idx = (appData.products||[]).findIndex(x=>x.sku===sku);
       if(idx>=0) appData.products[idx] = obj; else appData.products.push(obj);
     }
   }
@@ -617,12 +630,12 @@
     for(const r of rows){
       const sku = String(r.SKU||r.sku||'').trim();
       if(!sku) continue;
-      const obj = appData.products.find(x=>x.sku===sku) || { sku, details:[] };
+      const obj = (appData.products||[]).find(x=>x.sku===sku) || { sku, details:[] };
       obj.description = r.Description||obj.description||'';
       if(r.Normal!=='' && r.Normal!=null) obj.normal = Number(r.Normal);
       obj.promotion = (r.Promotion!=='' && r.Promotion!=null) ? Number(r.Promotion) : null;
       obj.expire = r.Expire||'';
-      const idx = appData.products.findIndex(x=>x.sku===sku);
+      const idx = (appData.products||[]).findIndex(x=>x.sku===sku);
       if(idx>=0) appData.products[idx] = obj; else appData.products.push(obj);
     }
   }
@@ -658,7 +671,8 @@
     const list = appData._expiredReport || [];
     const lines = ['SKU,Description,Normal,Promotion,Expire'];
     for(const r of list){ lines.push([r.sku, csvEscape(r.description), r.normal, r.promotion, r.expire].join(',')); }
-    const blob = new Blob([lines.join('\n')], { type:'text/csv' });
+    const blob = new Blob([lines.join('
+')], { type:'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `PromotionExpired_${todayStr()}.csv`; a.click(); URL.revokeObjectURL(url);
   }
@@ -667,7 +681,6 @@
    * Printing (A4 Fit) *
    ********************/
   function buildTagHTML(p){
-    // Simple tag example; adapt as needed to your templates
     const price = (p.promotion!=null && p.promotion!=='') ? `<div class="text-3xl font-bold text-red-600">฿${fmt(p.promotion)}</div>` : `<div class="text-3xl font-bold">฿${fmt(p.normal)}</div>`;
     const expire = p.expire ? `<div class="text-xs mt-1 text-red-600">Expire: ${p.expire}</div>` : '';
     return `<div class="p-2 border border-zinc-300 rounded-lg">
@@ -679,8 +692,7 @@
   }
 
   function openPrint(){
-    // Print all filtered items (you can change to selected only)
-    const items = appData.products.filter(p=>passesFilters(p));
+    const items = (appData.products||[]).filter(p=>passesFilters(p));
     openPrintTab(items);
   }
 
@@ -693,7 +705,6 @@
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         body { width: 210mm; height: 297mm; }
         .sheet { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 99mm; gap: 3mm; padding: 3mm; box-sizing: border-box; }
-        /* 3 x 3 layout => 9 tags per A4, borderless */
         .tag { break-inside: avoid; }
       </style>`;
     const html = items.map(p=>`<div class="tag">${buildTagHTML(p)}</div>`).join('');
@@ -715,6 +726,8 @@
 
   // Auth
   $('#btnSignIn').addEventListener('click', signIn);
+  $('#loginUser').addEventListener('keydown', (e)=>{ if(e.key==='Enter') signIn(); });
+  $('#loginPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter') signIn(); });
   $('#btnSignOut').addEventListener('click', signOut);
 
   // Filters
