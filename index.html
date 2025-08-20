@@ -1,498 +1,1377 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Price Tag Management - Cloud Only</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <style>
-    html, body { font-family: 'Kanit','Prompt',system-ui,-apple-system,sans-serif; }
-    input[type=number]::-webkit-outer-spin-button,
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type=number] { -moz-appearance:textfield; }
-  </style>
-  <script type="text/javascript">
-    'use strict';
-    // Basic error surfaces
-    window.addEventListener('error', function(e){
-      var loc = (e.filename||'')+':' + (e.lineno||'') + ':' + (e.colno||'');
-      var msg = (e && e.error && e.error.stack) ? e.error.stack : (e && e.error && e.error.message) ? e.error.message : (e && e.message) ? e.message : 'unknown';
-      alert('Script error at ' + loc + '
-' + msg);
-      try { console.error(e.error||e); } catch(_) {}
-    });
-    window.addEventListener('unhandledrejection', function(e){
-      var r = e && e.reason; var msg = (r && (r.stack||r.message)) ? (r.stack||r.message) : (r!==undefined? String(r): 'unknown');
-      alert('Unhandled error: ' + msg);
-      try { console.error(e); } catch(_) {}
-    });
-  </script>
-</head>
-<body class="bg-zinc-900 text-zinc-100">
-  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
-    <!-- Cloud Setup -->
-    <section id="cloudSetupView" class="rounded-2xl border border-zinc-800 p-6 bg-zinc-950">
-      <h2 class="text-2xl font-semibold mb-4">Cloud Setup (GitHub Gist)</h2>
-      <p class="text-zinc-300 mb-4">เชื่อมต่อ GitHub Gist เพื่อเก็บข้อมูลทั้งหมดบนคลาวด์ 100% (ไม่ใช้ localStorage)</p>
-      <div class="grid md:grid-cols-2 gap-4">
-        <label class="block">GitHub Token
-          <input id="ghToken" type="password" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" placeholder="ghp_..." />
-        </label>
-        <label class="block">Gist ID
-          <input id="gistId" type="text" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" placeholder="e.g. a1b2c3d4..." />
-        </label>
-      </div>
-      <div class="flex items-center gap-3 mt-4">
-        <button id="btnCreateGist" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Create New Gist</button>
-        <button id="btnLoadGist" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700">Load from Existing Gist</button>
-      </div>
-      <p class="text-xs text-zinc-400 mt-3">ระบบจะจำ Token และ Gist ID ไว้เฉพาะแท็บ (sessionStorage) ข้อมูลจริงเก็บบน GitHub Gist</p>
-    </section>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ProPlugin • ProPricing</title>
 
-    <!-- Login -->
-    <section id="loginView" class="hidden rounded-2xl border border-zinc-800 p-6 bg-zinc-950">
-      <h2 class="text-2xl font-semibold mb-4">Sign in</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <label class="block">Username
-          <input id="loginUser" type="text" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" placeholder="username" />
-        </label>
-        <label class="block">Password
-          <input id="loginPass" type="password" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" placeholder="********" />
-        </label>
-      </div>
-      <div class="flex items-center gap-3 mt-4">
-        <button id="btnSignIn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Sign in</button>
-      </div>
-      <p class="text-xs text-zinc-400 mt-2">ถ้ายังไม่มีผู้ใช้ ระบบจะสร้าง host / host123 ให้โดยอัตโนมัติ</p>
-    </section>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <!-- App View -->
-    <section id="appView" class="hidden">
-      <header class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-2xl bg-emerald-600 grid place-items-center font-bold">PP</div>
-          <div>
-            <div class="text-xl font-semibold">Price Tag Management</div>
-            <div class="text-xs text-zinc-400">Cloud-only · GitHub Gist</div>
-          </div>
-          <span id="roleBadge" class="ml-3 text-xs px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700">Guest</span>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <input id="globalSearch" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 w-56" placeholder="Search… (SKU/Description)"/>
-          <select id="channelSelect" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700">
-            <option>Flagship</option>
-            <option>Marketplace</option>
-            <option>Dealer</option>
-          </select>
-          <input id="flagshipStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 hidden" />
-          <input id="flagshipEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700 hidden" />
-          <button id="btnAdd" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Add</button>
-          <button id="btnPrint" class="px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-700">Print</button>
-          <button id="btnSettings" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700">Settings</button>
-          <button id="btnSignOut" class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700">Sign out</button>
-        </div>
-      </header>
-
-      <div class="mt-4 rounded-2xl border border-zinc-800 overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="min-w-[1080px] w-full text-sm">
-            <thead class="bg-zinc-950/70">
-              <tr class="text-left">
-                <th class="px-3 py-2">SKU</th>
-                <th class="px-3 py-2">Brand</th>
-                <th class="px-3 py-2">Category</th>
-                <th class="px-3 py-2">Description</th>
-                <th class="px-3 py-2">Details</th>
-                <th class="px-3 py-2">Costs</th>
-                <th class="px-3 py-2">Normal</th>
-                <th class="px-3 py-2 text-red-500">Promotion</th>
-                <th class="px-3 py-2 text-red-500">Expire</th>
-                <th class="px-3 py-2">Marketplace</th>
-                <th class="px-3 py-2">Dealer T1</th>
-                <th class="px-3 py-2">Dealer T2</th>
-                <th class="px-3 py-2">Dealer T3</th>
-                <th class="px-3 py-2">Actions</th>
-              </tr>
-              <tr class="border-t border-zinc-800">
-                <th class="px-3 py-1"><input data-col="sku" class="col-filter w-36 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
-                <th class="px-3 py-1"><input data-col="brand" class="col-filter w-32 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
-                <th class="px-3 py-1"><input data-col="category" class="col-filter w-32 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
-                <th class="px-3 py-1"><input data-col="description" class="col-filter w-48 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
-                <th class="px-3 py-1"><input data-col="details" class="col-filter w-40 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder="Filter…"/></th>
-                <th class="px-3 py-1"><input data-col="costs" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"><input data-col="normal" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"><input data-col="promotion" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"><input data-col="expire" type="date" class="col-filter w-40 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" /></th>
-                <th class="px-3 py-1"><input data-col="marketplace" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"><input data-col="dealerT1" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"><input data-col="dealerT2" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"><input data-col="dealerT3" type="number" class="col-filter w-28 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" placeholder=">= …"/></th>
-                <th class="px-3 py-1"></th>
-              </tr>
-            </thead>
-            <tbody id="tableBody" class="divide-y divide-zinc-800"></tbody>
-          </table>
-        </div>
-        <div class="p-3 flex items-center justify-between bg-zinc-950/70 border-t border-zinc-800">
-          <div id="paginationInfo" class="text-xs text-zinc-400">—</div>
-          <div class="flex items-center gap-2">
-            <button id="prevPage" class="px-3 py-1 rounded-lg bg-zinc-800 border border-zinc-700">Prev</button>
-            <button id="nextPage" class="px-3 py-1 rounded-lg bg-zinc-800 border border-zinc-700">Next</button>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Editor Modal -->
-  <div id="editorModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm grid place-items-center p-4">
-    <div class="w-full max-w-2xl rounded-2xl bg-zinc-950 border border-zinc-800 p-5">
-      <div class="flex items-center justify-between mb-4">
-        <h3 id="editorTitle" class="text-xl font-semibold">Add / Edit Item</h3>
-        <button class="px-3 py-1 rounded-lg bg-zinc-800 border border-zinc-700" onclick="closeEditor()">Close</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label class="block">SKU
-          <input id="edSku" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Brand
-          <input id="edBrand" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Category
-          <input id="edCategory" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Description
-          <input id="edDesc" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block md:col-span-2">Details (comma separated)
-          <input id="edDetails" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Costs
-          <input id="edCosts" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Normal Price
-          <input id="edNormal" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Promotion Price <span class="text-red-500">(red)</span>
-          <input id="edPromo" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Expire Date <span class="text-red-500">(red)</span>
-          <input id="edExpire" type="date" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Marketplace
-          <input id="edMarketplace" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Dealer T1
-          <input id="edT1" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Dealer T2
-          <input id="edT2" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-        <label class="block">Dealer T3
-          <input id="edT3" type="number" step="0.01" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700"/>
-        </label>
-      </div>
-      <div class="flex items-center justify-end gap-2 mt-4">
-        <button class="px-4 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="closeEditor()">Cancel</button>
-        <button class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="saveEditor()">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Settings Panel -->
-  <div id="settingsPanel" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm p-4">
-    <div class="h-full max-h-[90vh] max-w-5xl mx-auto grid grid-cols-12 gap-4">
-      <aside class="col-span-12 md:col-span-3 rounded-2xl bg-zinc-950 border border-zinc-800 p-4 space-y-2">
-        <button data-tab="data" class="tablink w-full text-left px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700">Manage Data</button>
-        <button data-tab="promo" class="tablink w-full text-left px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700">Manage Promotion</button>
-        <button data-tab="report" class="tablink w-full text-left px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700">Report Promotion Expire</button>
-        <div class="pt-4 border-t border-zinc-800"></div>
-        <button class="w-full text-left px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="closeSettings()">Close</button>
-      </aside>
-      <section class="col-span-12 md:col-span-9 rounded-2xl bg-zinc-950 border border-zinc-800 p-4 overflow-y-auto">
-        <div id="tab-data" class="tab hidden">
-          <h3 class="text-xl font-semibold mb-3">Master Data (no Promotion/Expire columns)</h3>
-          <div class="flex flex-wrap gap-2 mb-3">
-            <input id="importMasterFile" type="file" accept=".xlsx,.xls" class="hidden"/>
-            <button class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="document.getElementById('importMasterFile').click()">Import Master File (.xlsx)</button>
-            <button class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="exportMaster()">Export Master File</button>
-          </div>
-          <p class="text-sm text-zinc-400">ไฟล์ Master จะไม่มี Promotion และ Expire</p>
-        </div>
-
-        <div id="tab-promo" class="tab hidden">
-          <h3 class="text-xl font-semibold mb-3">Promotion Data (SKU, Description, Normal, Promotion, Expire)</h3>
-          <div class="flex flex-wrap gap-2 mb-3">
-            <input id="importPromoFile" type="file" accept=".xlsx,.xls" class="hidden"/>
-            <button class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="document.getElementById('importPromoFile').click()">Import Promotion File (.xlsx)</button>
-            <button class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="exportPromotion()">Export Promotion File</button>
-          </div>
-          <p class="text-sm text-zinc-400">ใช้เพื่อบริหารโปรโมชั่นแยกจาก Master (UI ยังเหมือนเดิม)</p>
-        </div>
-
-        <div id="tab-report" class="tab hidden">
-          <h3 class="text-xl font-semibold mb-3">Report: Promotion Expired</h3>
-          <p class="text-sm text-zinc-400 mb-2">เมื่อโหลด/บันทึก ระบบจะปรับโปรที่หมดอายุกลับเป็นราคาปกติอัตโนมัติ</p>
-          <div class="flex items-center gap-2 mb-3">
-            <button class="px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-700" onclick="refreshExpireReport()">Refresh</button>
-            <button class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700" onclick="exportExpireReport()">Export CSV</button>
-          </div>
-          <div class="max-h-[50vh] overflow-auto rounded-xl border border-zinc-800">
-            <table class="w-full text-sm">
-              <thead class="bg-zinc-900">
-                <tr>
-                  <th class="px-3 py-2 text-left">SKU</th>
-                  <th class="px-3 py-2 text-left">Description</th>
-                  <th class="px-3 py-2 text-left">Normal</th>
-                  <th class="px-3 py-2 text-left text-red-500">Promotion</th>
-                  <th class="px-3 py-2 text-left text-red-500">Expire</th>
-                </tr>
-              </thead>
-              <tbody id="expireReportBody" class="divide-y divide-zinc-800"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>
-
-  <script type="text/javascript">
-  'use strict';
-  // Keys stored only in sessionStorage
-  var SKEY_TOKEN = 'pp_cloud_token_v2';
-  var SKEY_GIST  = 'pp_cloud_gist_id_v2';
-  var SKEY_LOADED = 'pp_gist_loaded_v2';
-  var GIST_FILENAME = 'proplugin-data.json';
-
-  // State
-  var appData = {
-    products: [
-      { sku:'SKU-1001', brand:'Acme', category:'Cable', description:'Mic Cable 3m', details:['XLR','OFHC'], costs:120, normal:199, promotion:179, expire:'2025-12-31', marketplace:189, dealerT1:170, dealerT2:165, dealerT3:160 },
-      { sku:'SKU-1002', brand:'Acme', category:'Adapter', description:'3.5mm to 6.35mm', details:['Gold'], costs:40, normal:79, promotion:null, expire:'', marketplace:75, dealerT1:70, dealerT2:68, dealerT3:65 }
-    ],
-    users: [
-      { username:'host', password:'host123', role:'Host', canSeeCosts:true, canPrint:true, channels:['Flagship','Marketplace','Dealer'] },
-      { username:'admin', password:'admin123', role:'Admin', canSeeCosts:true, canPrint:true, channels:['Flagship','Marketplace','Dealer'] },
-      { username:'staff', password:'staff123', role:'Staff', canSeeCosts:false, canPrint:true, channels:['Flagship'] }
-    ],
-    logo: '', logs: [], templates: { default:'A4' }
-  };
-  var currentUser = null; var gistConnected = false; var page=1, pageSize=10;
-  var colFilters = { sku:'', brand:'', category:'', description:'', details:'', costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
-
-  // Dom helpers
-  function $(sel){ return document.querySelector(sel); }
-  function $$(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
-
-  // Utils
-  function fmt(n){ if(n===null||n===undefined||n==='') return ''; var x=Number(n); return isFinite(x)? x.toLocaleString('en-US',{minimumFractionDigits:0, maximumFractionDigits:2}) : n; }
-  function todayStr(){ var d=new Date(); var m=String(d.getMonth()+1); if(m.length<2)m='0'+m; var dd=String(d.getDate()); if(dd.length<2)dd='0'+dd; return d.getFullYear()+'-'+m+'-'+dd; }
-  function parseDate(s){ if(!s) return null; var t=new Date(s); return isNaN(t)? null : t; }
-  function csvEscape(v){ if(v==null) return ''; var s=String(v); var need=(s.indexOf('"')>-1)||(s.indexOf(',')>-1)||(s.indexOf('
-')>-1)||(s.indexOf('
-')>-1); var doubled=s.split('"').join('""'); return need? '"'+doubled+'"' : s; }
-
-  function saveSessionCreds(token,gist){ sessionStorage.setItem(SKEY_TOKEN, token); sessionStorage.setItem(SKEY_GIST, gist); }
-  function getToken(){ return sessionStorage.getItem(SKEY_TOKEN)||''; }
-  function getGist(){ return sessionStorage.getItem(SKEY_GIST)||''; }
-
-  function show(view){ $('#cloudSetupView').classList.add('hidden'); $('#loginView').classList.add('hidden'); $('#appView').classList.add('hidden'); $(view).classList.remove('hidden'); }
-
-  function initStart(){
-    var token=getToken(), gist=getGist();
-    if(token && gist){
-      gistConnected=true;
-      cloudLoad().then(function(){ sessionStorage.setItem(SKEY_LOADED,'1'); show('#loginView'); $('#loginUser').focus(); })
-                 .catch(function(){ show('#loginView'); $('#loginUser').focus(); });
-    } else { show('#cloudSetupView'); }
-  }
-
-  // GitHub API
-  async function gistRequest(path, opts){
-    opts = opts || {}; var token = getToken() || ($('#ghToken')? $('#ghToken').value.trim(): '');
-    var headers = { 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' };
-    if(opts.headers){ for(var k in opts.headers){ headers[k]=opts.headers[k]; } }
-    if(token) headers['Authorization']='Bearer '+token;
-    if(opts.body && !headers['Content-Type']) headers['Content-Type']='application/json';
-    var res = await fetch('https://api.github.com'+path, { method:opts.method||'GET', headers:headers, body:opts.body||undefined });
-    if(!res.ok){ var t=''; try{ t=await res.text(); }catch(_){} throw new Error('Gist API '+res.status+': '+t); }
-    return res.json();
-  }
-
-  async function fetchGistContent(gistId){
-    var meta = await gistRequest('/gists/'+gistId);
-    var f = meta.files[GIST_FILENAME];
-    if(!f) throw new Error(GIST_FILENAME+' not found in gist');
-    if(f.content && !f.truncated) return f.content;
-    if(Array.isArray(meta.history)){
-      for(var i=0;i<meta.history.length;i++){
-        var h = meta.history[i];
-        var snap = await gistRequest('/gists/'+gistId+'/'+h.version);
-        var ff = snap.files[GIST_FILENAME];
-        if(ff && ff.content && !ff.truncated) return ff.content;
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Kanit','Prompt','system-ui','sans-serif'] },
+        colors: { brand: { dark:'#0b0b0c', red:'#E11D2E' } },
+        boxShadow: { soft: '0 6px 18px rgba(0,0,0,.25)' }
       }
     }
-    if(f.raw_url){
-      var token = getToken();
-      var res = await fetch(f.raw_url, token? { headers:{ 'Authorization':'Bearer '+token } } : {});
-      if(res.ok) return await res.text();
+  }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
+
+<style>
+  :root { color-scheme: dark; }
+  html,body{ height:100%; background:#0b0b0c }
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#222;border-radius:10px}
+  .oneline{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .text-elevate{ text-shadow:0 1px 2px rgba(0,0,0,.9),0 0 1px rgba(0,0,0,.7) }
+  @media print { .no-print{display:none!important} .print-only{display:block} }
+</style>
+</head>
+
+<body class="text-white font-sans">
+
+<section id="setupView" class="hidden min-h-screen grid place-items-center">
+  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
+        <img src=""
+          style="width:45px; height:45px" alt="">
+      </div>
+      <div class="text-2xl font-semibold">First-Time Setup</div>
+    </div>
+    <div class="text-zinc-400 mb-4">Please create the primary 'host' account to begin.</div>
+    <label class="text-sm text-zinc-400">Username</label>
+    <input id="setupUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" value="host" disabled />
+    <label class="text-sm text-zinc-400 mt-4 block">Choose a strong password</label>
+    <input id="setupPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="password" />
+    <label class="text-sm text-zinc-400 mt-4 block">Confirm password</label>
+    <input id="setupPassConfirm" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="confirm password" />
+    <button id="btnCreateHost" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create Host Account</button>
+  </div>
+</section>
+
+<section id="loginView" class="hidden min-h-screen grid place-items-center">
+  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
+        <img src=""
+          style="width:45px; height:45px" alt="">
+      </div>
+      <div class="text-2xl font-semibold">ProPlugin • ProPricing</div>
+    </div>
+    <label class="text-sm text-zinc-400">Username</label>
+    <input id="loginUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="username" />
+    <label class="text-sm text-zinc-400 mt-4 block">Password</label>
+    <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="password" />
+    <button id="btnLogin" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
+  </div>
+</section>
+
+<section id="cloudSetupView" class="min-h-screen grid place-items-center">
+  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">
+        <img src=""
+          style="width:45px; height:45px" alt="">
+      </div>
+      <div class="text-2xl font-semibold">Cloud Setup</div>
+    </div>
+    <p class="text-zinc-400 mb-4">Please set up GitHub Gist for cloud storage. You can create a new Gist or load from an existing one.</p>
+    <label class="text-sm text-zinc-400">GitHub Personal Access Token (scope: gist)</label>
+    <input id="cloudToken" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_..." />
+    <label class="text-sm text-zinc-400 mt-4 block">Gist ID (optional for new Gist)</label>
+    <input id="cloudGistId" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4..." />
+    <div class="flex flex-col gap-4 mt-6">
+      <button id="btnCloudCreate" class="w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create New Gist</button>
+      <button id="btnCloudLoad" class="w-full py-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 font-semibold">Load from Existing Gist</button>
+    </div>
+  </div>
+</section>
+
+<section id="appView" class="hidden min-h-screen">
+  <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div id="logoBox" class="w-10 h-10 rounded-xl bg-zinc-100 text-brand.dark font-black grid place-items-center overflow-hidden select-none">
+          <span id="logoFallback">P</span>
+          <img id="logoImg" class="hidden w-full h-full object-contain" alt="logo">
+        </div>
+        <div class="text-xl sm:text-2xl font-semibold tracking-wide">ProPricing</div>
+        <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">⚙️</button>
+        <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col lg:flex-row gap-3">
+      <div class="relative flex-1">
+        <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-900 text-white focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="Search (SKU / Product Name)" />
+        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">🔎</div>
+      </div>
+      <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red">
+        <option value="Flagship">Flagship</option>
+        <option value="Marketplace">Marketplace</option>
+        <option value="Dealer">Dealer</option>
+      </select>
+      <div class="px-3 py-2 rounded-2xl bg-zinc-950 border border-zinc-700 flex items-center gap-2">
+        <span class="text-sm text-zinc-400">Date range</span>
+        <input id="dateStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+        <span class="text-zinc-500">→</span>
+        <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+      </div>
+      <button id="btnNewProduct" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Add +</button>
+      <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="overflow-auto border border-zinc-800 rounded-2xl">
+      <table class="min-w-[1200px] w-full text-sm">
+        <thead class="bg-zinc-900/70 border-b border-zinc-800">
+          <tr class="[&>th]:px-3 [&>th]:py-3 text-left">
+            <th>SKU</th>
+            <th class="w-64">Description</th>
+            <th class="w-64">Details</th>
+            <th id="thCosts" class="hidden">Costs</th>
+
+            <th class="col-normal">Normal</th>
+            <th class="col-promo">Promotion</th>
+            <th class="col-expire">Expire Date</th>
+
+            <th class="col-market">Marketplace</th>
+            <th class="col-marketgp">Market GP%</th>
+
+            <th class="col-t1"><span id="lblT1">Dealer T1</span></th>
+            <th class="col-gp1">GP% T1</th>
+            <th class="col-t2"><span id="lblT2">Dealer T2</span></th>
+            <th class="col-gp2">GP% T2</th>
+            <th class="col-t3"><span id="lblT3">Dealer T3</span></th>
+            <th class="col-gp3">GP% T3</th>
+
+            <th class="w-32">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-900/40"></tbody>
+      </table>
+    </div>
+    <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
+  </main>
+</section>
+
+<div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
+  <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
+    <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
+      <div class="text-sm text-zinc-400 px-2">Settings</div>
+      <button data-tab="data" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Data</button>
+      <button data-tab="logo" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Logo</button>
+      <button data-tab="dealer" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Dealer Settings</button>
+      <button data-tab="users" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
+      <button data-tab="templates" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Template Management</button>
+      <button data-tab="cloud" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Cloud Sync</button>
+      <button data-tab="history" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Usage History</button>
+      <div class="absolute bottom-3 left-3 right-3">
+        <button id="btnCloseSettings" class="w-full text-sm px-2 py-1.5 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
+      </div>
+    </aside>
+    <section id="settingsContent" class="p-6 overflow-auto"></section>
+  </div>
+</div>
+
+<div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b border-zinc-800">
+      <div id="editorTitle" class="text-xl font-semibold">Edit Product</div>
+      <button id="btnCloseEditor" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+    </div>
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
+      <div class="space-y-4">
+        <div><label class="text-sm text-zinc-400">SKU</label><input id="edSku" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Description</label><input id="edDesc" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Details</label><textarea id="edDetails" rows="6" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></textarea></div>
+        <div><label class="text-sm text-zinc-400">Expires Date</label><input id="edExpire" type="date" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+      </div>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-sm text-zinc-400">Costs</label><input id="edCosts" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Normal Price</label><input id="edNormal" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Promotion Price</label><input id="edPromo" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Marketplace Price</label><input id="edMarket" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400"><span id="edLabelT1">Dealer T1</span></label><input id="edT1" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400"><span id="edLabelT2">Dealer T2</span></label><input id="edT2" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400"><span id="edLabelT3">Dealer T3</span></label><input id="edT3" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        </div>
+        <button id="btnSaveEd" class="w-full mt-2 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl grid grid-rows-[auto_1fr] grid-cols-[480px_1fr] min-h-0">
+    <div class="col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
+      <div class="text-xl font-semibold">Print Price Tags</div>
+      <button id="btnClosePrintModal" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+    </div>
+
+    <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
+      <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
+        <div class="grid grid-cols-[1fr_auto] gap-2">
+          <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
+          <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
+        </div>
+        <div class="mt-3 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
+          <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
+          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
+        </div>
+        <div class="text-sm text-zinc-400 mt-2">Select products and set qty per SKU</div>
+      </div>
+      <div id="printList" class="space-y-2 pt-2"></div>
+      <div id="printSummary" class="text-sm text-zinc-400"></div>
+    </div>
+
+    <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
+      <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
+      <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= CORE STATE / STORAGE ================= */
+const LS = {
+  GIST_ID: 'pp_cloud_gist_id_v2',
+  TOKEN: 'pp_cloud_token_v2',
+  GIST_LOADED: 'pp_gist_loaded_v1'
+};
+const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
+const Channels = ['Flagship','Marketplace','Dealer'];
+
+const sampleProducts = [{
+  sku:'MP-00010',
+  description:'iCon Pro Audio GoLive Pro',
+  details:'Audio interface for live streaming with remote control\\n24-bit/48kHz with onboard DSP (Reverb, EQ, Vocal Tune)\\nBuilt-in 5000mAh battery up to 6 hours\\nMic input mini-XLR (48V) & 1/4-inch\\nBluetooth for music & control',
+  costs:4200, normalPrice:7990, promoPrice:5990, expiresDate:'2099-09-09',
+  marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200
+}];
+const defaultAppState = {
+    version: 1,
+    products: sampleProducts,
+    templates: [
+        { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null, logoStyles: { size: 64, margin: 10 },
+          styles:{ sku:{fs:16,color:'#ffffff',mt:0}, description:{fs:30,color:'#ffffff',mt:0}, details:{fs:14,color:'#ffffff',mt:0}, price:{fs:72,color:'#ffffff',mt:0}, oldPrice:{fs:20,color:'#ff4d4f',mt:0}, expire:{fs:13,color:'#ffffff',mt:0} } },
+        { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null, logoStyles: { size: 50, margin: 8 },
+          styles:{ sku:{fs:14,color:'#ffffff',mt:0}, description:{fs:26,color:'#ffffff',mt:0}, details:{fs:13,color:'#ffffff',mt:0}, price:{fs:60,color:'#ffffff',mt:0}, oldPrice:{fs:18,color:'#ff4d4f',mt:0}, expire:{fs:12,color:'#ffffff',mt:0} } },
+        { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null, logoStyles: { size: 40, margin: 6 },
+          styles:{ sku:{fs:12,color:'#ffffff',mt:0}, description:{fs:22,color:'#ffffff',mt:0}, details:{fs:12,color:'#ffffff',mt:0}, price:{fs:48,color:'#ffffff',mt:0}, oldPrice:{fs:16,color:'#ff4d4f',mt:0}, expire:{fs:11,color:'#ffffff',mt:0} } },
+        { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null, logoStyles: { size: 30, margin: 4 },
+          styles:{ sku:{fs:11,color:'#ffffff',mt:2}, description:{fs:15,color:'#ffffff',mt:0, align:'center'}, price:{fs:22,color:'#ffffff',mt:0}, oldPrice:{fs:12,color:'#B91C1C',mt:0}, expire:{fs:10,color:'#ffffff',mt:0} } }
+    ],
+    dealerNames: defaultDealerNames,
+    users: [],
+    logo: '',
+    logs: []
+};
+
+// Application state (in-memory, not localStorage)
+let appData = null;
+let currentUser = null;
+let editingIndex = -1;
+let currentPage = 1;
+const itemsPerPage = 20;
+
+/* ================= UTILITIES ================= */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const money = n => isFinite(n) ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
+const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
+const fromExcelDate = v => {
+  if (v instanceof Date) return v.toISOString().slice(0,10);
+  if (typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400*1000)); return d.toISOString().slice(0,10); }
+  if (typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  return '';
+};
+const gpPct = (price,cost)=> (cost>0 ? ((price - (cost||0))/cost)*100 : 0);
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
+
+function log(action, meta = '') {
+  if (!appData) return;
+  appData.logs.unshift({ ts: new Date().toISOString(), user: currentUser?.username || '-', action, meta });
+  if (appData.logs.length > 3000) {
+    appData.logs.pop();
+  }
+}
+
+function updateLocalDataAndSave(newData) {
+    if (newData) {
+        appData = newData;
     }
-    throw new Error('Cannot read gist file content');
-  }
-
-  function ensureUsers(){
-    if(!appData.users || !Array.isArray(appData.users) || appData.users.length===0){
-      appData.users = [ { username:'host', password:'host123', role:'Host', canSeeCosts:true, canPrint:true, channels:['Flagship','Marketplace','Dealer'] } ];
+    // Update UI based on new data
+    applyDealerNamesToUI();
+    renderTable();
+    if (appData.logo) {
+        $('#logoImg').src = appData.logo;
+        $('#logoImg').classList.remove('hidden');
+        $('#logoFallback').classList.add('hidden');
+    } else {
+        $('#logoImg').classList.add('hidden');
+        $('#logoFallback').classList.remove('hidden');
     }
-  }
 
-  async function cloudCreateGist(){
-    var token = $('#ghToken').value.trim(); if(!token){ alert('Please enter GitHub Token'); return; }
-    var body = { description:'ProPlugin price tag data', public:false, files:{} }; body.files[GIST_FILENAME] = { content: JSON.stringify(appData, null, 2) };
-    sessionStorage.setItem(SKEY_TOKEN, token);
-    var data = await gistRequest('/gists', { method:'POST', body: JSON.stringify(body) });
-    sessionStorage.setItem(SKEY_GIST, data.id);
-    gistConnected = true; await cloudLoad(); sessionStorage.setItem(SKEY_LOADED,'1'); show('#loginView'); $('#loginUser').focus();
-  }
+    // Immediately save to cloud if host is logged in
+    const gistId = sessionStorage.getItem(LS.GIST_ID);
+    const token = sessionStorage.getItem(LS.TOKEN);
+    if (currentUser?.role === 'Host' && gistId && token) {
+        cloudSave(gistId, token).catch(e => console.error("Auto-save failed:", e));
+    }
+}
 
-  async function cloudSave(){ if(!gistConnected) return; var gist=getGist(); var body={ files:{} }; body.files[GIST_FILENAME]={ content: JSON.stringify(appData) }; await gistRequest('/gists/'+gist, { method:'PATCH', body: JSON.stringify(body) }); }
+/* ================= CLOUD SYNC (GitHub Gist) ================= */
+async function gistRequest(method, path, body, token){
+  if(!token) throw new Error('GitHub Token is required for this operation.');
+  const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
+  if(body) headers['Content-Type']='application/json';
+  const res = await fetch('https://api.github.com'+path, { method, headers, body: body?JSON.stringify(body):undefined });
+  if(!res.ok){ const t=await res.text(); throw new Error(`GitHub ${res.status}: ${t}`); }
+  return res.json();
+}
+async function cloudCreateGist(token, appState){
+  const resp = await gistRequest('POST','/gists',{ public:false, files:{ 'proplugin-data.json':{ content: JSON.stringify(appState,null,2) } } }, token);
+  sessionStorage.setItem(LS.GIST_ID, resp.id);
+  sessionStorage.setItem(LS.TOKEN, token);
+  return resp.id;
+}
+async function cloudSave(gistId, token){
+  if(!gistId) throw new Error('Gist ID is required');
+  const body = { files:{ 'proplugin-data.json':{ content: JSON.stringify(appData,null,2) } } };
+  await gistRequest('PATCH','/gists/'+gistId, body, token);
+}
+async function cloudLoad(gistId, token){
+  if (!gistId) throw new Error('Gist ID is required');
+  const resp = await gistRequest('GET', '/gists/' + gistId, null, token);
+  const file = resp.files?.['proplugin-data.json'];
+  if (!file) throw new Error('proplugin-data.json not found in gist');
+  const data = JSON.parse(file.content);
+  appData = data;
+  sessionStorage.setItem(LS.GIST_ID, gistId);
+  sessionStorage.setItem(LS.TOKEN, token);
+}
 
-  async function cloudLoad(){
-    var gist = $('#gistId').value.trim() || getGist(); var token = $('#ghToken').value.trim() || getToken();
-    if(!gist || !token) throw new Error('Missing Token or Gist ID');
-    saveSessionCreds(token, gist);
-    var content = await fetchGistContent(gist);
-    var parsed; try{ parsed = JSON.parse(content); } catch(e){ throw new Error('Invalid JSON in gist'); }
-    appData = Object.assign({ products:[], users:[] }, parsed);
-    ensureUsers(); applyPromoExpiry(); gistConnected=true; await cloudSave(); return true;
-  }
+/* ================= AUTH ================= */
+async function login(){
+  const u=$('#loginUser').value.trim();
+  const p=$('#loginPass').value;
+  const pHash = await hashPassword(p);
+  const found = appData.users.find(x=>x.username===u && x.passwordHash===pHash);
+  if(!found) return alert('Invalid credentials');
 
-  // Auth
-  function signIn(){
-    var u=$('#loginUser').value.trim(); var p=$('#loginPass').value.trim();
-    var user = (appData.users||[]).find(function(x){ return x.username===u && String(x.password)===p; });
-    if(!user){ alert('Invalid credentials'); return; }
-    currentUser = user; $('#roleBadge').textContent = user.role||'User'; updateChannelVisibility(); renderTable(); show('#appView');
-  }
-  function signOut(){ currentUser=null; show('#loginView'); $('#loginUser').focus(); }
+  currentUser=found;
+  $('#loginView').classList.add('hidden');
+  $('#appView').classList.remove('hidden');
+  $('#roleBadge').textContent=`${currentUser.role} • ${currentUser.username}`;
+  const isHost = currentUser.role==='Host';
+  const isAdmin = currentUser.role==='Admin';
+  $('#btnSettings').classList.toggle('hidden', !(isHost||isAdmin));
+  initFiltersForUser();
+  updateLocalDataAndSave();
+}
+function logout(){
+  currentUser=null;
+  appData = null;
+  
+  $('#appView').classList.add('hidden');
+  $('#loginView').classList.remove('hidden');
 
-  // Filters and table
-  function updateChannelVisibility(){ var ch=$('#channelSelect').value; $('#flagshipStart').classList.toggle('hidden', ch!=='Flagship'); $('#flagshipEnd').classList.toggle('hidden', ch!=='Flagship'); }
-  function applyPromoExpiry(){ var today=parseDate(todayStr()); var expired=[]; (appData.products||[]).forEach(function(p){ var exp=parseDate(p.expire); if(p.promotion!=null && p.promotion!=='' && exp && exp<=today){ expired.push({sku:p.sku,description:p.description,normal:p.normal,promotion:p.promotion,expire:p.expire}); p.promotion=null; p.expire=''; } }); appData._expiredReport=expired; }
-  function passesFilters(p){
-    function contains(a,b){ a=(a==null?'':String(a)).toLowerCase(); b=(b==null?'':String(b)).toLowerCase(); return a.indexOf(b)>-1; }
-    function geq(num,th){ if(th===''||th==null) return true; var n=Number(num); var t=Number(th); if(isNaN(t)) return true; return isFinite(n)? n>=t : true; }
-    if(colFilters.sku && !contains(p.sku,colFilters.sku)) return false;
-    if(colFilters.brand && !contains(p.brand,colFilters.brand)) return false;
-    if(colFilters.category && !contains(p.category,colFilters.category)) return false;
-    if(colFilters.description && !contains(p.description,colFilters.description)) return false;
-    if(colFilters.details && !contains((p.details||[]).join(','), colFilters.details)) return false;
-    if(!geq(p.costs, colFilters.costs)) return false;
-    if(!geq(p.normal, colFilters.normal)) return false;
-    if(!geq(p.promotion, colFilters.promotion)) return false;
-    if(colFilters.expire){ var ed=parseDate(p.expire); var flt=parseDate(colFilters.expire); if(!(ed && flt && ed>=flt)) return false; }
-    if(!geq(p.marketplace, colFilters.marketplace)) return false;
-    if(!geq(p.dealerT1, colFilters.dealerT1)) return false;
-    if(!geq(p.dealerT2, colFilters.dealerT2)) return false;
-    if(!geq(p.dealerT3, colFilters.dealerT3)) return false;
-    var ch=$('#channelSelect').value; if(ch==='Flagship'){ var s=$('#flagshipStart').value; var e=$('#flagshipEnd').value; if(s){ var d1=parseDate(p.expire); var s1=parseDate(s); if(!(d1 && d1>=s1)) return false; } if(e){ var d2=parseDate(p.expire); var e1=parseDate(e); if(!(d2 && d2<=e1)) return false; } }
-    var q=$('#globalSearch').value.trim().toLowerCase(); if(q){ var hay=[p.sku,p.brand,p.category,p.description,(p.details||[]).join(',')].join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
-    return true;
-  }
-  function renderTable(){
-    applyPromoExpiry(); var canSeeCosts = (currentUser && currentUser.canSeeCosts);
-    var all=(appData.products||[]).filter(function(p){ return passesFilters(p); }); var total=all.length; var pages=Math.max(1, Math.ceil(total/pageSize)); if(page>pages) page=pages; var slice=all.slice((page-1)*pageSize, page*pageSize);
-    var rows = slice.map(function(p){ var details=(p.details||[]).filter(function(x){return !!x;}).map(function(x){return '• '+x;}).join('<br>');
-      return '<tr>'+
-        '<td class="px-3 py-2 align-top">'+(p.sku||'')+'</td>'+
-        '<td class="px-3 py-2 align-top">'+(p.brand||'')+'</td>'+
-        '<td class="px-3 py-2 align-top">'+(p.category||'')+'</td>'+
-        '<td class="px-3 py-2 align-top font-medium">'+(p.description||'')+'</td>'+
-        '<td class="px-3 py-2 align-top text-zinc-300">'+(details||'')+'</td>'+
-        '<td class="px-3 py-2 align-top '+(canSeeCosts? '' : 'opacity-30')+'">'+(canSeeCosts? fmt(p.costs): '—')+'</td>'+
-        '<td class="px-3 py-2 align-top">'+fmt(p.normal)+'</td>'+
-        '<td class="px-3 py-2 align-top font-semibold text-red-500">'+(p.promotion? fmt(p.promotion): '')+'</td>'+
-        '<td class="px-3 py-2 align-top font-semibold text-red-500">'+(p.expire||'')+'</td>'+
-        '<td class="px-3 py-2 align-top">'+fmt(p.marketplace)+'</td>'+
-        '<td class="px-3 py-2 align-top">'+fmt(p.dealerT1)+'</td>'+
-        '<td class="px-3 py-2 align-top">'+fmt(p.dealerT2)+'</td>'+
-        '<td class="px-3 py-2 align-top">'+fmt(p.dealerT3)+'</td>'+
-        '<td class="px-3 py-2 align-top">'+(currentUser && (currentUser.role==='Host' || currentUser.role==='Admin') ? ('<button class="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" onclick="openEditor(\''+p.sku+'\')">Edit</button><button class="px-2 py-1 rounded-lg bg-red-600/80 hover:bg-red-600 ml-1" onclick="deleteItem(\''+p.sku+'\')">Del</button>') : '')+'</td>'+
-      '</tr>';
-    }).join('');
-    $('#tableBody').innerHTML = rows || '<tr><td colspan="14" class="px-3 py-6 text-center text-zinc-400">No data</td></tr>';
-    $('#paginationInfo').textContent = 'Showing '+(((page-1)*pageSize)+1)+'-'+(Math.min(page*pageSize,total))+' of '+total;
-    cloudSave().catch(function(){});
-  }
+  // Clear password field only
+  $('#loginPass').value = '';
 
-  function openEditor(sku){
-    var p=(appData.products||[]).find(function(x){ return x.sku===sku; }) || { sku:'', brand:'', category:'', description:'', details:[], costs:'', normal:'', promotion:'', expire:'', marketplace:'', dealerT1:'', dealerT2:'', dealerT3:'' };
-    $('#editorTitle').textContent = p.sku? ('Edit: '+p.sku) : 'Add Item';
-    $('#edSku').value=p.sku||''; $('#edBrand').value=p.brand||''; $('#edCategory').value=p.category||''; $('#edDesc').value=p.description||''; $('#edDetails').value=(p.details||[]).join(',');
-    $('#edCosts').value=p.costs||''; $('#edNormal').value=p.normal||''; $('#edPromo').value=p.promotion||''; $('#edExpire').value=p.expire||''; $('#edMarketplace').value=p.marketplace||''; $('#edT1').value=p.dealerT1||''; $('#edT2').value=p.dealerT2||''; $('#edT3').value=p.dealerT3||'';
-    $('#editorModal').classList.remove('hidden');
+  // The rest of the credentials are kept in sessionStorage
+}
+
+/* ================= FILTERS & COLUMN VISIBILITY ================= */
+function initFiltersForUser(){
+  const sel=$('#channelSelect'); sel.innerHTML='';
+  currentUser.channels.forEach(ch=>{ const o=document.createElement('option'); o.textContent=ch; sel.appendChild(o); });
+  sel.value=currentUser.channels[0];
+  $('#btnPrintModal').classList.toggle('hidden', !currentUser.canPrint);
+  $('#thCosts').classList.toggle('hidden', !(currentUser.canSeeCosts || ['Host','Admin'].includes(currentUser.role)));
+  updateColumnVisibility();
+}
+function updateColumnVisibility(){
+  const ch=$('#channelSelect').value;
+  const show={normal:false,promo:false,expire:false,market:false,marketgp:false,t1:false,gp1:false,t2:false,gp2:false,t3:false,gp3:false};
+  if(ch==='Flagship'){ show.normal=show.promo=show.expire=true; }
+  if(ch==='Marketplace'){ show.market=show.marketgp=true; }
+  if(ch==='Dealer'){ show.t1=show.gp1=show.t2=show.gp2=show.t3=show.gp3=true; }
+  const map={ 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
+  Object.entries(map).forEach(([cls,v])=> $$('.'+cls).forEach(el=>el.classList.toggle('hidden',!v)));
+}
+
+/* ================= APPLY DEALER NAMES ================= */
+function applyDealerNamesToUI(){
+  const dealerNames = appData?.dealerNames || defaultDealerNames;
+  $('#lblT1').textContent = dealerNames.t1 || 'Dealer T1';
+  $('#lblT2').textContent = dealerNames.t2 || 'Dealer T2';
+  $('#lblT3').textContent = dealerNames.t3 || 'Dealer T3';
+  $('#edLabelT1').textContent = dealerNames.t1 || 'Dealer T1';
+  $('#edLabelT2').textContent = dealerNames.t2 || 'Dealer T2';
+  $('#edLabelT3').textContent = dealerNames.t3 || 'Dealer T3';
+}
+
+/* ================= TABLE & PAGINATION ================= */
+function filteredProducts(){
+  if (!appData) return [];
+  const q=$('#searchInput').value.trim().toLowerCase();
+  const ds=$('#dateStart').value, de=$('#dateEnd').value;
+  const isFlagship = $('#channelSelect').value==='Flagship';
+  return appData.products.filter(p=>{
+    const hit = !q || (p.sku||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
+    let dateOk = true;
+    if(isFlagship && (ds||de)){
+      const ex = p.expiresDate ? new Date(p.expiresDate) : null;
+      if(!ex) dateOk=false;
+      if(ds && ex < new Date(ds)) dateOk=false;
+      if(de && ex > new Date(de+'T23:59:59')) dateOk=false;
+    }
+    return hit && dateOk;
+  });
+}
+function renderPagination(totalItems) {
+  const pageBox = $('#pagination');
+  pageBox.innerHTML = '';
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  if (totalPages <= 1) return;
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = `px-3 py-1 rounded-lg text-sm border ${currentPage === i ? 'bg-brand.red border-red-700' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`;
+    btn.onclick = () => { currentPage = i; renderTable(); };
+    pageBox.appendChild(btn);
   }
-  function closeEditor(){ $('#editorModal').classList.add('hidden'); }
-  function saveEditor(){
-    var obj = {
-      sku: $('#edSku').value.trim(), brand: $('#edBrand').value.trim(), category: $('#edCategory').value.trim(), description: $('#edDesc').value.trim(),
-      details: $('#edDetails').value.split(',').map(function(s){ return s.trim(); }).filter(function(x){return !!x;}),
-      costs: Number($('#edCosts').value)||'', normal: Number($('#edNormal').value)||'', promotion: $('#edPromo').value!=='' ? Number($('#edPromo').value): null,
-      expire: $('#edExpire').value, marketplace: Number($('#edMarketplace').value)||'', dealerT1: Number($('#edT1').value)||'', dealerT2: Number($('#edT2').value)||'', dealerT3: Number($('#edT3').value)||''
+}
+function renderTable(){
+  const body=$('#productBody'); body.innerHTML='';
+  if(!appData) return;
+  const showCosts = (currentUser?.canSeeCosts || ['Host','Admin'].includes(currentUser?.role));
+  const canEdit = ['Host','Admin'].includes(currentUser?.role);
+  const allFiltered = filteredProducts();
+  const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  paginatedItems.forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
+    const gpM = gpPct(p.marketplacePrice, p.costs);
+    const gp1 = gpPct(p.dealer1, p.costs);
+    const gp2 = gpPct(p.dealer2, p.costs);
+    const gp3 = gpPct(p.dealer3, p.costs);
+    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
+    tr.innerHTML = `
+      <td class="px-3 py-3 oneline" title="${p.sku}">${p.sku}</td>
+      <td class="px-3 py-3 oneline" title="${p.description}"><div class="oneline" style="max-width:16rem">${p.description}</div></td>
+      <td class="px-3 py-3 oneline" title="${detailsOneLine}"><div class="oneline" style="max-width:18rem">${detailsOneLine}</div></td>
+      <td class="px-3 py-3 ${showCosts?'':'hidden'} oneline" title="${p.costs?money(p.costs):'-'}">${p.costs?money(p.costs):'-'}</td>
+      <td class="px-3 py-3 col-normal oneline" title="${p.normalPrice?money(p.normalPrice):'-'}">${p.normalPrice?money(p.normalPrice):'-'}</td>
+      <td class="px-3 py-3 col-promo oneline"  title="${p.promoPrice?money(p.promoPrice):'-'}">${p.promoPrice?money(p.promoPrice):'-'}</td>
+      <td class="px-3 py-3 col-expire oneline" title="${p.expiresDate?toDateInput(p.expiresDate):'-'}">${p.expiresDate?toDateInput(p.expiresDate):'-'}</td>
+      <td class="px-3 py-3 col-market oneline"   title="${p.marketplacePrice?money(p.marketplacePrice):'-'}">${p.marketplacePrice?money(p.marketplacePrice):'-'}</td>
+      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t1 oneline"  title="${p.dealer1?money(p.dealer1):'-'}">${p.dealer1?money(p.dealer1):'-'}</td>
+      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t2 oneline"  title="${p.dealer2?money(p.dealer2):'-'}">${p.dealer2?money(p.dealer2):'-'}</td>
+      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t3 oneline"  title="${p.dealer3?money(p.dealer3):'-'}">${p.dealer3?money(p.dealer3):'-'}</td>
+      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
+      <td class="px-3 py-3">
+        ${canEdit? `
+          <div class="flex items-center gap-2">
+            <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
+            <button title="Delete" class="px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>
+          </div>` : '-'}
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+  $$('button[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.getAttribute('data-edit'))));
+  $$('button[data-del]').forEach(b=>b.addEventListener('click',()=>{
+    const sku=b.getAttribute('data-del');
+    if(confirm(`Delete SKU ${sku}? This cannot be undone.`)){
+      appData.products = appData.products.filter(x=>x.sku!==sku);
+      log('delete_sku', sku);
+      updateLocalDataAndSave();
+      alert('Deleted successfully.');
+    }
+  }));
+  renderPagination(allFiltered.length);
+  updateColumnVisibility();
+}
+
+/* ================= EDITOR ================= */
+function openEditor(sku = null) {
+  if(!['Host','Admin'].includes(currentUser.role)) return;
+  if (sku) {
+    editingIndex = appData.products.findIndex(x=>x.sku===sku);
+    const p = appData.products[editingIndex];
+    $('#editorTitle').textContent = 'Edit Product';
+    $('#edSku').value = p.sku;
+    $('#edSku').disabled = true;
+    $('#edDesc').value = p.description;
+    $('#edDetails').value = p.details||'';
+    $('#edExpire').value = toDateInput(p.expiresDate);
+    $('#edCosts').value = p.costs||'';
+    $('#edNormal').value = p.normalPrice||'';
+    $('#edPromo').value = p.promoPrice||'';
+    $('#edMarket').value = p.marketplacePrice||'';
+    $('#edT1').value = p.dealer1||'';
+    $('#edT2').value = p.dealer2||'';
+    $('#edT3').value = p.dealer3||'';
+  } else {
+    editingIndex = -1;
+    $('#editorTitle').textContent = 'Add New Product';
+    $('#edSku').value = '';
+    $('#edSku').disabled = false;
+    $('#edDesc').value = '';
+    $('#edDetails').value = '';
+    $('#edExpire').value = '';
+    $('#edCosts').value = '';
+    $('#edNormal').value = '';
+    $('#edPromo').value = '';
+    $('#edMarket').value = '';
+    $('#edT1').value = '';
+    $('#edT2').value = '';
+    $('#edT3').value = '';
+  }
+  applyDealerNamesToUI();
+  $('#editorModal').classList.remove('hidden');
+}
+function closeEditor(){ $('#editorModal').classList.add('hidden'); }
+async function saveEditor() {
+  const sku = $('#edSku').value.trim();
+  if (!sku) { alert('SKU is required.'); return; }
+  const newProductData = {
+    sku: sku,
+    description:$('#edDesc').value.trim(), details:$('#edDetails').value.trim(),
+    expiresDate:$('#edExpire').value||'', costs:parseFloat($('#edCosts').value)||0,
+    normalPrice:parseFloat($('#edNormal').value)||0, promoPrice:parseFloat($('#edPromo').value)||0,
+    marketplacePrice:parseFloat($('#edMarket').value)||0, dealer1:parseFloat($('#edT1').value)||0,
+    dealer2:parseFloat($('#edT2').value)||0, dealer3:parseFloat($('#edT3').value)||0
+  };
+
+  if (editingIndex > -1) {
+    Object.assign(appData.products[editingIndex], newProductData);
+    log('edit_product', sku);
+  } else {
+    if (appData.products.some(p => p.sku === sku)) {
+      alert(`SKU "${sku}" already exists. Please use a unique SKU.`); return;
+    }
+    appData.products.unshift(newProductData);
+    log('add_product', sku);
+  }
+  
+  closeEditor();
+  updateLocalDataAndSave();
+  alert('Saved successfully.');
+}
+
+/* ================= SETTINGS ================= */
+function openSettings(tab){
+  if(!['Host','Admin'].includes(currentUser.role)) return;
+  $('#settingsPanel').classList.remove('hidden');
+  renderSettings(tab);
+}
+function fileToBase64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); }); }
+
+function renderSettings(tab){
+  const box=$('#settingsContent');
+  $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
+  const btn=$(`.set-tab[data-tab="${tab}"]`); if(btn) btn.classList.add('ring-2','ring-brand.red');
+  const isHost=currentUser.role==='Host';
+  const isAdmin=currentUser.role==='Admin';
+  $$('.only-host').forEach(el=>el.classList.toggle('hidden', !isHost));
+  $$('.only-host-admin').forEach(el=>el.classList.toggle('hidden', !(isHost||isAdmin)));
+
+  if(tab==='data'){
+    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Manage Data</div>
+      <div class="text-zinc-400 mb-4">Import / Export Excel (A–O columns; GP% auto-calculated)</div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Import (.xlsx)</div>
+          <input id="fileImport" type="file" accept=".xlsx,.xls" class="w-full">
+          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Description, C Details, D Costs, E Normal, F Promotion, G Expires, H Marketplace, I Market GP% (ignored), J Dealer T1, K GP% T1 (ignored), L Dealer T2, M GP% T2 (ignored), N Dealer T3, O GP% T3 (ignored)</p>
+          <button id="btnDoImport" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import</button>
+        </div>
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Export (.xlsx)</div>
+          <button id="btnExport" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Excel</button>
+          <p class="text-xs text-zinc-400 mt-2">Export colors: D = light green, F & G = yellow. GP% (Market/T1/T2/T3 & Promotion) auto-calculated.</p>
+        </div>
+      </div>
+    `;
+    $('#btnDoImport').onclick=doImport;
+    $('#btnExport').onclick=doExport;
+  }
+  if(tab==='logo'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const base64 = appData.logo || '';
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Manage Logo</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Upload logo</div>
+          <input type="file" id="logoFile" accept="image/*">
+          <p class="text-xs text-zinc-400 mt-2">PNG/JPG/SVG. Used on default templates.</p>
+          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save logo</button>
+          <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Remove</button>
+        </div>
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Preview</div>
+          <div class="h-40 w-40 bg-white rounded-xl overflow-hidden grid place-items-center p-2">
+            ${base64?`<img src="${base64}" class="max-h-full max-w-full object-contain">`:'<div class="text-zinc-800 text-4xl font-black">P</div>'}
+          </div>
+        </div>
+      </div>
+    `;
+    $('#btnSaveLogo').onclick=async()=>{
+      const f=$('#logoFile').files[0]; if(!f) return alert('Choose a file.');
+      const b64=await fileToBase64(f);
+      appData.logo = b64;
+      log('update_logo');
+      updateLocalDataAndSave();
+      openSettings('logo');
     };
-    if(!obj.sku){ alert('SKU is required'); return; }
-    var idx=(appData.products||[]).findIndex(function(x){ return x.sku===obj.sku; }); if(idx>=0) appData.products[idx]=obj; else appData.products.push(obj);
-    closeEditor(); renderTable();
+    $('#btnRemoveLogo').onclick=()=>{
+      appData.logo = '';
+      log('remove_logo');
+      updateLocalDataAndSave();
+      openSettings('logo');
+    }
   }
-  function deleteItem(sku){ if(!confirm('Delete this item?')) return; var i=(appData.products||[]).findIndex(function(x){ return x.sku===sku; }); if(i>=0){ appData.products.splice(i,1); renderTable(); } }
+  if(tab==='dealer'){
+    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
+    const names = appData.dealerNames || {};
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-4">Dealer Settings</div>
+      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+        <div class="grid md:grid-cols-3 gap-3">
+          <div><label class="text-xs text-zinc-400">Name for Dealer T1</label><input id="nameT1" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t1||'Dealer T1'}"></div>
+          <div><label class="text-xs text-zinc-400">Name for Dealer T2</label><input id="nameT2" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t2||'Dealer T2'}"></div>
+          <div><label class="text-xs text-zinc-400">Name for Dealer T3</label><input id="nameT3" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t3||'Dealer T3'}"></div>
+        </div>
+        <button id="btnSaveDealer" class="mt-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save Names</button>
+      </div>
+    `;
+    $('#btnSaveDealer').onclick=()=>{
+      appData.dealerNames = {t1:$('#nameT1').value.trim()||'Dealer T1', t2:$('#nameT2').value.trim()||'Dealer T2', t3:$('#nameT3').value.trim()||'Dealer T3'};
+      applyDealerNamesToUI();
+      alert('Saved'); log('save_dealer_names', JSON.stringify(appData.dealerNames));
+      updateLocalDataAndSave();
+    };
+  }
+  if(tab==='users'){
+    if(!(isHost||isAdmin)){ box.innerHTML='<div class="text-zinc-400">Not allowed.</div>'; return; }
+    box.innerHTML=`
+      <div class="flex items-center justify-between">
+        <div class="text-2xl font-semibold mb-2">User Management</div>
+        <button id="btnAddUser" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Add User</button>
+      </div>
+      <div id="addUserBox" class="hidden p-4 mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+        <div class="grid md:grid-cols-2 gap-3">
+          <input id="nuName" placeholder="username" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+          <input id="nuPass" placeholder="password" type="password" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+          <select id="nuRole" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+            <option>User</option><option>Admin</option>${isHost?'<option>Host</option>':''}
+          </select>
+          <div class="flex items-center gap-4">
+            <label class="text-sm"><input type="checkbox" id="nuSeeCosts"> See Costs</label>
+            <label class="text-sm"><input type="checkbox" id="nuCanPrint" checked> Can Print</label>
+          </div>
+          <div class="md:col-span-2">
+            ${Channels.map(ch=>`<label class="mr-3 text-sm"><input type="checkbox" class="nuCh" value="${ch}" ${ch==='Flagship'?'checked':''}> ${ch}</label>`).join('')}
+          </div>
+        </div>
+        <div class="mt-3"><button id="nuCreate" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Create</button></div>
+      </div>
+      <div class="overflow-auto border border-zinc-800 rounded-2xl">
+        <table class="min-w-[900px] w-full text-sm">
+          <thead class="bg-zinc-900/70 border-b border-zinc-800">
+            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>User</th><th>Role</th><th>Channels</th><th>See Costs</th><th>Can Print</th><th>New Pwd</th><th></th></tr>
+          </thead>
+          <tbody id="userRows"></tbody>
+        </table>
+      </div>
+    `;
+    $('#btnAddUser').onclick=()=>$('#addUserBox').classList.toggle('hidden');
+    $('#nuCreate').onclick=async ()=>{
+      const name=$('#nuName').value.trim(); const pass=$('#nuPass').value.trim(); if(!name||!pass) return alert('Username & password required');
+      if(appData.users.some(u=>u.username===name)) return alert('Username already exists');
+      const role=$('#nuRole').value; const canSee=$('#nuSeeCosts').checked; const canPrint=$('#nuCanPrint').checked;
+      const chs=$$('.nuCh').filter(x=>x.checked).map(x=>x.value); if(!chs.length) return alert('Select at least one channel');
+      const passHash = await hashPassword(pass);
+      const list=appData.users; list.push({username:name, passwordHash:passHash, role, channels:chs, canSeeCosts:canSee, canPrint});
+      appData.users = list;
+      log('add_user',name);
+      updateLocalDataAndSave();
+      openSettings('users'); alert('User created');
+    };
+    const tbody=$('#userRows'); tbody.innerHTML='';
+    appData.users.forEach((u,i)=>{
+      const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
+      tr.innerHTML=`
+        <td class="px-3 py-2">${u.username}</td>
+        <td class="px-3 py-2">
+          <select data-role="${i}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700" ${u.username==='host'?'disabled':''}>
+            ${['Host','Admin','User'].map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
+          </select>
+        </td>
+        <td class="px-3 py-2">
+          ${Channels.map(ch=>`<label class="mr-2"><input type="checkbox" data-ch="${i}|${ch}" ${u.channels.includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>`).join('')}
+        </td>
+        <td class="px-3 py-2"><input type="checkbox" data-cost="${i}" ${u.canSeeCosts?'checked':''}></td>
+        <td class="px-3 py-2"><input type="checkbox" data-print="${i}" ${u.canPrint?'checked':''}></td>
+        <td class="px-3 py-2"><input type="text" data-pass="${i}" placeholder="Set new" class="w-28 px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700"></td>
+        <td class="px-3 py-2">
+          <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu="${i}">Save</button>
+          ${u.username==='host' ? '' : `<button class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-delu="${i}">❌</button>`}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    $$('button[data-saveu]').forEach(b=>b.addEventListener('click', async (e) => {
+      const i=+e.target.getAttribute('data-saveu'); const list=appData.users; const u=list[i];
+      u.role=$(`select[data-role="${i}"]`).value;
+      u.canSeeCosts=$(`input[data-cost="${i}"]`).checked;
+      u.canPrint=$(`input[data-print="${i}"]`).checked;
+      const newPass = $(`input[data-pass="${i}"]`).value.trim();
+      if(newPass) { u.passwordHash = await hashPassword(newPass); }
+      u.channels=Channels.filter(ch=> $(`input[data-ch="${i}|${ch}"]`).checked );
+      appData.users = list;
+      if(currentUser.username===u.username){ currentUser=u; initFiltersForUser(); }
+      log('update_user',u.username); alert('Saved.');
+      updateLocalDataAndSave();
+      openSettings('users');
+    }));
+    $$('button[data-delu]').forEach(b=>b.addEventListener('click', (e) => {
+      const i=+e.target.getAttribute('data-delu'); const list=appData.users; const u=list[i];
+      if(u.username==='host') return alert('Cannot delete the default host account.');
+      if(confirm(`Delete user "${u.username}"?`)){
+        appData.users = list.filter(user => user.username !== u.username);
+        log('delete_user',u.username);
+        updateLocalDataAndSave();
+        openSettings('users');
+      }
+    }));
+  }
+  if(tab==='templates'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const arr = appData.templates || [];
+    box.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="text-2xl font-semibold mb-2">Template Management</div>
+        <div class="flex items-center gap-2">
+          <label class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 cursor-pointer">
+            <input type="file" id="tplUploadNew" accept="image/png, image/jpeg" class="hidden">
+            Upload New Template
+          </label>
+        </div>
+      </div>
+      <div class="text-sm text-zinc-400 mb-3">All templates are fully customizable.</div>
+      <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
+    `;
 
-  // Import/Export
-  function exportXlsx(filename, rows){ var ws=XLSX.utils.json_to_sheet(rows); var wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1'); XLSX.writeFile(wb, filename); }
-  function exportMaster(){ var rows=(appData.products||[]).map(function(p){ return { SKU:p.sku, Brand:p.brand||'', Category:p.category||'', Description:p.description||'', Details:(p.details||[]).join(', '), Costs:p.costs||'', Normal:p.normal||'', Marketplace:p.marketplace||'', Dealer_T1:p.dealerT1||'', Dealer_T2:p.dealerT2||'', Dealer_T3:p.dealerT3||'' }; }); exportXlsx('Master_'+todayStr()+'.xlsx', rows); }
-  function exportPromotion(){ var rows=(appData.products||[]).map(function(p){ return { SKU:p.sku, Description:p.description||'', Normal:p.normal||'', Promotion:p.promotion||'', Expire:p.expire||'' }; }); exportXlsx('Promotion_'+todayStr()+'.xlsx', rows); }
-  function importFromSheetMaster(sheet){ var rows=XLSX.utils.sheet_to_json(sheet,{defval:''}); rows.forEach(function(r){ var sku=String(r.SKU||r.sku||'').trim(); if(!sku) return; var obj=(appData.products||[]).find(function(x){return x.sku===sku; }) || { sku:sku };
-      obj.brand=r.Brand||r.brand||obj.brand||''; obj.category=r.Category||r.category||obj.category||''; obj.description=r.Description||r.description||obj.description||''; var det=r.Details||r.details||''; obj.details=det? String(det).split(',').map(function(s){return s.trim();}).filter(function(x){return !!x;}):[]; obj.costs=r.Costs!==''? Number(r.Costs): (obj.costs||''); obj.normal=r.Normal!==''? Number(r.Normal): (obj.normal||''); obj.marketplace=r.Marketplace!==''? Number(r.Marketplace): (obj.marketplace||''); obj.dealerT1=r.Dealer_T1!==''? Number(r.Dealer_T1): (obj.dealerT1||''); obj.dealerT2=r.Dealer_T2!==''? Number(r.Dealer_T2): (obj.dealerT2||''); obj.dealerT3=r.Dealer_T3!==''? Number(r.Dealer_T3): (obj.dealerT3||''); var idx=(appData.products||[]).findIndex(function(x){return x.sku===sku;}); if(idx>=0) appData.products[idx]=obj; else appData.products.push(obj); }); }
-  function importFromSheetPromotion(sheet){ var rows=XLSX.utils.sheet_to_json(sheet,{defval:''}); rows.forEach(function(r){ var sku=String(r.SKU||r.sku||'').trim(); if(!sku) return; var obj=(appData.products||[]).find(function(x){return x.sku===sku; }) || { sku:sku, details:[] }; obj.description=r.Description||obj.description||''; if(r.Normal!=='' && r.Normal!=null) obj.normal=Number(r.Normal); obj.promotion=(r.Promotion!=='' && r.Promotion!=null)? Number(r.Promotion): null; obj.expire=r.Expire||''; var idx=(appData.products||[]).findIndex(function(x){return x.sku===sku;}); if(idx>=0) appData.products[idx]=obj; else appData.products.push(obj); }); }
-  function handleFileImport(file, kind){ var reader=new FileReader(); reader.onload=function(e){ var data=new Uint8Array(e.target.result); var wb=XLSX.read(data,{type:'array'}); var sheet=wb.Sheets[wb.SheetNames[0]]; if(kind==='master') importFromSheetMaster(sheet); else importFromSheetPromotion(sheet); renderTable(); }; reader.readAsArrayBuffer(file); }
+    const listBox = $('#tplList'); listBox.innerHTML='';
+    arr.forEach((t,i)=>{
+      const card = document.createElement('div');
+      card.className = 'p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
+      const safe = (v, d) => (v===undefined || v===null) ? d : v;
+      t.styles = t.styles || {};
+      ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
+        t.styles[k] = t.styles[k] || {fs:14,color:'#ffffff',mt:0};
+        t.styles[k].fs = safe(parseInt(t.styles[k].fs), 14);
+        t.styles[k].color = t.styles[k].color || '#ffffff';
+        t.styles[k].mt = safe(parseInt(t.styles[k].mt), 0);
+      });
+      t.logoStyles = t.logoStyles || {size:64, margin:10};
 
-  // Reports
-  function refreshExpireReport(){ applyPromoExpiry(); var list=appData._expiredReport||[]; var rows=list.map(function(x){ return '<tr><td class="px-3 py-2">'+x.sku+'</td><td class="px-3 py-2">'+x.description+'</td><td class="px-3 py-2">'+fmt(x.normal)+'</td><td class="px-3 py-2 text-red-500 font-semibold">'+fmt(x.promotion)+'</td><td class="px-3 py-2 text-red-500 font-semibold">'+x.expire+'</td></tr>'; }).join(''); $('#expireReportBody').innerHTML = rows || '<tr><td colspan="5" class="px-3 py-4 text-center text-zinc-400">(none)</td></tr>'; }
-  function exportExpireReport(){ var list=appData._expiredReport||[]; var lines=['SKU,Description,Normal,Promotion,Expire']; for(var i=0;i<list.length;i++){ var r=list[i]; lines.push([r.sku, csvEscape(r.description), r.normal, r.promotion, r.expire].join(',')); } var blob=new Blob([lines.join('
-')],{type:'text/csv'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='PromotionExpired_'+todayStr()+'.csv'; a.click(); URL.revokeObjectURL(url); }
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <input data-name="${i}" value="${t.name||'Untitled Template'}" class="bg-transparent text-white text-lg font-semibold px-2 py-1 outline-none border-b border-zinc-700 focus:border-brand.red">
+          <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del="${i}">Delete</button>
+        </div>
+        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-sm font-semibold mb-2">Background Image</div>
+            <img src="${t.imageData||''}" alt="template" class="w-full rounded-lg border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
+            <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
+            <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
+              <input type="file" data-img="${i}" accept="image/png, image/jpeg" class="hidden">
+              Upload/Change Image
+            </label>
+          </div>
+          <div>
+            <div class="text-sm font-semibold mb-2">Logo Settings</div>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" data-logo="${i}" ${t.showLogo?'checked':''}> Show logo
+            </label>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label class="text-xs text-zinc-400">Size (px)</label>
+                <input type="number" step="1" data-logosize="${i}" value="${safe(parseInt(t.logoStyles.size),64)}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+              </div>
+              <div>
+                <label class="text-xs text-zinc-400">Margin (px)</label>
+                <input type="number" step="1" data-logomargin="${i}" value="${safe(parseInt(t.logoStyles.margin),10)}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
+            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+              <div class="text-xs text-zinc-400 mb-1 capitalize">${k.replace('oldPrice','Old Price')}</div>
+              <label class="text-xs">Font size</label>
+              <input type="number" step="1" data-fs="${i}|${k}" value="${t.styles[k].fs}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
+              <label class="text-xs">Color</label>
+              <input type="color" data-color="${i}|${k}" value="${t.styles[k].color}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800 mb-1">
+              <label class="text-xs">Top margin (px)</label>
+              <input type="number" step="1" data-mt="${i}|${k}" value="${t.styles[k].mt}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+            </div>
+          `).join('')}
+        </div>
+        <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savtpl="${i}">Save Template</button>
+      `;
+      listBox.appendChild(card);
+    });
 
-  // Printing (A4 full-bleed)
-  function buildTagHTML(p){ var price=(p.promotion!=null && p.promotion!=='')? '<div class="text-3xl font-bold text-red-600">฿'+fmt(p.promotion)+'</div>' : '<div class="text-3xl font-bold">฿'+fmt(p.normal)+'</div>'; var expire=p.expire? '<div class="text-xs mt-1 text-red-600">Expire: '+p.expire+'</div>' : ''; return '<div class="p-2 border border-zinc-300 rounded-lg">'+'<div class="text-xs text-zinc-500">'+(p.brand||'')+' · '+(p.category||'')+'</div>'+'<div class="font-semibold">'+(p.description||'')+'</div>'+price+expire+'</div>'; }
-  function openPrint(){ var items=(appData.products||[]).filter(function(p){return passesFilters(p);}); openPrintTab(items); }
-  function openPrintTab(items){ var w=window.open('', '_blank'); var styles='<style>@page{size:A4;margin:0} html,body{margin:0;padding:0} *{-webkit-print-color-adjust:exact;print-color-adjust:exact} body{width:210mm;height:297mm} .sheet{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:99mm;gap:3mm;padding:3mm;box-sizing:border-box} .tag{break-inside:avoid}</style>'; var html=items.map(function(p){ return '<div class="tag">'+buildTagHTML(p)+'</div>'; }).join(''); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'+styles+'</head><body><div class="sheet">'+html+'</div><script>window.onload=function(){setTimeout(function(){window.print()},100)}<\/script></body></html>'); w.document.close(); }
+    listBox.addEventListener('click', (ev)=>{
+      const saveBtn = ev.target.closest('button[data-savtpl]');
+      if(saveBtn){
+        const i = +saveBtn.getAttribute('data-savtpl');
+        const list = appData.templates;
+        const t = list[i]; if(!t) return;
+        t.name = $(`#settingsContent input[data-name="${i}"]`)?.value?.trim() || t.name || 'Untitled Template';
+        ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
+          const fs = parseInt($(`#settingsContent input[data-fs="${i}|${k}"]`)?.value)||14;
+          const color = $(`#settingsContent input[data-color="${i}|${k}"]`)?.value||'#ffffff';
+          const mt = parseInt($(`#settingsContent input[data-mt="${i}|${k}"]`)?.value)||0;
+          t.styles = t.styles || {}; t.styles[k] = {fs, color, mt};
+        });
+        t.showLogo = !!$(`#settingsContent input[data-logo="${i}"]`)?.checked;
+        t.logoStyles = t.logoStyles || {};
+        t.logoStyles.size = parseInt($(`#settingsContent input[data-logosize="${i}"]`)?.value)||64;
+        t.logoStyles.margin = parseInt($(`#settingsContent input[data-logomargin="${i}"]`)?.value)||10;
+        appData.templates = list;
+        log('save_template', t.name);
+        alert('Template saved');
+        updateLocalDataAndSave();
+        return;
+      }
+      const delBtn = ev.target.closest('button[data-del]');
+      if(delBtn){
+        const i = +delBtn.getAttribute('data-del');
+        const list = appData.templates;
+        const t = list[i]; if(!t) return;
+        if(confirm(`Delete template "${t.name}"?`)){
+          appData.templates = list.filter(tpl => tpl.id !== t.id);
+          log('delete_template', t.name);
+          updateLocalDataAndSave();
+          openSettings('templates');
+        }
+      }
+    });
 
-  // UI events
-  function setBusy(btn,busy){ if(!btn) return; btn.disabled=!!busy; if(!btn.getAttribute('data-label')) btn.setAttribute('data-label', btn.textContent); btn.textContent = busy? 'Working…' : btn.getAttribute('data-label'); }
-  document.getElementById('btnCreateGist').addEventListener('click', function(ev){ var btn=ev.currentTarget; setBusy(btn,true); cloudCreateGist().catch(function(e){ alert(e.message||e); }).finally(function(){ setBusy(btn,false); }); });
-  document.getElementById('btnLoadGist').addEventListener('click', function(ev){ var btn=ev.currentTarget; setBusy(btn,true); cloudLoad().then(function(){ show('#loginView'); $('#loginUser').focus(); }).catch(function(e){ alert(e.message||e); }).finally(function(){ setBusy(btn,false); }); });
+    listBox.addEventListener('change', async (ev)=>{
+      const fInput = ev.target.closest('input[type="file"][data-img]');
+      if(fInput){
+        const i = +fInput.getAttribute('data-img');
+        const file = fInput.files && fInput.files[0];
+        if(!file) return;
+        const list = appData.templates;
+        const t = list[i]; if(!t) return;
+        try{
+          const b64 = await fileToBase64(file);
+          t.imageData = b64; t.kind = t.kind || 'IMAGE';
+          appData.templates = list;
+          log('update_template_image', t.name);
+          updateLocalDataAndSave();
+          openSettings('templates');
+        }catch(err){ alert('Failed to update image: '+err.message); }
+        fInput.value = '';
+      }
+    });
 
-  document.getElementById('btnSignIn').addEventListener('click', signIn);
-  document.getElementById('loginUser').addEventListener('keydown', function(e){ if(e.key==='Enter') signIn(); });
-  document.getElementById('loginPass').addEventListener('keydown', function(e){ if(e.key==='Enter') signIn(); });
-  document.getElementById('btnSignOut').addEventListener('click', signOut);
+    $('#settingsContent #tplUploadNew').onchange = async (e)=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      const nm = prompt('Enter a name for this new template:'); if(!nm){ e.target.value=''; return; }
+      try{
+        const imageData = await fileToBase64(f);
+        const id = 'user-' + Math.random().toString(36).slice(2,10);
+        const base = defaultTemplates()[2] || {styles:{}};
+        const newTpl = {
+          id, name: nm, kind: 'IMAGE', imageData,
+          showLogo: false,
+          logoStyles: { size: 40, margin: 6 },
+          styles: JSON.parse(JSON.stringify(base.styles||{}))
+        };
+        const list = appData.templates;
+        list.push(newTpl);
+        appData.templates = list;
+        log('create_template_image', nm);
+        updateLocalDataAndSave();
+        openSettings('templates');
+        alert('New template created.');
+      }catch(err){ alert('Failed to create template: '+err.message); }
+      e.target.value='';
+    };
+  }
+  if(tab==='cloud'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const gistId = sessionStorage.getItem(LS.GIST_ID) || '';
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Cloud Sync (GitHub Gist)</div>
+      <p class="text-sm text-zinc-400 mb-4">Current Gist ID: ${gistId || 'Not set'}</p>
+      <button id="btnCloudLoadRefresh" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 font-semibold">Refresh from Cloud</button>
+      <p class="text-xs text-zinc-400 mt-2">Data will be automatically saved on every change.</p>
+    `;
+    $('#btnCloudLoadRefresh').onclick=async()=>{
+      const token = sessionStorage.getItem(LS.TOKEN);
+      if(!gistId || !token) { alert('Gist ID and Token not found. Please set them up first.'); return; }
+      try {
+        await cloudLoad(gistId, token);
+        updateLocalDataAndSave();
+        alert('Refreshed from cloud successfully.');
+      } catch(e){ alert(e.message); }
+    };
+  }
+  if(tab==='history'){
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const logs=appData.logs || [];
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Usage History</div>
+      <div class="max-h-[65vh] overflow-auto border border-zinc-800 rounded-2xl">
+        <table class="min-w-[700px] w-full text-sm">
+          <thead class="bg-zinc-900/70 border-b border-zinc-800">
+            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+          </thead>
+          <tbody>${logs.map(l=>`<tr class="border-b border-zinc-800"><td class="px-3 py-2">${new Date(l.ts).toLocaleString('th-TH')}</td><td class="px-3 py-2">${l.user}</td><td class="px-3 py-2">${l.action}</td><td class="px-3 py-2 text-zinc-400">${l.meta||''}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `;
+  }
+}
 
-  $$('#channelSelect, #globalSearch, #flagshipStart, #flagshipEnd').forEach(function(el){ el.addEventListener('input', function(){ updateChannelVisibility(); renderTable(); }); });
-  $$('.col-filter').forEach(function(el){ el.addEventListener('input', function(e){ colFilters[e.target.getAttribute('data-col')] = e.target.value; page=1; renderTable(); }); });
-  document.getElementById('prevPage').addEventListener('click', function(){ if(page>1){ page--; renderTable(); } });
-  document.getElementById('nextPage').addEventListener('click', function(){ page++; renderTable(); });
-  document.getElementById('btnAdd').addEventListener('click', function(){ openEditor(''); });
-  document.getElementById('btnPrint').addEventListener('click', openPrint);
-  document.getElementById('btnSettings').addEventListener('click', function(){ document.getElementById('settingsPanel').classList.remove('hidden'); openTab('data'); });
-  function closeSettings(){ document.getElementById('settingsPanel').classList.add('hidden'); }
-  function openTab(name){ $$('.tab').forEach(function(x){ x.classList.add('hidden'); }); document.getElementById('tab-'+name).classList.remove('hidden'); }
-  $$('.tablink').forEach(function(btn){ btn.addEventListener('click', function(){ openTab(btn.getAttribute('data-tab')); }); });
-  document.getElementById('importMasterFile').addEventListener('change', function(e){ var f=e.target.files[0]; if(f) handleFileImport(f,'master'); e.target.value=''; });
-  document.getElementById('importPromoFile').addEventListener('change', function(e){ var f=e.target.files[0]; if(f) handleFileImport(f,'promo'); e.target.value=''; });
+/* ================= IMPORT / EXPORT ================= */
+async function doImport(){
+  const fi=$('#fileImport'); if(!fi.files[0]) return alert('Choose a file');
+  const data=await fi.files[0].arrayBuffer();
+  const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  
+  // Find the header row by looking for 'SKU'
+  let headerRowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const headerValue = (rows[i][0] || '').toString().toLowerCase().trim();
+    if (headerValue === 'sku') {
+      headerRowIndex = i;
+      break;
+    }
+  }
 
-  document.addEventListener('DOMContentLoaded', function(){ updateChannelVisibility(); initStart(); });
-  </script>
+  if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
+  const start=headerRowIndex + 1;
+  const newItems=[], importedSkus = new Set();
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i]; const sku = (r[0]||'').toString().trim(); if(!sku) continue;
+    if (importedSkus.has(sku) || appData.products.some(p => p.sku === sku)) {
+      console.warn(`Skipping duplicate SKU: ${sku}`); continue;
+    }
+    importedSkus.add(sku);
+    newItems.push({
+      sku:sku, description:(r[1]||'').toString().trim(), details:(r[2]||'').toString().trim(),
+      costs:parseFloat(r[3]||0)||0, normalPrice:parseFloat(r[4]||0)||0, promoPrice:parseFloat(r[5]||0)||0,
+      expiresDate:fromExcelDate(r[6]||''), marketplacePrice:parseFloat(r[7]||0)||0, dealer1:parseFloat(r[9]||0)||0,
+      dealer2:parseFloat(r[11]||0)||0, dealer3:parseFloat(r[13]||0)||0
+    });
+  }
+  if(!newItems.length) return alert('No new valid products found to import.');
+  appData.products=[...newItems, ...appData.products];
+  log('import_excel', `${newItems.length} rows`);
+  alert('Imported: '+newItems.length+' new rows. Duplicates were skipped.');
+  updateLocalDataAndSave();
+}
+async function doExport(){
+  const wb=await XlsxPopulate.fromBlankAsync(); const sh=wb.sheet(0).name('PriceData');
+  const header=['SKU','Description','Details','Costs','Normal Price','Promotion Price','Expires Date','Marketplace Price','Marketplace GP%','Dealer Price Tier 1','GP% T1','Dealer Price Tier 2','GP% T2','Dealer Price Tier 3','GP% T3','Promotion GP%'];
+  const dataRows = appData.products.map(p=>[
+    p.sku,p.description,p.details,p.costs,p.normalPrice,p.promoPrice,p.expiresDate?toDateInput(p.expiresDate):'',
+    p.marketplacePrice, +gpPct(p.marketplacePrice,p.costs).toFixed(2),
+    p.dealer1, +gpPct(p.dealer1,p.costs).toFixed(2),
+    p.dealer2, +gpPct(p.dealer2,p.costs).toFixed(2),
+    p.dealer3, +gpPct(p.dealer3,p.costs).toFixed(2),
+    +gpPct(p.promoPrice,p.costs).toFixed(2)
+  ]);
+  const matrix=[header,...dataRows];
+  sh.cell('A1').value(matrix);
+  sh.row(1).style({bold:true});
+  const lastRow=matrix.length;
+  if(lastRow>1){
+    sh.range(`D2:D${lastRow}`).style({fill:'FFCCFFCC'});
+    sh.range(`F2:G${lastRow}`).style({fill:'FFFFFF99'});
+  }
+  [12,28,50,12,14,16,16,16,14,14,12,14,12,14,12,14].forEach((w,i)=>sh.column(i+1).width(w));
+  const blob=await wb.outputAsync();
+  const url=URL.createObjectURL(new Blob([blob],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const a=document.createElement('a'); a.href=url; a.download='price_data_export.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  log('export_excel', `${appData.products.length} rows`);
+}
+
+/* ================= PRINT FLOW ================= */
+function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
+function buildPrintList(){
+  const box=$('#printList'); box.innerHTML='';
+  const items=filteredProducts();
+  const frag=document.createDocumentFragment();
+  items.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-2';
+    row.innerHTML=`
+      <label class="flex items-center gap-2 w-6"><input type="checkbox" data-sel="${p.sku}"></label>
+      <div class="flex-1">
+        <div class="font-medium oneline" title="${p.sku}">${p.sku}</div>
+        <div class="text-xs text-zinc-400 oneline" title="${p.description}">${ellip(p.description, 46)}</div>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-zinc-400">Qty</span>
+        <input type="number" min="1" value="1" data-qty="${p.sku}" class="w-20 px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+      </div>
+    `;
+    frag.appendChild(row);
+  });
+  box.appendChild(frag);
+  $('#printCheckAll').checked=false;
+  $('#printCheckAll').onchange=()=> $$('#printList input[type="checkbox"]').forEach(c=>c.checked=$('#printCheckAll').checked);
+  $('#printSearch').oninput=()=>{
+    const q=$('#printSearch').value.toLowerCase();
+    $$('#printList > div').forEach(div=>{
+      const sku=div.querySelector('[data-sel]').getAttribute('data-sel').toLowerCase();
+      const desc=div.querySelector('.text-xs').getAttribute('title').toLowerCase();
+      div.style.display = (!q || sku.includes(q) || desc.includes(q)) ? '' : 'none';
+    });
+  };
+  updatePrintSummary();
+  $$('#printList input').forEach(i=>i.oninput=updatePrintSummary);
+}
+function updatePrintSummary(){
+  const selected=$$('#printList input[type="checkbox"]:checked');
+  let count=0; selected.forEach(c=>{ const sku=c.getAttribute('data-sel'); const qty=parseInt($(`[data-qty="${sku}"]`).value)||0; count+=qty; });
+  $('#printSummary').textContent = `${selected.length} SKUs selected • ${count} tags total`;
+}
+function fillTemplateDropdown(){
+  const dd=$('#printTemplate'); dd.innerHTML='';
+  appData.templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
+  dd.onchange=()=>{ 
+    const firstSelectedSku = $('#printList input[type="checkbox"]:checked')?.getAttribute('data-sel');
+    const firstItem = appData.products.find(p => p.sku === firstSelectedSku) || filteredProducts()[0];
+    renderPreview(firstItem, appData.templates.find(t=>t.id===dd.value)); 
+  };
+}
+function baseSize(kind){
+  if(kind==='A4') return {w:744,h:1052};
+  if(kind==='A5') return {w:526,h:744};
+  if(kind==='A6') return {w:372,h:526};
+  return {w:640,h:320}; // ACC or default for IMAGE
+}
+function styleInline(o){ return `font-size:${o.fs||14}px;color:${o.color||'#fff'};margin-top:${o.mt||0}px;`; }
+function truncateMiddle(str,max){ if(!str) return ''; if(str.length<=max) return str; const half=Math.floor((max-3)/2); return str.slice(0,half)+'...'+str.slice(-half); }
+function renderTagInnerHTML(p,tpl){
+  const innerPadding = tpl.kind === 'IMAGE' ? '20mm' : '10mm'; // Add slight padding for image to not be exactly at the edge
+  const content = `
+    <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
+        <div style="${styleInline(tpl.styles.sku)};opacity:.9" class="text-right text-elevate">${p.sku}</div>
+        <div style="font-weight:800;line-height:1.2;${styleInline(tpl.styles.description)}" class="mt-2 text-elevate">${p.description}</div>
+        <div class="mt-3 space-y-1">${(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
+            <div class="flex gap-2 items-start text-elevate" style="${styleInline(tpl.styles.details)}"><span>•</span><span>${t}</span></div>`).join('')}</div>
+        <div class="mt-auto flex items-end justify-between">
+            <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+            <div class="text-right">
+            <div style="${styleInline(tpl.styles.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+            <div style="font-weight:900;${styleInline(tpl.styles.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+            </div>
+        </div>
+    </div>
+  `;
+  if(tpl.kind==='ACC'){
+      const s=tpl.styles;
+      return `
+      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
+      <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
+          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${truncateMiddle(p.description, 44)}</div>
+      </div>
+      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
+          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+      </div>
+      `;
+  }
+  return content;
+}
+function buildPreviewTag(p,tpl){
+  let w, h;
+  if(tpl.imageData) {
+      const img = new Image();
+      img.src = tpl.imageData;
+      w = img.width || 640;
+      h = img.height || 360;
+  } else {
+      const size = baseSize(tpl.kind);
+      w = size.w;
+      h = size.h;
+  }
+  const outer=document.createElement('div');
+  outer.style.width=w+'px'; outer.style.height=h+'px';
+  outer.style.borderRadius='12px'; outer.style.overflow='hidden';
+  outer.style.border='2px solid #1f1f22';
+  outer.style.background = tpl.imageData ? `url(${tpl.imageData})` : (tpl.kind==='ACC'?'#000':'#0b0b0c');
+  outer.style.backgroundSize = 'cover';
+  outer.style.backgroundPosition = 'center';
+  outer.style.color='#fff'; outer.style.position='relative';
+  if(tpl.showLogo){
+    const logo=appData.logo;
+    const logoSize = tpl.logoStyles?.size || 64;
+    const logoMargin = tpl.logoStyles?.margin || 10;
+    outer.innerHTML += logo? `<img src="${logo}" style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`
+                           : `<div style="position:absolute;right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;color:#fff;font-weight:800;text-align:right">P</div>`;
+  }
+  const inner=document.createElement('div');
+  inner.innerHTML=renderTagInnerHTML(p,tpl);
+  inner.style.width='100%'; inner.style.height='100%';
+  outer.appendChild(inner);
+  return {node:outer, w, h};
+}
+function renderPreview(item,tpl){
+  const box=$('#previewBox'); box.innerHTML='';
+  if(!item || !tpl){ box.innerHTML='<div class="text-zinc-500">No items or template selected</div>'; return; }
+  const {node,w,h}=buildPreviewTag(item,tpl);
+  node.style.transformOrigin='top left';
+  const holder=document.createElement('div');
+  holder.style.position='relative';
+  holder.appendChild(node);
+  box.appendChild(holder);
+  function fit(){
+    const availW=box.clientWidth;
+    const availH=box.clientHeight;
+    const scale=Math.max(0.1, Math.min(availW/w, availH/h));
+    node.style.transform=`scale(${scale})`;
+    holder.style.width=(w*scale)+'px';
+    holder.style.height=(h*scale)+'px';
+    holder.style.margin='auto';
+  }
+  fit();
+  const ro = new ResizeObserver(()=>fit()); ro.observe(box);
+}
+function openPrintTab(list,tpl){
+  const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
+  if(!items.length){ alert('Select at least one SKU.'); return; }
+  const w=window.open('', '_blank');
+  if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
+  const logo=appData.logo||'';
+  let cols=1, rows=1, pad='8mm', pageSize='A4';
+
+  // แก้ไข: ปรับการตั้งค่าสำหรับเทมเพลต IMAGE เพื่อให้เต็มหน้ากระดาษ A4
+  if(tpl.kind === 'IMAGE') {
+      cols = 1;
+      rows = 1;
+      pad = '0mm'; // ไม่มี padding เพื่อให้รูปภาพเต็มหน้ากระดาษ
+      pageSize = 'A4';
+  } else if(tpl.kind==='A4'){
+      cols=1; rows=1; pad='10mm'; pageSize='A4';
+  } else if(tpl.kind==='A5'){
+      cols=2; rows=1; pad='10mm'; pageSize='A4 landscape';
+  } else if(tpl.kind==='A6'){
+      cols=2; rows=2; pad='8mm'; pageSize='A4';
+  } else {
+      cols=2; rows=6; pad='6mm'; pageSize='A4';
+  }
+
+  const style=`
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      @page { size: ${pageSize}; margin: 10mm; }
+      html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; }
+      .sheet{ width: ${pageSize==='A4 landscape' ? '297mm' : '210mm'}; height: ${pageSize==='A4 landscape' ? '210mm' : '297mm'}; margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; }
+      .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; position:relative; }
+      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
+      .logo{ position:absolute; }
+      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+    </style>
+  `;
+  const perSheet = cols*rows;
+  const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
+  const body = pages.map(pg=>{
+    const inner=pg.map(p=>{
+      let logoTag = '';
+      if(tpl.showLogo && logo) {
+        const logoSize = tpl.logoStyles?.size || 64;
+        const logoMargin = tpl.logoStyles?.margin || 10;
+        logoTag = `<img src="${logo}" class="logo" style="right:${logoMargin}px;top:${logoMargin}px;width:${logoSize}px;height:auto;">`;
+      }
+      const content = renderTagInnerHTML(p, tpl);
+      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
+    }).join('');
+    return `<div class="sheet">${inner}</div>`;
+  }).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
+  w.document.close();
+  w.focus(); // Focus on the new window
+  w.print(); // Trigger print
+  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
+}
+
+/* ================= EVENTS BINDING ================= */
+function bindEvents() {
+  $('#btnCreateHost').addEventListener('click', async () => {
+    const pass = $('#setupPass').value;
+    const confirmPass = $('#setupPassConfirm').value;
+    if (!pass || pass !== confirmPass) { return alert('Passwords do not match or are empty.'); }
+    if (pass.length < 4) { return alert('Password must be at least 4 characters long.'); }
+    const passwordHash = await hashPassword(pass);
+    appData.users = [{
+        username: 'host', passwordHash, role: 'Host',
+        channels: [...Channels], canSeeCosts: true, canPrint: true
+    }];
+    updateLocalDataAndSave();
+    $('#setupView').classList.add('hidden');
+    $('#loginView').classList.remove('hidden');
+    alert('Host account created successfully. Please log in.');
+  });
+  $('#btnLogin').addEventListener('click', login);
+  $('#btnLogout').addEventListener('click', () => { log('logout'); logout(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (!$('#loginView').classList.contains('hidden')) login();
+      if (!$('#setupView').classList.contains('hidden')) $('#btnCreateHost').click();
+    }
+  });
+  $('#btnNewProduct').addEventListener('click', () => openEditor());
+  $('#btnSettings').addEventListener('click',()=>openSettings('data'));
+  $('#btnPrintModal').addEventListener('click', () => {
+    if(!currentUser.canPrint) return; buildPrintList(); fillTemplateDropdown();
+    renderPreview(filteredProducts()[0], appData.templates.find(t=>t.id===$('#printTemplate').value) || appData.templates[0]); togglePrintModal(true);
+  });
+  ['#searchInput','#dateStart','#dateEnd', '#channelSelect'].forEach(s=>$(s).addEventListener('input', ()=>{ currentPage = 1; renderTable(); }));
+  $('#btnCloseSettings').addEventListener('click', ()=>$('#settingsPanel').classList.add('hidden'));
+  $$('.set-tab').forEach(b=>b.addEventListener('click', ()=>openSettings(b.dataset.tab)));
+  $('#btnCloseEditor').addEventListener('click', closeEditor);
+  $('#btnSaveEd').addEventListener('click', saveEditor);
+  $('#btnClosePrintModal').addEventListener('click', () => togglePrintModal(false));
+  $('#btnOpenPrint').addEventListener('click', () => {
+    const picks=$$('#printList input[type="checkbox"]:checked').map(c=>c.getAttribute('data-sel'));
+    const list=picks.map(sku=>appData.products.find(p=>p.sku===sku)).filter(Boolean)
+                    .map(p=>({p,qty:parseInt($(`[data-qty="${p.sku}"]`).value)||1}));
+    const tpl=appData.templates.find(t=>t.id===$('#printTemplate').value) || appData.templates[0];
+    openPrintTab(list,tpl);
+  });
+  window.addEventListener('keydown', e => { if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); $('#searchInput').focus(); }});
+
+  // Cloud setup view events
+  $('#btnCloudCreate').addEventListener('click', async () => {
+    const token = $('#cloudToken').value.trim();
+    if(!token) return alert('GitHub Token is required.');
+    try {
+      const gistId = await cloudCreateGist(token, defaultAppState);
+      alert('Gist created: '+gistId + '. Please log in with the default "host" account.');
+      appData = defaultAppState;
+      $('#cloudSetupView').classList.add('hidden');
+      $('#loginView').classList.remove('hidden');
+    } catch(e) { alert(e.message); }
+  });
+  $('#btnCloudLoad').addEventListener('click', async () => {
+    const token = $('#cloudToken').value.trim();
+    const gistId = $('#cloudGistId').value.trim();
+    if(!token || !gistId) return alert('GitHub Token and Gist ID are required to load.');
+    try {
+      await cloudLoad(gistId, token);
+      alert('Loaded from cloud. Please log in with your credentials.');
+      $('#cloudSetupView').classList.add('hidden');
+      $('#loginView').classList.remove('hidden');
+    } catch(e) { alert(e.message); }
+  });
+}
+
+async function initialCheck() {
+    const gistId = sessionStorage.getItem(LS.GIST_ID);
+    const token = sessionStorage.getItem(LS.TOKEN);
+
+    if (gistId && token) {
+        // If credentials exist, check if appData is already in memory
+        if (appData) {
+            $('#cloudSetupView').classList.add('hidden');
+            $('#loginView').classList.remove('hidden');
+            return;
+        }
+
+        // If not in memory, load from cloud
+        try {
+            await cloudLoad(gistId, token);
+            // After successful load, move to login screen
+            $('#cloudSetupView').classList.add('hidden');
+            $('#loginView').classList.remove('hidden');
+
+            const hostUser = appData.users.find(u => u.username === 'host');
+            if (hostUser) {
+              currentUser = hostUser;
+              $('#loginView').classList.add('hidden');
+              $('#appView').classList.remove('hidden');
+              $('#roleBadge').textContent = `${currentUser.role} • ${currentUser.username}`;
+              const isHost = currentUser.role === 'Host';
+              const isAdmin = currentUser.role === 'Admin';
+              $('#btnSettings').classList.toggle('hidden', !(isHost || isAdmin));
+              initFiltersForUser();
+              updateLocalDataAndSave();
+              console.log("Auto-loaded and auto-logged in as Host.");
+            } else {
+              updateLocalDataAndSave();
+              console.log("Auto-loaded data. Please log in.");
+            }
+        } catch(e) {
+            console.error("Initial load failed:", e);
+            sessionStorage.removeItem(LS.GIST_ID);
+            sessionStorage.removeItem(LS.TOKEN);
+            $('#cloudSetupView').classList.remove('hidden');
+            $('#loginView').classList.add('hidden');
+            alert("Initial cloud load failed. Please check your Gist ID and Token, or create a new Gist.");
+        }
+    } else {
+        // No credentials found, show cloud setup screen
+        $('#cloudSetupView').classList.remove('hidden');
+        $('#loginView').classList.add('hidden');
+    }
+}
+
+
+/* ================= STARTUP ================= */
+function init() {
+  bindEvents();
+  initialCheck();
+}
+
+init();
+</script>
+
 </body>
 </html>
