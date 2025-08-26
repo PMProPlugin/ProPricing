@@ -351,7 +351,7 @@ let columnFilters = {};
 /* ================= UTILITIES ================= */
 const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-const money = n => isFinite(n) && n > 0 ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
+const money = n => isFinite(n) && n > 0 ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) + ' ฿' : '-';
 const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
 const fromExcelDate = v => {
   if (v instanceof Date) return v.toISOString().slice(0,10);
@@ -753,13 +753,13 @@ function renderTable(){
       <td class="px-3 py-3 col-promo oneline" title="${promoPriceTitle}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};"><span style="text-decoration:${isPromoExpired ? 'line-through' : 'none'};">${displayedPromoPrice}</span></td>
       <td class="px-3 py-3 col-expire oneline" title="${toDateInput(p.expiresDate)}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};">${toDateInput(p.expiresDate)}</td>
       <td class="px-3 py-3 col-market oneline" title="${money(p.marketplacePrice)}">${money(p.marketplacePrice)}</td>
-      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-marketgp oneline" style="color: #22c55e;" title="(${gpM.toFixed(1)}%)">(${gpM.toFixed(1)}%)</td>
       <td class="px-3 py-3 col-t1 oneline" title="${money(p.dealer1)}">${money(p.dealer1)}</td>
-      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-gp1 oneline" style="color: #A9A9A9;" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
       <td class="px-3 py-3 col-t2 oneline" title="${money(p.dealer2)}">${money(p.dealer2)}</td>
-      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-gp2 oneline" style="color: #A9A9A9;" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
       <td class="px-3 py-3 col-t3 oneline" title="${money(p.dealer3)}">${money(p.dealer3)}</td>
-      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-gp3 oneline" style="color: #A9A9A9;" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
       <td class="px-3 py-3 col-actions">
           <div class="flex items-center gap-2">
             <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
