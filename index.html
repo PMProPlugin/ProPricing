@@ -316,7 +316,7 @@ const defaultFontStyle = { fw: 'normal', fs: 'normal', td: 'none' };
 const defaultTextStyles = { fs: 14, color: '#ffffff', margin: defaultMargin, ...defaultFontStyle };
 
 const defaultAppState = {
-    version: 3.3, // Version bump
+    version: 3.4, // Version bump
     products: sampleProducts,
     templates: [
         { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null, logoStyles: { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
@@ -1680,8 +1680,13 @@ function bindAppEvents() {
         togglePrintModal(true);
     };
 
-    // MODIFIED: Use debounce for search
     $('#searchInput').oninput = debounce(() => { currentPage = 1; renderTable(); }, 300);
+    
+    // BUG FIX: Simplified the onchange handler
+    $('#channelSelect').onchange = () => { 
+        currentPage = 1; 
+        renderTable(); 
+    };
 
     $('#btnCloseSettings').onclick = () => $('#settingsPanel').classList.add('hidden');
     $$('.set-tab').forEach(b => b.onclick = () => openSettings(b.dataset.tab));
