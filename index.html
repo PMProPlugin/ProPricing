@@ -40,6 +40,7 @@
     height: 18px;
     margin-left: 6px;
     border-radius: 4px;
+    background-color: #333;
     border: 1px solid #555;
     transition: background-color 0.2s;
     vertical-align: middle;
@@ -57,31 +58,46 @@
     margin-top: 4px;
     max-height: 300px;
     overflow-y: auto;
-    box-shadow: 0 4px 12px rgba(0,0,0,.45);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    min-width: 200px;
   }
-  .filter-dropdown.show { display:block; }
-  .filter-dropdown input[type="search"] { width: 220px; }
-  .filter-dropdown .opt { display:flex; align-items:center; gap:8px; padding: 4px 2px; }
-  .filter-dropdown .opt:hover { background:#27272a; border-radius:6px; }
-  .filter-dropdown .actions { display:flex; gap:6px; margin-top:8px; }
-  .resizer { position:absolute; top:0; right:0; width:6px; height:100%; cursor:col-resize; }
+  .filter-dropdown-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 5px;
+    cursor: col-resize;
+    user-select: none;
+    height: 100%;
+  }
+  .resizer:hover, .resizing {
+    background-color: #E11D2E;
+  }
+  table {
+    table-layout: fixed;
+    border-collapse: collapse; /* NEW */
+  }
+  table th, table td {
+    border: 1px solid #3f3f46; /* NEW: border-zinc-700 */
+  }
+  #productTHead {
+    z-index: 20; 
+  }
+  #productBody {
+    position: relative;
+    z-index: 1;
+  }
+  .style-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid #555; background-color: #333;
+    display: grid; place-items: center;
+  }
+  .style-btn.active { background-color: #E11D2E; border-color: #ff5566; }
 
-  /* === Modern data table polish === */
-  table.data-table { border-collapse: separate; border-spacing: 0; }
-  table.data-table thead th {
-    position: sticky; top: 0; z-index: 5;
-    background: rgba(24,24,27,0.9);
-    backdrop-filter: blur(4px);
-    border-bottom: 1px solid #303030;
-  }
-  table.data-table td, table.data-table th { border-right: 1px solid #2a2a2a; }
-  table.data-table td:last-child, table.data-table th:last-child { border-right: none; }
-  table.data-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
-  table.data-table tbody tr:hover { background: rgba(255,255,255,0.06); }
-  /* Channel group tints (very subtle) */
-  .col-normal, .col-promo, .col-expire { background: rgba(255, 255, 255, 0.015); }
-  .col-market, .col-marketgp { background: rgba(59,130,246,0.04); }
-  .col-t1, .col-gp1, .col-t2, .col-gp2, .col-t3, .col-gp3 { background: rgba(234,179,8,0.035); }
 </style>
 </head>
 
@@ -96,11 +112,11 @@
     <div class="text-zinc-400 mb-4">Please create the primary 'host' account to begin.</div>
     <label class="text-sm text-zinc-400">Username</label>
     <input id="setupUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" value="host" disabled />
-    <label class="text-sm text-zinc-400 mt-3">Password</label>
-    <input id="setupPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="••••••" />
-    <div class="mt-6 grid grid-cols-2 gap-3">
-      <button id="btnSetup" class="px-4 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create Host</button>
-    </div>
+    <label class="text-sm text-zinc-400 mt-4 block">Choose a strong password</label>
+    <input id="setupPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="password" />
+    <label class="text-sm text-zinc-400 mt-4 block">Confirm password</label>
+    <input id="setupPassConfirm" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="confirm password" />
+    <button id="btnCreateHost" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create Host Account</button>
   </div>
 </section>
 
@@ -108,137 +124,193 @@
   <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
     <div class="flex items-center gap-3 mb-6">
       <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">P</div>
-      <div class="text-2xl font-semibold">Login</div>
+      <div class="text-2xl font-semibold">ProPlugin • ProPricing</div>
     </div>
     <label class="text-sm text-zinc-400">Username</label>
-    <input id="loginUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="username" />
-    <label class="text-sm text-zinc-400 mt-3">Password</label>
-    <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="••••••" />
-    <div class="mt-6 grid grid-cols-2 gap-3">
-      <button id="btnLogin" class="px-4 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
-      <button id="btnGoCloud" class="px-4 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Cloud Setup</button>
+    <input id="loginUser" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="username" />
+    <label class="text-sm text-zinc-400 mt-4 block">Password</label>
+    <input id="loginPass" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="password" />
+    <button id="btnLogin" class="mt-6 w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Sign in</button>
+  </div>
+</section>
+
+<section id="cloudSetupView" class="min-h-screen grid place-items-center">
+  <div class="w-full max-w-md bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
+    <div class="flex items-center gap-3 mb-6">
+       <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">P</div>
+      <div class="text-2xl font-semibold">Cloud Setup</div>
+    </div>
+    <p class="text-zinc-400 mb-4">Please set up GitHub Gist for cloud storage. You can create a new Gist or load from an existing one.</p>
+    <label class="text-sm text-zinc-400">GitHub Personal Access Token (scope: gist)</label>
+    <input id="cloudToken" type="password" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_..." />
+    <label class="text-sm text-zinc-400 mt-4 block">Gist ID (optional for new Gist)</label>
+    <input id="cloudGistId" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4..." />
+    <div class="flex flex-col gap-4 mt-6">
+      <button id="btnCloudCreate" class="w-full py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create New Gist</button>
+      <button id="btnCloudLoad" class="w-full py-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 font-semibold">Load from Existing Gist</button>
     </div>
   </div>
 </section>
 
-<section id="cloudSetupView" class="hidden min-h-screen grid place-items-center">
-  <div class="w-full max-w-2xl bg-zinc-900/80 border border-zinc-800 rounded-2xl p-8 shadow-soft">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-11 h-11 rounded-xl bg-brand.red grid place-items-center text-xl font-extrabold">P</div>
-      <div class="text-2xl font-semibold">Cloud Setup (GitHub Gist)</div>
-    </div>
-    <div class="grid md:grid-cols-2 gap-4">
-      <div>
-        <div class="text-sm text-zinc-400">GitHub Personal Access Token</div>
-        <input id="tokenInput" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="ghp_..." />
-        <div class="text-xs text-zinc-500 mt-1">Repo scope is not required. "gist" scope is enough.</div>
-      </div>
-      <div>
-        <div class="text-sm text-zinc-400">Gist ID (optional for load)</div>
-        <input id="gistIdInput" class="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="e.g. a1b2c3d4..." />
-      </div>
-    </div>
-    <div class="mt-5 flex gap-3">
-      <button id="btnCreateGist" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Create New Gist</button>
-      <button id="btnLoadGist" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Load from Existing Gist</button>
-      <button id="btnBackToLogin" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Back</button>
-    </div>
-  </div>
-</section>
-
-<section id="appView" class="hidden min-h-screen flex flex-col">
-  <header class="border-b border-zinc-800 bg-zinc-900/60 sticky top-0 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/40">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
+<section id="appView" class="hidden min-h-screen">
+  <header class="sticky top-0 z-40 bg-brand.dark/95 backdrop-blur border-b border-zinc-800">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
       <div class="flex items-center gap-3">
-        <img id="logoImg" class="hidden w-9 h-9 rounded-xl object-contain bg-white" alt="logo" />
-        <div class="text-xl font-semibold">ProPricing</div>
-        <div id="roleBadge" class="ml-2 px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700 text-xs"></div>
-      </div>
-      <div class="flex-1"></div>
-      <div class="flex items-center gap-3">
-        <div class="relative">
-          <input id="searchInput" class="w-72 pl-9 pr-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700" placeholder="Search..."/>
-          <div class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">🔎</div>
+        <div id="logoBox" class="w-10 h-10 rounded-xl bg-zinc-100 text-brand.dark font-black grid place-items-center overflow-hidden select-none">
+          <span id="logoFallback">P</span>
+          <img id="logoImg" class="hidden w-full h-full object-contain" alt="logo">
         </div>
-        <select id="channelSelect" class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700">
-          <option>Flagship</option><option>Marketplace</option><option>Dealer</option>
-        </select>
-        <input id="dateFrom" type="date" class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"/>
-        <input id="dateTo" type="date" class="px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"/>
-        <button id="btnAdd" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Add +</button>
-        <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
-        <button id="btnSettings" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Settings</button>
-        <button id="btnLogout" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Sign out</button>
+        <div class="text-xl sm:text-2xl font-semibold tracking-wide">ProPricing</div>
+        <span id="roleBadge" class="ml-2 text-xs px-2 py-1 rounded bg-zinc-800 border border-zinc-700"></span>
       </div>
+      <div class="ml-auto flex items-center gap-2">
+        <button id="btnSettings" class="hidden px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">⚙️</button>
+        <button id="btnLogout" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-sm">Sign out</button>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 pb-4 flex flex-col lg:flex-row gap-3">
+      <div class="relative flex-1">
+        <input id="searchInput" class="w-full text-xl sm:text-2xl px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-900 text-white focus:outline-none focus:ring-2 focus:ring-brand.red" placeholder="Search (SKU / Product Name)" />
+        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">🔎</div>
+      </div>
+      <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red"></select>
+      <div class="px-3 py-2 rounded-2xl bg-zinc-950 border border-zinc-700 flex items-center gap-2">
+        <span class="text-sm text-zinc-400">Date range</span>
+        <input id="dateStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+        <span class="text-zinc-500">→</span>
+        <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+      </div>
+      <button id="btnNewProduct" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Add +</button>
+      <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
     </div>
   </header>
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="overflow-auto border border-zinc-800 rounded-2xl">
-      <table class="w-full text-sm data-table">
-        <thead id="productTHead" class="bg-zinc-900/70 border-b border-zinc-800 sticky top-0"></thead>
-        <tbody id="productBody" class=""></tbody>
+      <table class="w-full text-sm">
+        <thead id="productTHead" class="bg-zinc-900/70 border-b-2 border-zinc-700 sticky top-0"></thead>
+        <tbody id="productBody" class="[&>tr:nth-child(odd)]:bg-zinc-800/60"></tbody>
       </table>
     </div>
     <div id="pagination" class="mt-4 flex justify-center items-center gap-2"></div>
   </main>
 </section>
 
-<div id="settingsPanel" class="hidden fixed inset-0 z-50">
-  <div class="absolute inset-0 bg-black/60" id="settingsBackdrop"></div>
-  <div class="absolute right-0 top-0 bottom-0 w-full max-w-5xl bg-zinc-950 border-l border-zinc-800">
-    <div class="h-full flex flex-col">
-      <div class="p-4 border-b border-zinc-800 flex items-center justify-between">
-        <div>
-          <div class="text-xl font-semibold">Settings</div>
-          <div class="text-xs text-zinc-400">Data • Promotion • Logo • Dealer • Users • Templates • Cloud • History</div>
-        </div>
-        <button id="btnCloseSettings" class="px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Close</button>
+<div id="settingsPanel" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm">
+  <div class="absolute inset-4 bg-zinc-950/95 border border-zinc-800 rounded-2xl overflow-hidden grid grid-cols-[260px_1fr]">
+    <aside class="bg-zinc-900/60 border-r border-zinc-800 p-3 space-y-2">
+      <div class="text-sm text-zinc-400 px-2">Settings</div>
+      <button data-tab="data" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Master Data</button>
+      <button data-tab="promo" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Promotion</button>
+      <button data-tab="logo" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Manage Logo</button>
+      <button data-tab="dealer" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Dealer Settings</button>
+      <button data-tab="users" class="set-tab only-host-admin w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">User Management</button>
+      <button data-tab="templates" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Template Management</button>
+      <button data-tab="cloud" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Cloud Sync</button>
+      <button data-tab="history" class="set-tab only-host w-full text-left px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Usage History</button>
+      <div class="absolute bottom-3 left-3 right-3">
+        <button id="btnCloseSettings" class="w-full text-sm px-2 py-1.5 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Close</button>
       </div>
-      <div class="flex-1 grid grid-cols-12 min-h-0">
-        <aside class="col-span-3 border-r border-zinc-800 p-3 overflow-auto">
-          <div class="space-y-1 text-sm">
-            <button data-tab="data" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Data</button>
-            <button data-tab="promo" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Promotion</button>
-            <button data-tab="logo" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Logo</button>
-            <button data-tab="dealer" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Dealer</button>
-            <button data-tab="users" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Users</button>
-            <button data-tab="templates" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Templates</button>
-            <button data-tab="cloud" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">Cloud</button>
-            <button data-tab="history" class="w-full text-left px-3 py-2 rounded-xl hover:bg-zinc-800">History</button>
-          </div>
-        </aside>
-        <div class="col-span-9 p-4 overflow-auto" id="settingsContent"></div>
+    </aside>
+    <section id="settingsContent" class="p-6 overflow-auto"></section>
+  </div>
+</div>
+
+<div id="editorModal" class="hidden fixed inset-0 z-[70] bg-black/70">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div class="flex items-center justify-between p-4 border-b border-zinc-800">
+      <div id="editorTitle" class="text-xl font-semibold">Edit Product</div>
+      <button id="btnCloseEditor" class="px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+    </div>
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-auto h-[calc(100%-100px)]">
+      <div class="space-y-4">
+        <div><label class="text-sm text-zinc-400">SKU</label><input id="edSku" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Description</label><input id="edDesc" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Details</label><textarea id="edDetails" rows="4" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></textarea></div>
+        <div><label class="text-sm text-zinc-400">Brand</label><input id="edBrand" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        <div><label class="text-sm text-zinc-400">Category</label><input id="edCategory" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+      </div>
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="text-sm text-zinc-400">Costs</label><input id="edCosts" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Normal Price</label><input id="edNormal" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Promotion Price</label><input id="edPromo" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+           <div><label class="text-sm text-zinc-400">Expires Date</label><input id="edExpire" type="date" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400">Marketplace Price</label><input id="edMarket" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400"><span id="edLabelT1">Dealer T1</span></label><input id="edT1" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400"><span id="edLabelT2">Dealer T2</span></label><input id="edT2" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+          <div><label class="text-sm text-zinc-400"><span id="edLabelT3">Dealer T3</span></label><input id="edT3" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></div>
+        </div>
+        <button id="btnSaveEd" class="w-full mt-2 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Save</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ====== APP SCRIPT ====== -->
+<div id="printModal" class="hidden fixed inset-0 z-[80] bg-black/70">
+  <div class="absolute inset-6 bg-zinc-950 border border-zinc-800 rounded-2xl grid grid-rows-[auto_1fr] grid-cols-[480px_1fr] min-h-0">
+    <div class="col-span-2 sticky top-0 z-10 bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
+      <div class="text-xl font-semibold">Print Price Tags</div>
+      <button id="btnClosePrintModal" class="px-3 py-1.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Close</button>
+    </div>
+    <div class="p-4 border-r border-zinc-800 space-y-4 overflow-auto">
+      <div class="sticky top-0 bg-zinc-950 border-b border-zinc-800 pb-3 z-10">
+        <div class="grid grid-cols-[1fr_auto] gap-2">
+          <select id="printTemplate" class="w-full px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700"></select>
+          <button id="btnOpenPrint" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Open Print Page</button>
+        </div>
+        <div class="mt-3 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center gap-2">
+          <input id="printSearch" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
+          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
+        </div>
+        <div class="text-sm text-zinc-400 mt-2">Select products and set qty per SKU</div>
+      </div>
+      <div id="printList" class="space-y-2 pt-2"></div>
+      <div id="printSummary" class="text-sm text-zinc-400"></div>
+    </div>
+    <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
+      <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
+      <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 flex-1 w-full h-full min-h-0 min-w-0 relative flex items-center justify-center overflow-hidden"></div>
+    </div>
+  </div>
+</div>
 <script>
 /* ================= CORE STATE / STORAGE ================= */
-const LS = { GIST_ID:'gist_id', TOKEN:'token', LAST_USER:'last_user' };
+const LS = {
+  GIST_ID: 'pp_cloud_gist_id_v2',
+  TOKEN: 'pp_cloud_token_v2',
+  LAST_USER: 'pp_last_user_v2'
+};
+const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
 const Channels = ['Flagship','Marketplace','Dealer'];
-const defaultDealerNames = { t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3' };
-const sampleProducts = [{ sku:'UA-VOLT-1', description:'VOLOT 1 USB Audio Interface', details:'48kHz USB Interface | 1 mic pre | vintage mode', brand:'Universal Audio', category:'Audio Interface', costs:4900, normalPrice:5990, promoPrice:5490, expiresDate:'2099-09-09', marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200 },{ sku:'MIC-SM58', description:'Dynamic Vocal Microphone', details:'Cardioid | legendary stage mic | rugged build', brand:'Shure', category:'Microphone', costs:4200, normalPrice:7990, promoPrice:5990, expiresDate:'2099-09-09', marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200 }];
+
+const sampleProducts = [{
+  sku:'MP-00010',
+  brand:'iCon Pro Audio',
+  category:'Audio Interface',
+  description:'iCon Pro Audio GoLive Pro',
+  details:'Audio interface for live streaming with remote control\\n24-bit/48kHz with onboard DSP (Reverb, EQ, Vocal Tune)\\nBuilt-in 5000mAh battery up to 6 hours\\nMic input mini-XLR (48V) & 1/4-inch\\nBluetooth for music & control',
+  costs:4200, normalPrice:7990, promoPrice:5990, expiresDate:'2099-09-09',
+  marketplacePrice:5990, dealer1:5600, dealer2:5400, dealer3:5200
+}];
 
 const defaultMargin = { top: 0, right: 0, bottom: 0, left: 0 };
-const defaultFontStyle = { fw: 'normal', fs: 'normal', td: 'none' };
-const defaultTextStyles = { fs: 14, color: '#ffffff', margin: defaultMargin, ...defaultFontStyle };
+const defaultFontStyle = { fw: 'normal', fontStyle: 'normal', td: 'none' }; split fs into fontStyle
+const defaultTextStyles = { fontSize: 14, color: '#ffffff', margin: defaultMargin, ...defaultFontStyle }; fs->fontSize
 
 const defaultAppState = {
     version: 3.2,
     products: sampleProducts,
     templates: [
-        { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, showBarcode:false, imageData:'', dpi:300, qr:{ size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
-          styles:{ sku:{...defaultTextStyles, fs:16}, description:{...defaultTextStyles, fs:28}, details:{...defaultTextStyles, fs:14}, oldPrice:{...defaultTextStyles, fs:14, td:'line-through'}, price:{...defaultTextStyles, fs:30}, expire:{...defaultTextStyles, fs:13} } },
-        { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, showBarcode:false, imageData:'', dpi:300, qr:{ size: 50, margin: { top: 8, right: 8, bottom: 8, left: 8 } },
-          styles:{ sku:{...defaultTextStyles, fs:14}, description:{...defaultTextStyles, fs:22}, details:{...defaultTextStyles, fs:12}, oldPrice:{...defaultTextStyles, fs:12, td:'line-through'}, price:{...defaultTextStyles, fs:24}, expire:{...defaultTextStyles, fs:12} } },
-        { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, showBarcode:false, imageData:'', dpi:300, qr:{ size: 40, margin: { top: 6, right: 6, bottom: 6, left: 6 } },
-          styles:{ sku:{...defaultTextStyles, fs:12}, description:{...defaultTextStyles, fs:18}, details:{...defaultTextStyles, fs:11}, oldPrice:{...defaultTextStyles, fs:11, td:'line-through'}, price:{...defaultTextStyles, fs:20}, expire:{...defaultTextStyles, fs:11} } },
-        { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:false, showBarcode:false, imageData:'', dpi:300, qr:{ size: 30, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
-          styles:{ sku:{...defaultTextStyles, fs:11, margin:{ top:2,right:2,bottom:2,left:2 }}, description:{...defaultTextStyles, fs:12}, details:{...defaultTextStyles, fs:10}, oldPrice:{...defaultTextStyles, fs:10, td:'line-through'}, price:{...defaultTextStyles, fs:12, color:'#B91C1C'}, expire:{...defaultTextStyles, fs:10} } },
-        { id:'t-card', name:'Card (9 per A4 portrait)', kind:'CARD', showLogo:false, showBarcode:false, imageData:'', dpi:300, qr:{ size: 24, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
-          styles:{ sku:{...defaultTextStyles, fs:10, margin:{ top:2,right:2,bottom:2,left:2 }}, description:{...defaultTextStyles, fs:12}, details:{...defaultTextStyles, fs:10, color:'#cbd5e1'}, oldPrice:{...defaultTextStyles, fs:10, td:'line-through'}, price:{...defaultTextStyles, fs:14, color:'#B91C1C'}, expire:{...defaultTextStyles, fs:9} } }
+        { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null, logoStyles: { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
+          styles:{ sku:{...defaultTextStyles, fontSize:16}, description:{...defaultTextStyles, fontSize:30}, details:{...defaultTextStyles, fontSize:14}, price:{...defaultTextStyles, fontSize:72}, oldPrice:{...defaultTextStyles, fontSize:20, color:'#ff4d4f'}, expire:{...defaultTextStyles, fontSize:13} } },
+        { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null, logoStyles: { size: 50, margin: { top: 8, right: 8, bottom: 8, left: 8 } },
+          styles:{ sku:{...defaultTextStyles, fontSize:14}, description:{...defaultTextStyles, fontSize:26}, details:{...defaultTextStyles, fontSize:13}, price:{...defaultTextStyles, fontSize:60}, oldPrice:{...defaultTextStyles, fontSize:18, color:'#ff4d4f'}, expire:{...defaultTextStyles, fontSize:12} } },
+        { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null, logoStyles: { size: 40, margin: { top: 6, right: 6, bottom: 6, left: 6 } },
+          styles:{ sku:{...defaultTextStyles, fontSize:12}, description:{...defaultTextStyles, fontSize:22}, details:{...defaultTextStyles, fontSize:12}, price:{...defaultTextStyles, fontSize:48}, oldPrice:{...defaultTextStyles, fontSize:16, color:'#ff4d4f'}, expire:{...defaultTextStyles, fontSize:11} } },
+        { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null, logoStyles: { size: 30, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+          styles:{ sku:{...defaultTextStyles, fontSize:11, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fontSize:15, align:'center'}, details:{...defaultTextStyles, fontSize:10, color:'#cccccc'}, price:{...defaultTextStyles, fontSize:22}, oldPrice:{...defaultTextStyles, fontSize:12, color:'#B91C1C'}, expire:{...defaultTextStyles, fontSize:10} } },
+        { id:'t-card', name:'Card (9 per A4 portrait)', kind:'CARD', showLogo:true, imageData:null, logoStyles: { size: 24, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+          styles:{ sku:{...defaultTextStyles, fontSize:10, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fontSize:14, align:'center'}, details:{...defaultTextStyles, fontSize:9, color:'#cccccc'}, price:{...defaultTextStyles, fontSize:20}, oldPrice:{...defaultTextStyles, fontSize:11, color:'#B91C1C'}, expire:{...defaultTextStyles, fontSize:9} } }
     ],
     dealerNames: defaultDealerNames,
     users: [],
@@ -259,27 +331,73 @@ let columnFilters = {};
 /* ================= UTILITIES ================= */
 const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-const money = n => isFinite(n) && n > 0 ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
+/* [CHANGE] improved money() to distinguish 0 vs missing */
+const money = (n) => {
+  if (n === null || n === undefined || n === '' || Number.isNaN(Number(n))) return '-';
+  const num = Number(n);
+  if (!isFinite(num)) return '-';
+  if (num === 0) return '0';
+  return num.toLocaleString('th-TH', { maximumFractionDigits: 0 });
+};
+
+/* [CHANGE] add safe HTML escaper to prevent XSS via innerHTML injections */
+const escapeHTML = (s) => {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"'`]/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;'
+  }[c]));
+};
 const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
 const fromExcelDate = v => {
   if (v instanceof Date) return v.toISOString().slice(0,10);
-  if (typeof v==='number'){ const d=new Date(Math.round((v - 25569) * 86400 * 1000)); return d.toISOString().slice(0,10); }
-  return v ? new Date(v).toISOString().slice(0,10) : '';
+  if (typeof v==='number'){ const d=new Date(Math.round((v-25569)*86400*1000)); return d.toISOString().slice(0,10); }
+  if (typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  return '';
 };
-const gpPct = (price, cost) => !isFinite(price) || !isFinite(cost) || price<=0 || cost<=0? 0 : ( (price - cost) / price ) * 100;
-async function hashPassword(str){ const enc=new TextEncoder(); const buf=await crypto.subtle.digest('SHA-256',enc.encode(str)); return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+const gpPct = (price,cost)=> (cost > 0 && price > 0 ? ((price - cost) / cost) * 100 : 0);
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
 
-function log(action, meta=''){
-  appData.logs = appData.logs || [];
-  appData.logs.unshift({ ts:new Date().toISOString(), user: currentUser?.username || '-', action, meta });
+function log(action, meta = '') {
+  if (!appData) return;
+  if(!appData.logs) appData.logs = [];
+  appData.logs.unshift({ ts: new Date().toISOString(), user: currentUser?.username || '-', action, meta });
   if (appData.logs.length > 3000) appData.logs.pop();
 }
 
-/* ================= CLOUD (GitHub Gist) ================= */
-const API = 'https://api.github.com';
+function updateLocalDataAndSave(newData) {
+    if (newData) appData = newData;
+    renderTableHeader();
+    renderTable();
+    applyDealerNamesToUI();
+    if (appData.logo) {
+        $('#logoImg').src = appData.logo;
+        $('#logoImg').classList.remove('hidden');
+        $('#logoFallback').classList.add('hidden');
+    } else {
+        $('#logoImg').classList.add('hidden');
+        $('#logoFallback').classList.remove('hidden');
+    }
+    const gistId = localStorage.getItem(LS.GIST_ID);
+    const token = localStorage.getItem(LS.TOKEN);
+    if (currentUser?.role === 'Host' && gistId && token) {
+        cloudSave(gistId, token).catch(e => console.error("Auto-save failed:", e));
+    }
+}
+
+/* ================= CLOUD SYNC (GitHub Gist) ================= */
 async function gistRequest(method, path, body, token){
-  const res = await fetch(API+path, { method, headers:{ 'Accept':'application/vnd.github+json', 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) }, body: body ? JSON.stringify(body) : undefined });
-  if (!res.ok) { const t = await res.text(); throw new Error(`GitHub API error: ${res.status} ${t||''}`); }
+  if(!token) throw new Error('GitHub Token is required for this operation.');
+  const headers = { 'Accept':'application/vnd.github+json', 'Authorization': 'Bearer '+token };
+  if(body) headers['Content-Type']='application/json';
+  const res = await fetch('https://api.github.com'+path, { method, headers, body: body?JSON.stringify(body):undefined });
+  if(!res.ok){ const t=await res.text(); throw new Error(`GitHub ${res.status}: ${t}`); }
   return res.json();
 }
 async function cloudCreateGist(token, appState){
@@ -294,37 +412,32 @@ async function cloudSave(gistId, token){
   await gistRequest('PATCH','/gists/'+gistId, body, token);
 }
 async function cloudLoad(gistId, token){
-  if (!gistId) throw new Error('Missing Gist ID');
-  const g = await (await fetch(`${API}/gists/${gistId}`, { headers: token?{Authorization:`Bearer ${token}`}:{}})).json();
-  if (!g.files || !g.files['proplugin-data.json']) throw new Error('File proplugin-data.json not found in this Gist');
-  const txt = g.files['proplugin-data.json'].content || '';
-  const data = JSON.parse(txt);
-  return data;
-}
-
-function updateLocalDataAndSave(newData) {
-    if (newData) appData = newData;
-    renderTableHeader();
-    renderTable();
-    applyDealerNamesToUI();
-    if (appData.logo) {
-        $('#logoImg').src = appData.logo;
-        $('#logoImg').classList.remove('hidden');
-    } else {
-        $('#logoImg').classList.add('hidden');
-    }
+  if (!gistId) throw new Error('Gist ID is required');
+  const resp = await gistRequest('GET', '/gists/' + gistId, null, token);
+  const file = resp.files?.['proplugin-data.json'];
+  if (!file) throw new Error('proplugin-data.json not found in gist');
+  const data = JSON.parse(file.content);
+  appData = data;
+  localStorage.setItem(LS.GIST_ID, gistId);
+  localStorage.setItem(LS.TOKEN, token);
 }
 
 /* ================= AUTH ================= */
-async function performFirstSetup(){
-  const p = $('#setupPass').value.trim();
-  if (!p) return alert('Please enter password');
-  appData = structuredClone(defaultAppState);
-  appData.users.push({ username:'host', passwordHash: await hashPassword(p), role:'Host', channels:[...Channels], canSeeCosts:true, canPrint:true });
-  localStorage.setItem(LS.LAST_USER, 'host');
-  $('#setupView').classList.add('hidden');
-  $('#loginView').classList.remove('hidden');
-  alert('Host account created. Sign in with host / your password.');
+function performLogin(user) {
+    currentUser = user;
+    localStorage.setItem(LS.LAST_USER, user.username);
+    columnFilters = {};
+
+    $('#setupView').classList.add('hidden');
+    $('#loginView').classList.add('hidden');
+    $('#cloudSetupView').classList.add('hidden');
+    $('#appView').classList.remove('hidden');
+
+    $('#roleBadge').textContent = `${currentUser.role} • ${currentUser.username}`;
+    
+    initFiltersForUser();
+    bindAppEvents();
+    updateLocalDataAndSave();
 }
 
 async function login(){
@@ -333,333 +446,34 @@ async function login(){
   if (!appData || !appData.users) return alert('Application data is not loaded. Please set up cloud storage or refresh.');
   const pHash = await hashPassword(p);
   const found = appData.users.find(x => x.username === u && x.passwordHash === pHash);
-  if (!found){ alert('Invalid credentials'); return; }
-  currentUser = found;
-  localStorage.setItem(LS.LAST_USER, found.username);
+  if(!found) return alert('Invalid credentials');
 
-  $('#setupView').classList.add('hidden');
-  $('#loginView').classList.add('hidden');
-  $('#cloudSetupView').classList.add('hidden');
-  $('#appView').classList.remove('hidden');
-
-  $('#roleBadge').textContent = `${currentUser.role} • ${currentUser.username}`;
-  initFiltersForUser();
-  updateLocalDataAndSave();
+  performLogin(found);
 }
 
 function logout(){
+  log('logout');
   currentUser = null;
+  columnFilters = {};
+  localStorage.removeItem(LS.LAST_USER);
+  
   $('#appView').classList.add('hidden');
   $('#loginView').classList.remove('hidden');
+  $('#loginUser').value = '';
+  $('#loginPass').value = '';
 }
 
-/* ================= TABLE RENDER ================= */
-function renderPagination(totalItems) {
-  const pageBox = $('#pagination'); pageBox.innerHTML = '';
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  if (totalPages <= 1) return;
-  for (let i = 1; i <= totalPages; i++) {
-    const btn = document.createElement('button');
-    btn.textContent = i;
-    btn.className = `px-3 py-1 rounded-lg text-sm border ${currentPage === i ? 'bg-brand.red border-red-700' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`;
-    btn.onclick = () => { currentPage = i; renderTable(); };
-    pageBox.appendChild(btn);
-  }
+/* ================= UI VISIBILITY ================= */
+function updateCostsVisibility() {
+    if (!currentUser) return;
+    const canSee = currentUser.canSeeCosts;
+    $$('.col-costs').forEach(el => el.classList.toggle('hidden', !canSee));
 }
 
-function renderTableHeader() {
-    const thead = $('#productTHead');
-    const columns = [
-        { key: 'sku', label: 'SKU', width: '120px', sortable: true },
-        { key: 'description', label: 'Description', width: '200px', sortable: true },
-        { key: 'details', label: 'Details', width: '200px', sortable: false },
-        { key: 'brand', label: 'Brand', width: '120px', sortable: true },
-        { key: 'category', label: 'Category', width: '120px', sortable: true },
-        { key: 'costs', label: 'Costs', width: '80px', class: 'col-costs', id: 'thCosts', sortable: true },
-        { key: 'normal', label: 'Normal', width: '80px', class: 'col-normal', sortable: true },
-        { key: 'promo', label: 'Promotion', width: '80px', class: 'col-promo', sortable: true },
-        { key: 'expire', label: 'Expire Date', width: '100px', class: 'col-expire', sortable: true },
-        { key: 'market', label: 'Marketplace', width: '100px', class: 'col-market', sortable: true },
-        { key: 'marketgp', label: 'Market GP%', width: '100px', class: 'col-marketgp', sortable: false },
-        { key: 't1', label: `<span id="lblT1">Dealer T1</span>`, width: '100px', class: 'col-t1', sortable: true },
-        { key: 'gp1', label: 'GP% T1', width: '80px', class: 'col-gp1', sortable: false },
-        { key: 't2', label: `<span id="lblT2">Dealer T2</span>`, width: '100px', class: 'col-t2', sortable: true },
-        { key: 'gp2', label: 'GP% T2', width: '80px', class: 'col-gp2', sortable: false },
-        { key: 't3', label: `<span id="lblT3">Dealer T3</span>`, width: '100px', class: 'col-t3', sortable: true },
-        { key: 'gp3', label: 'GP% T3', width: '80px', class: 'col-gp3', sortable: false },
-        { key: 'actions', label: '', width: '120px', class: 'col-actions', sortable: false }
-    ];
-
-    let headerHTML = `<tr class="[&>th]:px-3 [&>th]:py-2 text-left">`;
-    columns.forEach(col => {
-        let label = col.label;
-        const thAttrs = col.sortable ? `data-sort-key="${col.key}"` : '';
-        const thClass = `${col.class || ''}`;
-        if (col.sortable) {
-            // sort indicator
-            const isActive = sortState.key === col.key;
-            const arrow = isActive ? (sortState.direction === 'asc' ? '▲' : '▼') : '';
-            label = `${label} <span class="text-zinc-500">${arrow}</span>`;
-        }
-        
-        let content;
-        if (['sku', 'description', 'brand', 'category'].includes(col.key)) {
-            const isActive = columnFilters[col.key] && columnFilters[col.key].size > 0;
-            content = `<div class="flex items-center justify-between w-full">
-              <div>${label}</div>
-              <button class="filter-btn ${isActive ? 'active' : ''}" data-filter-key="${col.key}">▼</button>
-            </div>
-            <div id="filter-dropdown-${col.key}" class="filter-dropdown"></div>`;
-        } else {
-            content = label;
-        }
-
-        headerHTML += `<th id="${col.id || ''}" class="${thClass}" style="width:${col.width}; position: relative;" ${thAttrs}>
-            ${content}
-            <div class="resizer"></div>
-        </th>`;
-    });
-    headerHTML += `</tr>`;
-    thead.innerHTML = headerHTML;
-    makeTableResizable();
-}
-
-function renderTable(){
-  const body=$('#productBody'); body.innerHTML='';
-  if(!appData) return;
-  
-  const allFiltered = filteredProducts();
-  const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  paginatedItems.forEach(p=>{
-    const tr=document.createElement('tr');
-    tr.className='border-b border-zinc-800 hover:bg-zinc-800/30';
-    let isPromoExpired = p.expiresDate && new Date(p.expiresDate) < today;
-    const displayedPromoPrice = isPromoExpired ? '-' : money(p.promoPrice);
-    const promoPriceTitle = isPromoExpired ? 'Promotion Expired' : money(p.promoPrice);
-    const gpM = gpPct(p.marketplacePrice, p.costs);
-    const gp1 = gpPct(p.dealer1, p.costs);
-    const gp2 = gpPct(p.dealer2, p.costs);
-    const gp3 = gpPct(p.dealer3, p.costs);
-    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
-
-    tr.innerHTML = `
-      <td class="px-3 py-3 oneline" title="${p.sku}">${p.sku || '-'}</td>
-      <td class="px-3 py-3 oneline" title="${p.description}">${p.description || '-'}</td>
-      <td class="px-3 py-3 oneline" title="${detailsOneLine}">${detailsOneLine}</td>
-      <td class="px-3 py-3 oneline" title="${p.brand}">${p.brand || '-'}</td>
-      <td class="px-3 py-3 oneline" title="${p.category}">${p.category || '-'}</td>
-      <td class="px-3 py-3 col-costs oneline" title="${money(p.costs)}">${money(p.costs)}</td>
-      <td class="px-3 py-3 col-normal oneline" title="${money(p.normalPrice)}">${money(p.normalPrice)}</td>
-      <td class="px-3 py-3 col-promo oneline" title="${promoPriceTitle}"><span style="text-decoration:${isPromoExpired ? 'line-through' : 'none'};">${displayedPromoPrice}</span></td>
-      <td class="px-3 py-3 col-expire oneline" title="${toDateInput(p.expiresDate)}"><span style="color:${isPromoExpired ? '#666' : '#E11D2E'};">${toDateInput(p.expiresDate)}</span></td>
-      <td class="px-3 py-3 col-market oneline" title="${money(p.marketplacePrice)}">${money(p.marketplacePrice)}</td>
-      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t1 oneline" title="${money(p.dealer1)}">${money(p.dealer1)}</td>
-      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t2 oneline" title="${money(p.dealer2)}">${money(p.dealer2)}</td>
-      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-t3 oneline" title="${money(p.dealer3)}">${money(p.dealer3)}</td>
-      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
-      <td class="px-3 py-3 col-actions">
-          <div class="flex items-center gap-2">
-            <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
-            <button title="Delete" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>
-          </div>
-      </td>
-    `;
-    body.appendChild(tr);
-  });
-  renderPagination(allFiltered.length);
-  bindTableEvents();
-  updateColumnVisibility();
-}
-
-function renderTableHeaderFilters(){ /* kept if needed in future */ }
-
-/* ================= EDITOR ================= */
-function openEditor(sku = null) {
-  if(!['Host','Admin'].includes(currentUser.role)) return;
-  if (sku) {
-    editingIndex = appData.products.findIndex(p => p.sku === sku);
-  } else { editingIndex = -1; }
-  const p = editingIndex >= 0 ? appData.products[editingIndex] : { sku:'', description:'', details:'', brand:'', category:'', costs:0, normalPrice:0, promoPrice:0, expiresDate:'', marketplacePrice:0, dealer1:0, dealer2:0, dealer3:0 };
-  
-  const dlg = document.createElement('div');
-  dlg.className = 'fixed inset-0 z-50';
-  dlg.innerHTML = `
-    <div class="absolute inset-0 bg-black/60"></div>
-    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-2xl p-5">
-      <div class="text-xl font-semibold mb-3">${editingIndex>=0?'Edit':'Add'} Product</div>
-      <div class="grid md:grid-cols-2 gap-3">
-        <input id="edSku" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="SKU" value="${p.sku}">
-        <input id="edBrand" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Brand" value="${p.brand}">
-        <input id="edCategory" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Category" value="${p.category}">
-        <input id="edCost" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Costs" value="${p.costs}">
-        <textarea id="edDesc" rows="2" class="md:col-span-2 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Description">${p.description}</textarea>
-        <textarea id="edDetails" rows="2" class="md:col-span-2 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Details">${p.details||''}</textarea>
-        <div class="grid grid-cols-2 gap-3 md:col-span-2">
-          <input id="edNormal" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Normal" value="${p.normalPrice}">
-          <input id="edPromo" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Promotion" value="${p.promoPrice}">
-          <input id="edExpire" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${toDateInput(p.expiresDate)}">
-          <input id="edMarket" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Marketplace" value="${p.marketplacePrice}">
-          <input id="edT1" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Dealer T1" value="${p.dealer1}">
-          <input id="edT2" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Dealer T2" value="${p.dealer2}">
-          <input id="edT3" type="number" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="Dealer T3" value="${p.dealer3}">
-        </div>
-      </div>
-      <div class="mt-4 flex justify-end gap-2">
-        <button id="btnSaveEd" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save</button>
-        <button id="btnCancelEd" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Cancel</button>
-      </div>
-    </div>`;
-  document.body.appendChild(dlg);
-
-  $('#btnCancelEd').onclick = () => dlg.remove();
-  $('#btnSaveEd').onclick = () => {
-    const np = {
-      sku: $('#edSku').value.trim(),
-      description: $('#edDesc').value.trim(),
-      details: $('#edDetails').value.trim(),
-      brand: $('#edBrand').value.trim(),
-      category: $('#edCategory').value.trim(),
-      costs: +$('#edCost').value,
-      normalPrice: +$('#edNormal').value,
-      promoPrice: +$('#edPromo').value,
-      expiresDate: $('#edExpire').value,
-      marketplacePrice: +$('#edMarket').value,
-      dealer1: +$('#edT1').value, dealer2: +$('#edT2').value, dealer3: +$('#edT3').value
-    };
-    if (editingIndex>=0) appData.products[editingIndex] = np; else appData.products.unshift(np);
-    dlg.remove();
-    log(editingIndex>=0?'edit_product':'add_product', np.sku);
-    updateLocalDataAndSave();
-  };
-}
-
-function bindTableEvents() {
-    $$('button[data-edit]').forEach(b => b.onclick = () => openEditor(b.dataset.edit));
-    $$('button[data-del]').forEach(b => b.onclick = (e) => {
-        const sku = e.target.dataset.del;
-        const idx = appData.products.findIndex(p => p.sku === sku);
-        if (idx >= 0 && confirm(`Delete ${sku} ?`)) {
-            appData.products.splice(idx,1);
-            log('delete_product', sku);
-            updateLocalDataAndSave();
-        }
-    });
-
-    // Sort handlers
-    $$('th[data-sort-key]').forEach(th => {
-        th.onclick = () => {
-            const key = th.dataset.sortKey;
-            if (sortState.key === key) {
-                sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortState.key = key;
-                sortState.direction = 'asc';
-            }
-            
-            renderTableHeader();
-            renderTable();
-        };
-    });
-
-    // Filter dropdown
-    $$('button[data-filter-key]').forEach(btn => {
-      btn.onclick = () => openFilterDropdown(btn.dataset.filterKey);
-    });
-}
-
-/* ================= FILTER / SEARCH ================= */
-function filteredProducts(){
-  let arr = (appData?.products || []).slice();
-  const q = $('#searchInput').value.trim().toLowerCase();
-  if (q){ arr = arr.filter(p => `${p.sku} ${p.description} ${p.details||''} ${p.brand} ${p.category}`.toLowerCase().includes(q)); }
-
-  const from = $('#dateFrom').value; const to = $('#dateTo').value;
-  if (from) arr = arr.filter(p => !p.expiresDate || p.expiresDate >= from);
-  if (to)   arr = arr.filter(p => !p.expiresDate || p.expiresDate <= to);
-
-  // column filters
-  const getSet = k => columnFilters[k] ? Array.from(columnFilters[k]) : null;
-  const fSku = getSet('sku'), fDesc = getSet('description'), fBrand = getSet('brand'), fCat = getSet('category');
-  if (fSku && fSku.length) arr = arr.filter(p=>fSku.includes(p.sku));
-  if (fDesc && fDesc.length) arr = arr.filter(p=>fDesc.includes(p.description));
-  if (fBrand && fBrand.length) arr = arr.filter(p=>fBrand.includes(p.brand));
-  if (fCat && fCat.length) arr = arr.filter(p=>fCat.includes(p.category));
-
-  // sorting
-  if (sortState.key){
-    const k = sortState.key; const dir = sortState.direction==='asc'?1:-1;
-    arr.sort((a,b)=>{
-      const va = (a[k] ?? '').toString().toLowerCase();
-      const vb = (b[k] ?? '').toString().toLowerCase();
-      if (!isNaN(a[k]) && !isNaN(b[k])) return (a[k]-b[k]) * dir;
-      return va > vb ? dir : va < vb ? -dir : 0;
-    });
-  }
-
-  return arr;
-}
-
-/* ================= DROPDOWN FILTER ================= */
-function openFilterDropdown(key){
-  const btn = document.querySelector(`button[data-filter-key="${key}"]`);
-  const dd = document.querySelector(`#filter-dropdown-${key}`);
-  if (!btn || !dd) return;
-
-  // close others
-  $$('.filter-dropdown').forEach(d => { if (d!==dd) d.classList.remove('show'); });
-
-  const rect = btn.getBoundingClientRect();
-  dd.style.left = `${rect.left - btn.offsetWidth - 6}px`;
-  dd.style.top  = `${btn.offsetTop + btn.offsetHeight + 2}px`;
-  dd.classList.toggle('show');
-
-  // populate unique values
-  const vals = Array.from(new Set((appData?.products||[]).map(p=> (p[key]||'').toString()))).sort();
-  dd.innerHTML = `
-    <div class="mb-2"><input type="search" id="fltSearch-${key}" class="px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700" placeholder="Search ${key}..."/></div>
-    <div class="max-h-56 overflow-auto pr-1">
-      ${vals.map(v=>`<label class="opt"><input type="checkbox" value="${v}"> <span class="oneline" title="${v}">${v||'-'}</span></label>`).join('')}
-    </div>
-    <div class="actions">
-      <button id="fltApply-${key}" class="px-3 py-1 rounded-lg bg-brand.red border border-red-700">Apply</button>
-      <button id="fltClear-${key}" class="px-3 py-1 rounded-lg bg-zinc-800 border border-zinc-700">Clear</button>
-    </div>`;
-
-  // handlers
-  $(`#fltSearch-${key}`).oninput = (e)=>{
-    const q = e.target.value.toLowerCase();
-    dd.querySelectorAll('.opt').forEach(el=>{
-      const text = el.querySelector('span').textContent.toLowerCase();
-      el.style.display = text.includes(q) ? '' : 'none';
-    });
-  };
-
-  $(`#fltApply-${key}`).onclick = ()=>{
-    const sel = new Set(Array.from(dd.querySelectorAll('input[type="checkbox"]:checked')).map(x=>x.value));
-    if (sel.size) columnFilters[key] = sel; else delete columnFilters[key];
-    dd.classList.remove('show');
-    renderTable();
-  };
-  $(`#fltClear-${key}`).onclick = ()=>{ delete columnFilters[key]; dd.classList.remove('show'); renderTable(); };
-}
-
-/* ================= COLUMN / ROLE VISIBILITY ================= */
 function updateRoleBasedVisibility() {
     if (!currentUser) return;
     const canEdit = ['Host', 'Admin'].includes(currentUser.role);
     $$('.col-actions').forEach(el => el.classList.toggle('hidden', !canEdit));
-
-    // Show/hide Costs column based on permission
-    const canSeeCosts = !!currentUser.canSeeCosts;
-    const thCosts = $('#thCosts');
-    if (thCosts) thCosts.classList.toggle('hidden', !canSeeCosts);
-    $$('.col-costs').forEach(el => el.classList.toggle('hidden', !canSeeCosts));
 }
 
 function updateColumnVisibility(){
@@ -673,6 +487,7 @@ function updateColumnVisibility(){
   const map={ 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
   Object.entries(map).forEach(([cls,v])=> $$('.'+cls).forEach(el=>el.classList.toggle('hidden',!v)));
   updateRoleBasedVisibility();
+  updateCostsVisibility();
 }
 
 function initFiltersForUser(){
@@ -700,249 +515,283 @@ function applyDealerNamesToUI(){
     });
 }
 
-/* ================= PRINT ================= */
-function openPrintModal(){
-  const dlg = document.createElement('div');
-  dlg.className='fixed inset-0 z-50';
-  const list = filteredProducts();
-  dlg.innerHTML = `
-  <div class="absolute inset-0 bg-black/60" id="printBackdrop"></div>
-  <div class="absolute inset-8 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 flex flex-col">
-    <div class="flex items-center justify-between">
-      <div>
-        <div class="text-xl font-semibold">Print</div>
-        <div class="text-xs text-zinc-400">Select items and template • Live preview at right</div>
-      </div>
-      <button id="btnClosePrint" class="px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Close</button>
-    </div>
-    <div class="grid grid-cols-2 gap-4 mt-4 min-h-0">
-      <div class="flex flex-col min-h-0">
-        <div class="flex items-center gap-2 mb-2">
-          <input id="searchPrint" class="flex-1 bg-transparent outline-none" placeholder="Search in list…">
-          <label class="text-sm"><input type="checkbox" id="printCheckAll"> <span class="text-zinc-300">Select all</span></label>
-        </div>
-        <div class="text-sm text-zinc-400 mt-2">Select products and set qty per SKU</div>
-        <div id="printList" class="space-y-2 pt-2 overflow-auto"></div>
-        <div id="printSummary" class="text-sm text-zinc-400 mt-2"></div>
-      </div>
-      <div class="flex flex-col w-full h-full min-h-0 min-w-0 p-4 overflow-hidden">
-        <div class="text-sm text-zinc-400 mb-2 shrink-0">Live preview of the first selected item</div>
-        <div id="previewBox" class="bg-zinc-900 rounded-2xl border border-zinc-800 relative flex items-center justify-center overflow-hidden" style="min-height:360px"></div>
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(dlg);
+/* ================= TABLE & PAGINATION ================= */
+function filteredProducts(){
+  if (!appData) return [];
+  const q=$('#searchInput').value.trim().toLowerCase();
+  const ds=$('#dateStart').value, de=$('#dateEnd').value;
+  const isFlagship = $('#channelSelect').value==='Flagship';
 
-  $('#btnClosePrint').onclick = () => dlg.remove();
-  $('#printBackdrop').onclick = () => dlg.remove();
-
-  const listBox = $('#printList'); listBox.innerHTML='';
-  const items = list.slice(0, 100).map(p=> ({ sku:p.sku, qty:1 }));
-  items.forEach((it,idx)=>{
-    const p = list[idx];
-    const row = document.createElement('div');
-    row.className='flex items-center justify-between border border-zinc-800 rounded-xl px-3 py-2';
-    row.innerHTML=`
-      <div class="flex-1 oneline"><span class="text-zinc-400">${p.sku}</span> • ${p.description}</div>
-      <div class="flex items-center gap-2">
-        <button class="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" data-minus="${idx}">-</button>
-        <input class="w-12 text-center rounded-lg bg-zinc-900 border border-zinc-700" value="${it.qty}" data-qty="${idx}">
-        <button class="px-2 py-1 rounded-lg bg-zinc-800 border border-zinc-700" data-plus="${idx}">+</button>
-      </div>`;
-    listBox.appendChild(row);
-  });
-
-  // template select
-  const selTpl = document.createElement('select');
-  selTpl.className='mt-3 px-3 py-2 rounded-2xl bg-zinc-900 border border-zinc-700';
-  (appData.templates||[]).forEach((t,i)=>{
-    const o=document.createElement('option'); o.textContent=t.name; o.value=i; selTpl.appendChild(o);
-  });
-  listBox.parentElement.insertBefore(selTpl, listBox);
-
-  function styleInlineTag(o){ const m=o.margin||defaultMargin; return `font-size:${o.fs||14}px;color:${o.color||'#fff'};font-weight:${o.fw||'normal'};font-style:${o.fs2||'normal'};text-decoration:${o.td||'none'};margin:${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`; }
-  function ellip(s,n){ if(!s) return ''; if(s.length<=n) return s; return s.slice(0,n-1)+'…'; }
-
-  function renderTagInnerHTML(p, tpl){
-  const innerPadding = tpl.kind === 'IMAGE' ? '20mm' : '10mm';
-  const styleInline = (o) => {
-    const m = o.margin || defaultMargin;
-    return `font-size:${o.fs||14}px; color:${o.color||'#fff'}; font-weight:${o.fw||'normal'}; font-style:${o.fs2||'normal'}; text-decoration:${o.td||'none'}; margin: ${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`;
-  };
-  const content = `
-    <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
-        <div style="${styleInline(tpl.styles.sku)}" class="text-right text-elevate">${p.sku}</div>
-        <div style="font-weight:800;line-height:1.2; ${styleInline(tpl.styles.description)}" class="text-elevate">${p.description}</div>
-        <div class="space-y-1">${
-          p.details?`<div style="${styleInline(tpl.styles.details)}" class="text-elevate">${p.details.replace(/\n/g,'<br>')}</div>`:''
-        }</div>
-        <div style="margin-top:auto; display:flex; align-items:end; justify-content:space-between;">
-            <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-            <div style="text-align:right">
-              <div style="${styleInline(tpl.styles.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-              <div style="font-weight:900; ${styleInline(tpl.styles.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-            </div>
-        </div>
-    </div>
-  `;
-  if(tpl.kind === 'ACC'){
-      const s=tpl.styles;
-      return `
-      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
-      <div style="display:flex;align-items:center;justify-content:center;text-align:center;height:100%;padding:10mm 8mm;" class="text-elevate">
-          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${ellip(p.description, 44)}</div>
-      </div>
-      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
-          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-      </div>
-      `;
-  }
-  else if (tpl.kind === 'CARD') {
-      const s = tpl.styles;
-      return `
-      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:9mm 7mm;" class="text-elevate">
-          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${ellip(p.description, 44)}</div>
-          <div style="${styleInline(s.details || defaultTextStyles)};max-width:100%;word-break:break-word;margin-top:2mm">${ellip(p.details || '', 72)}</div>
-      </div>
-      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
-          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
-          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
-      </div>
-      `;
-  }
-  return content;
-}
-
-  function openPrintTab(list, tpl){
-  const win = window.open('', '_blank');
-  if (!win) return alert('Popup blocked. Please allow popups for this site.');
-
-  let cols=1, rows=1, pad='8mm', pageSize='A4';
-  if(tpl.kind === 'IMAGE') { cols = 1; rows = 1; pad = '0mm'; pageSize = 'A4'; }
-  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
-  else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
-  else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
-  else if(tpl.kind==='CARD'){ cols=3; rows=3; pad='4mm'; pageSize='A4'; }
-  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
-
-  const style=`
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <style>
-      @page { size: ${pageSize}; margin: 0; }
-      html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; color:#000; font-family:'Kanit','Prompt',sans-serif; margin: 0; padding: 0; }
-      .sheet{ width: ${pageSize.includes('landscape') ? '297mm' : '210mm'}; height: ${pageSize.includes('landscape') ? '210mm' : '297mm'}; padding:${pad}; display:grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; box-sizing: border-box; }
-      .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; position:relative; }
-      .bg{ position:absolute; inset:0; opacity:1; }
-      .text-elevate{ text-shadow:0 0 0 rgba(0,0,0,0.6) }
-      .line-through{ text-decoration:line-through }
-    </style>`;
-
-  const html = `<!doctype html><html><head><meta charset="utf-8">${style}</head><body>`+
-  `<div class="sheet">`+
-  list.map(p => `<div class="tag">${renderTagInnerHTML(p, tpl)}</div>`).join('')+
-  `</div></body></html>`;
-
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-}
-
-  // bind inside modal
-  function bindPrintModal(){
-    const box = $('#previewBox');
-    const list = filteredProducts();
-    let selected = new Set(list.slice(0,3).map(p=>p.sku));
-    let tplIndex = 0;
-
-    function refreshPreview(){
-      box.innerHTML = '';
-      const first = list.find(p=>selected.has(p.sku)) || list[0];
-      if (!first) { box.innerHTML = '<div class="text-zinc-500">No item selected</div>'; return; }
-      const tpl = (appData.templates||[])[tplIndex] || appData.templates[0];
-      const html = `<iframe id="pv" style="width:100%;height:100%;border:0"></iframe>`;
-      box.innerHTML = html;
-      const iframe = $('#pv');
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
-      doc.open();
-      doc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">${renderTagInnerHTML(first, tpl)}</body></html>`);
-      doc.close();
-      // fit center
-      function fit(){
-        const w = box.clientWidth, h = box.clientHeight;
-        const el = doc.body.firstElementChild;
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const availW = w - 16, availH = h - 16; // padding
-        const scale = Math.min(availW / rect.width, availH / rect.height);
-        const left = (availW - (rect.width * scale)) / 2;
-        const top = (availH - (rect.height * scale)) / 2;
-        iframe.style.position = 'absolute';
-        iframe.style.left = `${left}px`;
-        iframe.style.top = `${top}px`;
+  const filtered = (appData.products || []).filter(p=>{
+    const generalSearchHit = !q || (p.sku||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q);
+    const columnFilterHit = Object.keys(columnFilters).every(key => {
+        if (!columnFilters[key] || columnFilters[key].size === 0) return true;
+        const value = p[key] || '';
+        return columnFilters[key].has(value.toString());
+    });
+    let dateOk = true;
+    if(isFlagship && (ds||de)){
+      const ex = p.expiresDate ? new Date(p.expiresDate) : null;
+      if(!ex) { dateOk=false; }
+      else {
+        if(ds && ex < new Date(ds)) dateOk=false;
+        if(de && ex > new Date(de+'T23:59:59')) dateOk=false;
       }
-      
-      iframe.onload = () => {
-          fit();
-          const ro = new ResizeObserver(() => fit());
-          ro.observe(box);
-      };
     }
+    return generalSearchHit && columnFilterHit && dateOk;
+  });
 
-    refreshPreview();
+  // Sorting logic
+  const { key: sortKey, direction } = sortState;
+  const dataKeyMap = {
+      normal: 'normalPrice', promo: 'promoPrice', expire: 'expiresDate', market: 'marketplacePrice',
+      t1: 'dealer1', t2: 'dealer2', t3: 'dealer3'
+  };
+  const dataKey = dataKeyMap[sortKey] || sortKey;
 
-    $('#printCheckAll').onchange = (e)=>{
-      if (e.target.checked) { selected = new Set(list.map(p=>p.sku)); }
-      else selected.clear();
-      refreshPreview();
-    };
+  filtered.sort((a, b) => {
+      const valA = a[dataKey];
+      const valB = b[dataKey];
 
-    $('#searchPrint').oninput = (e)=>{
-      const q = e.target.value.toLowerCase();
-      document.querySelectorAll('#printList > div').forEach((row,i)=>{
-        const p = list[i];
-        const text = `${p.sku} ${p.description}`.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
-      })
-    }
+      if (valA == null || valA === '') return 1;
+      if (valB == null || valB === '') return -1;
 
-    document.querySelectorAll('button[data-minus]').forEach(b=> b.onclick = (e)=>{
-      const i = +e.target.dataset.minus; const inp = document.querySelector(`input[data-qty="${i}"]`); inp.value = Math.max(1, (+inp.value||1) - 1); });
-    document.querySelectorAll('button[data-plus]').forEach(b=> b.onclick = (e)=>{
-      const i = +e.target.dataset.plus; const inp = document.querySelector(`input[data-qty="${i}"]`); inp.value = (+inp.value||1) + 1; });
+      let comparison = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+          comparison = valA - valB;
+      } else {
+          comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
+      }
 
-    const tplSel = document.querySelector('select.mt-3');
-    tplSel.onchange = (e)=>{ tplIndex = +e.target.value; refreshPreview(); };
+      return direction === 'asc' ? comparison : -comparison;
+  });
 
-    // Final Print
-    const btn = document.createElement('button');
-    btn.textContent = 'Open Print Page';
-    btn.className = 'mt-3 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700';
-    btn.onclick = ()=>{ const listSel = list.filter(p=>selected.has(p.sku)); const tpl = (appData.templates||[])[tplIndex] || appData.templates[0]; openPrintTab(listSel.length?listSel:list.slice(0,1), tpl); };
-    $('#previewBox').parentElement.appendChild(btn);
-  }
-
-  bindPrintModal();
+  return filtered;
 }
 
-/* ================= SETTINGS PANEL (tabs) ================= */
-function openSettings(tab='data'){
+function renderPagination(totalItems) {
+  const pageBox = $('#pagination');
+  pageBox.innerHTML = '';
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  if (totalPages <= 1) return;
+  for (let i = 1; i <= totalPages; i++) {
+    const btn = document.createElement('button');
+    btn.textContent = i;
+    btn.className = `px-3 py-1 rounded-lg text-sm border ${currentPage === i ? 'bg-brand.red border-red-700' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'}`;
+    btn.onclick = () => { currentPage = i; renderTable(); };
+    pageBox.appendChild(btn);
+  }
+}
+
+function renderTableHeader() {
+    const thead = $('#productTHead');
+    const columns = [
+        { key: 'sku', label: 'SKU', width: '120px', sortable: true },
+        { key: 'description', label: 'Description', width: '200px', sortable: true },
+        { key: 'details', label: 'Details', width: '200px', sortable: false },
+        { key: 'brand', label: 'Brand', width: '120px', sortable: true },
+        { key: 'category', label: 'Category', width: '120px', sortable: true },
+        { key: 'costs', label: 'Costs', width: '80px', class: 'col-costs', sortable: true }, // MODIFIED
+        { key: 'normal', label: 'Normal', width: '80px', class: 'col-normal', sortable: true },
+        { key: 'promo', label: 'Promotion', width: '80px', class: 'col-promo', sortable: true },
+        { key: 'expire', label: 'Expire Date', width: '100px', class: 'col-expire', sortable: true },
+        { key: 'market', label: 'Marketplace', width: '100px', class: 'col-market', sortable: true },
+        { key: 'marketgp', label: 'Market GP%', width: '100px', class: 'col-marketgp', sortable: false },
+        { key: 't1', label: `<span id="lblT1">Dealer T1</span>`, width: '100px', class: 'col-t1', sortable: true },
+        { key: 'gp1', label: 'GP% T1', width: '80px', class: 'col-gp1', sortable: false },
+        { key: 't2', label: `<span id="lblT2">Dealer T2</span>`, width: '100px', class: 'col-t2', sortable: true },
+        { key: 'gp2', label: 'GP% T2', width: '80px', class: 'col-gp2', sortable: false },
+        { key: 't3', label: `<span id="lblT3">Dealer T3</span>`, width: '100px', class: 'col-t3', sortable: true },
+        { key: 'gp3', label: 'GP% T3', width: '80px', class: 'col-gp3', sortable: false },
+        { key: 'actions', label: 'Actions', width: '100px', class: 'col-actions', sortable: false }
+    ];
+    
+    let headerHTML = `<tr class="[&>th]:px-3 [&>th]:py-3 text-left">`;
+    columns.forEach(col => {
+        let thClass = col.class || '';
+        let thAttrs = '';
+        let label = col.label;
+
+        if (col.sortable) {
+            thClass += ' cursor-pointer hover:bg-zinc-800 transition-colors';
+            thAttrs += ` data-sort-key="${col.key}"`;
+            if (sortState.key === col.key) {
+                label += sortState.direction === 'asc' ? ' <span class="text-zinc-400">▲</span>' : ' <span class="text-zinc-400">▼</span>';
+            }
+        }
+        
+        let content;
+        if (['sku', 'description', 'brand', 'category'].includes(col.key)) {
+            const isActive = columnFilters[col.key] && columnFilters[col.key].size > 0;
+            content = `<div class="flex items-center justify-between w-full">
+              <div>${label}</div>
+              <button class="filter-btn ${isActive ? 'active' : ''}" data-filter-key="${col.key}">▼</button>
+            </div>
+            <div id="filter-dropdown-${col.key}" class="filter-dropdown"></div>`;
+        } else {
+            content = label;
+        }
+
+        headerHTML += `<th class="${thClass}" style="width:${col.width}; position: relative;" ${thAttrs}>
+            ${content}
+            <div class="resizer"></div>
+        </th>`;
+    });
+    headerHTML += `</tr>`;
+    thead.innerHTML = headerHTML;
+    makeTableResizable();
+}
+
+function renderTable(){
+  const body=$('#productBody'); body.innerHTML='';
+  if(!appData) return;
+  
+  const allFiltered = filteredProducts();
+  const paginatedItems = allFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  paginatedItems.forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.className='hover:bg-zinc-700/70'; // MODIFIED
+    let isPromoExpired = p.expiresDate && new Date(p.expiresDate) < today;
+    const displayedPromoPrice = isPromoExpired ? '-' : money(p.promoPrice);
+    const promoPriceTitle = isPromoExpired ? 'Promotion Expired' : money(p.promoPrice);
+    const gpM = gpPct(p.marketplacePrice, p.costs);
+    const gp1 = gpPct(p.dealer1, p.costs);
+    const gp2 = gpPct(p.dealer2, p.costs);
+    const gp3 = gpPct(p.dealer3, p.costs);
+    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
+
+    tr.innerHTML = `
+      <td class="px-3 py-3 oneline" title="${escapeHTML(p.sku)}">${escapeHTML(p.sku) || '-'}</td>
+      <td class="px-3 py-3 oneline" title="${escapeHTML(p.description)}">${escapeHTML(p.description) || '-'}</td>
+      <td class="px-3 py-3 oneline" title="${escapeHTML(detailsOneLine)}">${escapeHTML(detailsOneLine)}</td>
+      <td class="px-3 py-3 oneline" title="${escapeHTML(p.brand)}">${escapeHTML(p.brand) || '-'}</td>
+      <td class="px-3 py-3 oneline" title="${escapeHTML(p.category)}">${escapeHTML(p.category) || '-'}</td>
+      <td class="px-3 py-3 col-costs oneline" title="${money(p.costs)}">${money(p.costs)}</td> <td class="px-3 py-3 col-normal oneline" title="${money(p.normalPrice)}">${money(p.normalPrice)}</td>
+      <td class="px-3 py-3 col-promo oneline" title="${promoPriceTitle}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};"><span style="text-decoration:${isPromoExpired ? 'line-through' : 'none'};">${displayedPromoPrice}</span></td>
+      <td class="px-3 py-3 col-expire oneline" title="${toDateInput(p.expiresDate)}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};">${toDateInput(p.expiresDate)}</td>
+      <td class="px-3 py-3 col-market oneline" title="${money(p.marketplacePrice)}">${money(p.marketplacePrice)}</td>
+      <td class="px-3 py-3 col-marketgp oneline" title="${gpM.toFixed(1)}%">${gpM.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t1 oneline" title="${money(p.dealer1)}">${money(p.dealer1)}</td>
+      <td class="px-3 py-3 col-gp1 oneline" title="${gp1.toFixed(1)}%">${gp1.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t2 oneline" title="${money(p.dealer2)}">${money(p.dealer2)}</td>
+      <td class="px-3 py-3 col-gp2 oneline" title="${gp2.toFixed(1)}%">${gp2.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-t3 oneline" title="${money(p.dealer3)}">${money(p.dealer3)}</td>
+      <td class="px-3 py-3 col-gp3 oneline" title="${gp3.toFixed(1)}%">${gp3.toFixed(1)}%</td>
+      <td class="px-3 py-3 col-actions">
+          <div class="flex items-center gap-2">
+            <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-edit="${p.sku}">Edit</button>
+            <button title="Delete" class="px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-del="${p.sku}">❌</button>
+          </div>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+  renderPagination(allFiltered.length);
+  bindTableEvents();
+  updateColumnVisibility();
+}
+
+
+/* ================= EDITOR ================= */
+function openEditor(sku = null) {
+  if(!['Host','Admin'].includes(currentUser.role)) return;
+  if (sku) {
+    editingIndex = appData.products.findIndex(x=>x.sku===sku);
+    const p = appData.products[editingIndex];
+    $('#editorTitle').textContent = 'Edit Product';
+    $('#edSku').value = p.sku;
+    $('#edSku').disabled = true;
+    $('#edDesc').value = p.description || '';
+    $('#edDetails').value = p.details || '';
+    $('#edBrand').value = p.brand || '';
+    $('#edCategory').value = p.category || '';
+    $('#edExpire').value = toDateInput(p.expiresDate);
+    $('#edCosts').value = p.costs || '';
+    $('#edNormal').value = p.normalPrice || '';
+    $('#edPromo').value = p.promoPrice || '';
+    $('#edMarket').value = p.marketplacePrice || '';
+    $('#edT1').value = p.dealer1 || '';
+    $('#edT2').value = p.dealer2 || '';
+    $('#edT3').value = p.dealer3 || '';
+  } else {
+    editingIndex = -1;
+    $('#editorTitle').textContent = 'Add New Product';
+    ['edSku', 'edDesc', 'edDetails', 'edBrand', 'edCategory', 'edExpire', 'edCosts', 'edNormal', 'edPromo', 'edMarket', 'edT1', 'edT2', 'edT3'].forEach(id => $(`#${id}`).value = '');
+     $('#edSku').disabled = false;
+  }
+  applyDealerNamesToUI();
+  $('#editorModal').classList.remove('hidden');
+}
+function closeEditor(){ $('#editorModal').classList.add('hidden'); }
+async function saveEditor() {
+  const sku = $('#edSku').value.trim();
+  if (!sku) { alert('SKU is required.'); return; }
+  const newProductData = {
+    sku: sku,
+    description:$('#edDesc').value.trim(), 
+    details:$('#edDetails').value.trim(),
+    brand:$('#edBrand').value.trim(),
+    category:$('#edCategory').value.trim(),
+    expiresDate:$('#edExpire').value||'', 
+    costs:parseFloat($('#edCosts').value)||0,
+    normalPrice:parseFloat($('#edNormal').value)||0, 
+    promoPrice:parseFloat($('#edPromo').value)||0,
+    marketplacePrice:parseFloat($('#edMarket').value)||0, 
+    dealer1:parseFloat($('#edT1').value)||0,
+    dealer2:parseFloat($('#edT2').value)||0, 
+    dealer3:parseFloat($('#edT3').value)||0
+  };
+
+  if (editingIndex > -1) {
+    const oldProduct = appData.products[editingIndex];
+    appData.products[editingIndex] = {...oldProduct, ...newProductData};
+    log('edit_product', sku);
+  } else {
+    if (appData.products.some(p => p.sku === sku)) {
+      alert(`SKU "${sku}" already exists.`); return;
+    }
+    appData.products.unshift(newProductData);
+    log('add_product', sku);
+  }
+  closeEditor();
+  updateLocalDataAndSave();
+}
+
+/* ================= SETTINGS ================= */
+function openSettings(tab){
+  if(!['Host','Admin'].includes(currentUser.role)) return;
   $('#settingsPanel').classList.remove('hidden');
-  const box = $('#settingsContent');
-  const isHost = currentUser?.role === 'Host';
-  const isAdmin = currentUser?.role === 'Admin' || isHost;
+  renderSettings(tab);
+}
+function fileToBase64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); }); }
+
+function renderSettings(tab){
+  const box=$('#settingsContent');
+  $$('.set-tab').forEach(b=>b.classList.remove('ring-2','ring-brand.red'));
+  const btn=$(`.set-tab[data-tab="${tab}"]`); if(btn) btn.classList.add('ring-2','ring-brand.red');
+  const isHost=currentUser.role==='Host';
+  const isAdmin=currentUser.role==='Admin';
+  $$('.only-host').forEach(el=>el.classList.toggle('hidden', !isHost));
+  $$('.only-host-admin').forEach(el=>el.classList.toggle('hidden', !(isHost||isAdmin)));
 
   if(tab==='data'){
     box.innerHTML=`
-      <div class="text-2xl font-semibold mb-4">Master Data</div>
-      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-        <div class="flex gap-3 flex-wrap">
-          <input type="file" id="fileMaster" class="hidden"><label for="fileMaster" class="cursor-pointer px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Import Master (Excel)</label>
-          <button id="btnDoImportMaster" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Import</button>
-          <button id="btnExportMaster" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Export Current</button>
+      <div class="text-2xl font-semibold mb-2">Manage Master Data</div>
+      <div class="text-zinc-400 mb-4">Import or Export the main product data file.</div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Import Master File (.xlsx)</div>
+          <input id="fileImportMaster" type="file" accept=".xlsx,.xls" class="w-full">
+          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Desc, C Details, D Brand, E Category, F Costs, G Normal, H Marketplace, I D1, J D2, K D3</p>
+          <button id="btnDoImportMaster" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import Master</button>
+        </div>
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Export Master File (.xlsx)</div>
+          <button id="btnExportMaster" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Master</button>
+          <p class="text-xs text-zinc-400 mt-2">Exports a file compatible with the import format (without GP% columns).</p>
         </div>
       </div>
     `;
@@ -950,29 +799,41 @@ function openSettings(tab='data'){
   }
   if(tab==='promo'){
     box.innerHTML=`
-      <div class="text-2xl font-semibold mb-4">Promotion</div>
-      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-        <div class="flex gap-3 flex-wrap">
-          <input type="file" id="filePromo" class="hidden"><label for="filePromo" class="cursor-pointer px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Import Promotions</label>
-          <button id="btnDoImportPromo" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Import</button>
-          <button id="btnExportPromo" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Export Current</button>
-          <button id="btnReportExpired" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Expired report</button>
+      <div class="text-2xl font-semibold mb-2">Manage Promotion Data</div>
+      <div class="text-zinc-400 mb-4">Import or Export promotion-specific data.</div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+          <div class="font-semibold mb-2">Import Promotion File (.xlsx)</div>
+          <input id="fileImportPromo" type="file" accept=".xlsx,.xls" class="w-full">
+          <p class="text-xs text-zinc-400 mt-2">Columns: A SKU, B Desc, C Normal, D Promotion, E Expires</p>
+          <button id="btnDoImportPromo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Import Promotion</button>
+        </div>
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+          <div>
+            <div class="font-semibold mb-2">Export Promotion File (.xlsx)</div>
+            <button id="btnExportPromo" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Export Promotion</button>
+          </div>
+          <div>
+            <div class="font-semibold mb-2">Promotion Report</div>
+            <button id="btnReportExpired" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Report Promotion Expire</button>
+          </div>
         </div>
       </div>
     `;
     bindSettingsEvents(tab);
   }
   if(tab==='logo'){
-    const base64 = appData.logo||'';
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const base64 = appData.logo || '';
     box.innerHTML=`
-      <div class="text-2xl font-semibold mb-4">Logo</div>
-      <div class="grid md:grid-cols-2 gap-4">
+      <div class="text-2xl font-semibold mb-2">Manage Logo</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
-          <div class="font-semibold mb-2">Upload</div>
-          <input type="file" id="logoFile" accept="image/*" class="hidden">
-          <label for="logoFile" class="cursor-pointer px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Choose image</label>
-          <button id="btnSaveLogo" class="ml-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save</button>
-          <button id="btnRemoveLogo" class="ml-2 px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Remove</button>
+          <div class="font-semibold mb-2">Upload logo</div>
+          <input type="file" id="logoFile" accept="image/*">
+          <p class="text-xs text-zinc-400 mt-2">PNG/JPG/SVG. Used on default templates.</p>
+          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save logo</button>
+          <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Remove</button>
         </div>
         <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
           <div class="font-semibold mb-2">Preview</div>
@@ -991,20 +852,11 @@ function openSettings(tab='data'){
       <div class="text-2xl font-semibold mb-4">Dealer Settings</div>
       <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
         <div class="grid md:grid-cols-3 gap-3">
-          <div>
-            <div class="text-sm text-zinc-400">Label for T1</div>
-            <input id="edLabelT1" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t1||''}">
-          </div>
-          <div>
-            <div class="text-sm text-zinc-400">Label for T2</div>
-            <input id="edLabelT2" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t2||''}">
-          </div>
-          <div>
-            <div class="text-sm text-zinc-400">Label for T3</div>
-            <input id="edLabelT3" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t3||''}">
-          </div>
+          <div><label class="text-xs text-zinc-400">Name for Dealer T1</label><input id="nameT1" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t1||'Dealer T1'}"></div>
+          <div><label class="text-xs text-zinc-400">Name for Dealer T2</label><input id="nameT2" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t2||'Dealer T2'}"></div>
+          <div><label class="text-xs text-zinc-400">Name for Dealer T3</label><input id="nameT3" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t3||'Dealer T3'}"></div>
         </div>
-        <div><button id="btnSaveDealerNames" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save Dealer Names</button></div>
+        <button id="btnSaveDealer" class="mt-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save Names</button>
       </div>
     `;
     bindSettingsEvents(tab);
@@ -1028,10 +880,10 @@ function openSettings(tab='data'){
             <label class="text-sm"><input type="checkbox" id="nuCanPrint" checked> Can Print</label>
           </div>
           <div class="md:col-span-2">
-            ${Channels.map(ch=>`<label class="mr-3 text-sm"><input type="checkbox" value="${ch}" ${ch==='Flagship'?'checked':''}> ${ch}</label>`).join('')}
+            ${Channels.map(ch=>`<label class="mr-3 text-sm"><input type="checkbox" class="nuCh" value="${ch}" ${ch==='Flagship'?'checked':''}> ${ch}</label>`).join('')}
           </div>
         </div>
-        <div class="mt-3"><button id="nuCreate" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Create</button></div>
+        <div class="mt-3"><button id="nuCreate" class="px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Create</button></div>
       </div>
       <div class="overflow-auto border border-zinc-800 rounded-2xl">
         <table class="w-full text-sm">
@@ -1050,6 +902,34 @@ function openSettings(tab='data'){
         </table>
       </div>
     `;
+    
+    const tbody=$('#userRows'); tbody.innerHTML='';
+    (appData.users || []).forEach((u,i)=>{
+        if (isAdmin && (u.role === 'Host' || u.username === 'host')) return; // Admin ไม่เห็น Host
+      const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
+      tr.innerHTML=`
+        <td class="px-3 py-2 oneline">${u.username}</td>
+        <td class="px-3 py-2">
+          <select data-role-idx="${i}" class="w-full px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700" ${u.username==='host'?'disabled':''}>
+          ${(isHost?['Host','Admin','User']:['Admin','User']).map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
+          </select>
+        </td>
+        <td class="px-3 py-2 oneline">
+          ${Channels.map(ch=>`<label class="mr-2"><input type="checkbox" data-ch-idx="${i}|${ch}" ${(u.channels||[]).includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>`).join('')}
+        </td>
+        <td class="px-3 py-2 text-center"><input type="checkbox" data-cost-idx="${i}" ${u.canSeeCosts?'checked':''}></td>
+        <td class="px-3 py-2 text-center"><input type="checkbox" data-print-idx="${i}" ${u.canPrint?'checked':''}></td>
+        <td class="px-3 py-2"><input type="text" data-pass-idx="${i}"
+  ${isAdmin && (u.username==='host' || u.role==='Host') ? 'disabled' : ''}
+  class="w-full px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700">
+</td>
+        <td class="px-3 py-2">
+          <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu-idx="${i}">Save</button>
+          ${u.username==='host' ? '' : `<button class="ml-2 px-2 py-1 rounded-xl bg-transparent border border-red-700 hover:bg-red-700/20 text-xs" data-delu-idx="${i}">❌</button>`}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
     bindSettingsEvents(tab);
   }
   if(tab==='templates'){
@@ -1068,59 +948,696 @@ function openSettings(tab='data'){
         <h3 class="font-semibold">Create New Template</h3>
         <div>
           <label class="text-sm text-zinc-400">Template Base</label>
-          <select id="newTplKind" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-            <option value="A4">A4</option>
-            <option value="A5">A5</option>
-            <option value="A6">A6</option>
-            <option value="ACC">Accessories</option>
-            <option value="CARD">Card</option>
-          </select>
-        </div>
-        <div class="grid md:grid-cols-2 gap-3">
-          <input id="newTplName" placeholder="Name" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-          <input id="newTplId" placeholder="ID (auto if empty)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+          <select id="newTplKind" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700"></select>
         </div>
         <div>
-          <label class="text-sm text-zinc-400">Background Image</label>
-          <input id="newTplImg" type="file" accept="image/*">
+          <label class="text-sm text-zinc-400">Template Name</label>
+          <input id="newTplName" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="e.g., My Custom A4">
         </div>
-        <div><button id="btnCreateTpl" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Create</button></div>
+        <div class="flex gap-2">
+          <button id="btnCreateTpl" class="px-4 py-2 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Create</button>
+          <button id="btnCancelTpl" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Cancel</button>
+        </div>
       </div>
-      
-      <div id="tplList" class="grid lg:grid-cols-2 gap-4"></div>
+
+      <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
     `;
+
+    const listBox = $('#tplList'); listBox.innerHTML='';
+    arr.forEach((t,i)=>{
+      const card = document.createElement('div');
+      card.className = 'p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
+      
+      // Ensure data structure integrity for older templates
+      t.logoStyles = t.logoStyles || { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } };
+      if(typeof t.logoStyles.margin !== 'object') t.logoStyles.margin = { top: t.logoStyles.margin, right: t.logoStyles.margin, bottom:0, left:0 };
+
+      t.styles = t.styles || {};
+      ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
+        t.styles[k] = t.styles[k] || { ...defaultTextStyles };
+        if(typeof t.styles[k].margin !== 'object') t.styles[k].margin = { top: t.styles[k].mt || 0, right:0, bottom:0, left:0 };
+        migration + defaults for new keys
+        t.styles[k].fw = t.styles[k].fw || 'normal';
+        // migrate legacy 'fs': number => fontSize, string => fontStyle
+        if (typeof t.styles[k].fontSize === 'undefined' && typeof t.styles[k].fs === 'number') t.styles[k].fontSize = t.styles[k].fs;
+        if (!t.styles[k].fontStyle && typeof t.styles[k].fs === 'string') t.styles[k].fontStyle = t.styles[k].fs;
+        delete t.styles[k].fs;
+        t.styles[k].fontSize = t.styles[k].fontSize || 14;
+        t.styles[k].fontStyle = t.styles[k].fontStyle || 'normal';
+        t.styles[k].td = t.styles[k].td || 'none';
+      });
+
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <input data-name-tpl="${i}" value="${t.name||'Untitled Template'}" class="bg-transparent text-white text-lg font-semibold px-2 py-1 outline-none border-b border-zinc-700 focus:border-brand.red">
+          <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del-tpl="${i}">Delete</button>
+        </div>
+        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-sm font-semibold mb-2">Background Image</div>
+            <img src="${t.imageData||''}" alt="template" class="w-full rounded-lg border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
+            <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
+            <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
+              <input type="file" data-img-tpl="${i}" accept="image/png, image/jpeg" class="hidden">
+              Upload/Change Image
+            </label>
+          </div>
+          <div>
+            <div class="text-sm font-semibold mb-2">Logo Settings</div>
+            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-logo-tpl="${i}" ${t.showLogo?'checked':''}> Show logo</label>
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <div><label class="text-xs text-zinc-400">Size (px)</label><input type="number" step="1" data-logosize-tpl="${i}" value="${t.logoStyles.size}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+              <div><label class="text-xs text-zinc-400">Margin Top</label><input type="number" step="1" data-logomargintop-tpl="${i}" value="${t.logoStyles.margin.top}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+              <div></div><div><label class="text-xs text-zinc-400">Margin Right</label><input type="number" step="1" data-logomarginright-tpl="${i}" value="${t.logoStyles.margin.right}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
+            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
+              <div class="text-xs text-zinc-400 capitalize">${k.replace('oldPrice','Old Price')}</div>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label class="text-xs">Font size</label><input type="number" step="1" data-val-tpl="${i}|${k}|fontSize" fs->fontSize value="${t.styles[k].fontSize}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+                <div><label class="text-xs">Color</label><input type="color" data-val-tpl="${i}|${k}|color" value="${t.styles[k].color}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+              </div>
+              <div>
+                <label class="text-xs">Margin (T-R-B-L)</label>
+                <div class="grid grid-cols-4 gap-1">
+                  <input type="number" step="1" placeholder="T" data-val-tpl="${i}|${k}|margin|top" value="${t.styles[k].margin.top}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                  <input type="number" step="1" placeholder="R" data-val-tpl="${i}|${k}|margin|right" value="${t.styles[k].margin.right}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                  <input type="number" step="1" placeholder="B" data-val-tpl="${i}|${k}|margin|bottom" value="${t.styles[k].margin.bottom}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                  <input type="number" step="1" placeholder="L" data-val-tpl="${i}|${k}|margin|left" value="${t.styles[k].margin.left}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                </div>
+              </div>
+              <div>
+                <label class="text-xs">Font Style</label>
+                <div class="grid grid-cols-4 gap-1">
+                  <button data-style-tpl="${i}|${k}|fw|bold" class="style-btn ${t.styles[k].fw === 'bold' ? 'active':''}"><b>B</b></button>
+                  <button data-style-tpl="${i}|${k}|fontStyle|italic" class="style-btn ${t.styles[k].fontStyle === 'italic' ? 'active':''}"><i>I</i></button>
+                  <button data-style-tpl="${i}|${k}|td|underline" class="style-btn ${t.styles[k].td.includes('underline') ? 'active':''}"><u>U</u></button>
+                  <button data-style-tpl="${i}|${k}|td|line-through" class="style-btn ${t.styles[k].td.includes('line-through') ? 'active':''}"><s>S</s></button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savetpl-idx="${i}">Save Template</button>
+      `;
+      listBox.appendChild(card);
+    });
     bindSettingsEvents(tab);
   }
   if(tab==='cloud'){
-    box.innerHTML = `
-      <div class="text-2xl font-semibold mb-4">Cloud</div>
-      <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-        <div class="grid md:grid-cols-2 gap-3">
-          <div>
-            <div class="text-sm text-zinc-400">Gist ID</div>
-            <input id="cfGistId" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${localStorage.getItem(LS.GIST_ID)||''}">
-          </div>
-          <div>
-            <div class="text-sm text-zinc-400">Token</div>
-            <input id="cfToken" class="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${localStorage.getItem(LS.TOKEN)||''}">
-          </div>
-        </div>
-        <div class="flex gap-2">
-          <button id="btnCloudRefresh" class="px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Refresh from Cloud</button>
-          <button id="btnCloudSave" class="px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save to Cloud</button>
-        </div>
-      </div>`;
+    if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const gistId = localStorage.getItem(LS.GIST_ID) || '';
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Cloud Sync (GitHub Gist)</div>
+      <p class="text-sm text-zinc-400 mb-4">Current Gist ID: ${gistId || 'Not set'}</p>
+      <button id="btnCloudLoadRefresh" class="px-3 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 font-semibold">Refresh from Cloud</button>
+      <p class="text-xs text-zinc-400 mt-2">Data will be automatically saved on every change.</p>
+    `;
     bindSettingsEvents(tab);
   }
   if(tab==='history'){
-    box.innerHTML = `<div class="text-2xl font-semibold mb-4">History</div><div id="logBox" class="space-y-2"></div>`;
-    const box2 = $('#logBox');
-    (appData.logs||[]).forEach(l=>{
-      const d=document.createElement('div'); d.className='p-3 rounded-xl border border-zinc-800 bg-zinc-900/40';
-      d.textContent = `${l.ts} • ${l.user} • ${l.action} • ${l.meta}`;
-      box2.appendChild(d);
-    })
+     if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
+    const logs=appData.logs || [];
+    box.innerHTML=`
+      <div class="text-2xl font-semibold mb-2">Usage History</div>
+      <div class="max-h-[65vh] overflow-auto border border-zinc-800 rounded-2xl">
+        <table class="min-w-[700px] w-full text-sm">
+          <thead class="bg-zinc-900/70 border-b border-zinc-800">
+            <tr class="[&>th]:px-3 [&>th]:py-2 text-left"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+          </thead>
+          <tbody>${logs.map(l=>`<tr class="border-b border-zinc-800"><td class="px-3 py-2">${new Date(l.ts).toLocaleString('th-TH')}</td><td class="px-3 py-2">${l.user}</td><td class="px-3 py-2">${l.action}</td><td class="px-3 py-2 text-zinc-400">${l.meta||''}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+    `;
   }
+}
+
+
+/* ================= IMPORT / EXPORT ================= */
+async function doImportMaster(){
+  const fi=$('#fileImportMaster'); if(!fi.files[0]) return alert('Choose a file');
+  try {
+    const data=await fi.files[0].arrayBuffer();
+    const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    let headerRowIndex = rows.findIndex(row => (row[0] || '').toString().toLowerCase().trim() === 'sku');
+    if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
+    const start=headerRowIndex + 1;
+    const newItems=[], existingSkus = new Set(appData.products.map(p => p.sku));
+    let skippedCount = 0;
+    for(let i=start;i<rows.length;i++){
+      const r=rows[i]; const sku = (r[0]||'').toString().trim(); if(!sku) continue;
+      if (existingSkus.has(sku)) { skippedCount++; continue; }
+      existingSkus.add(sku);
+      newItems.push({
+        sku,
+        description: (r[1] || '').toString().trim(), details: (r[2] || '').toString().trim(),
+        brand: (r[3] || '').toString().trim(), category: (r[4] || '').toString().trim(),
+        costs: parseFloat(r[5] || 0) || 0, normalPrice: parseFloat(r[6] || 0) || 0,
+        marketplacePrice: parseFloat(r[7] || 0) || 0, dealer1: parseFloat(r[8] || 0) || 0,
+        dealer2: parseFloat(r[9] || 0) || 0, dealer3: parseFloat(r[10] || 0) || 0,
+        promoPrice: 0, expiresDate: ''
+      });
+    }
+    if(!newItems.length && skippedCount === 0) return alert('No new valid products found to import.');
+    appData.products=[...newItems, ...appData.products];
+    log('import_master', `${newItems.length} rows`);
+    alert(`Import complete.\n- New products added: ${newItems.length}\n- Existing SKUs skipped: ${skippedCount}`);
+    updateLocalDataAndSave();
+  } catch(e){ alert('An error occurred during import: ' + e.message); }
+}
+async function doExportMaster(){
+  const wb=await XlsxPopulate.fromBlankAsync(); const sh=wb.sheet(0).name('MasterPriceData');
+  const header=['SKU','Description','Details','Brand','Category','Costs','Normal Price','Marketplace Price','Dealer T1','Dealer T2','Dealer T3'];
+  const dataRows = (appData.products || []).map(p=>[
+    p.sku, p.description, p.details, p.brand, p.category, p.costs, p.normalPrice,
+    p.marketplacePrice, p.dealer1, p.dealer2, p.dealer3
+  ]);
+  sh.cell('A1').value([header,...dataRows]);
+  sh.row(1).style({bold:true});
+  if(dataRows.length > 0) sh.range(`F2:K${dataRows.length+1}`).style({fill:'FFFFFFCC'});
+  [15,30,40,20,20,12,14,16,14,14,14].forEach((w,i)=>sh.column(i+1).width(w));
+  const blob=await wb.outputAsync();
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='master_price_data.xlsx'; a.click(); a.remove(); URL.revokeObjectURL(url);
+  log('export_master', `${appData.products.length} rows`);
+}
+async function doImportPromo() {
+    const fi = $('#fileImportPromo'); if (!fi.files[0]) return alert('Choose a file');
+    try {
+        const data = await fi.files[0].arrayBuffer();
+        const wb = XLSX.read(data, { type: 'array' }); const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        let headerRowIndex = rows.findIndex(row => (row[0] || '').toString().toLowerCase().trim() === 'sku');
+        if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
+        const start = headerRowIndex + 1;
+        let updatedCount = 0; let notFoundCount = 0;
+        const productMap = new Map(appData.products.map(p => [p.sku, p]));
+        for (let i = start; i < rows.length; i++) {
+            const r = rows[i]; const sku = (r[0] || '').toString().trim(); if (!sku) continue;
+            const product = productMap.get(sku);
+            if (product) {
+                product.promoPrice = parseFloat(r[3] || 0) || 0;
+                product.expiresDate = fromExcelDate(r[4] || '');
+                updatedCount++;
+            } else { notFoundCount++; }
+        }
+        log('import_promo', `${updatedCount} rows updated`);
+        alert(`Promotion import complete.\n- Products updated: ${updatedCount}\n- SKUs not found: ${notFoundCount}`);
+        updateLocalDataAndSave();
+    } catch(e){ alert('An error occurred during import: ' + e.message); }
+}
+async function doExportPromo() {
+    const wb = await XlsxPopulate.fromBlankAsync(); const sh = wb.sheet(0).name('PromotionData');
+    const header = ['SKU', 'Description', 'Normal Price', 'Promotion Price', 'Expires Date', 'Promotion GP%'];
+    const dataRows = (appData.products || []).map(p => [
+        p.sku, p.description, p.normalPrice, p.promoPrice,
+        p.expiresDate ? toDateInput(p.expiresDate) : '', +gpPct(p.promoPrice, p.costs).toFixed(2)
+    ]);
+    sh.cell('A1').value([header, ...dataRows]);
+    sh.row(1).style({ bold: true });
+    if(dataRows.length > 0) sh.range(`D2:E${dataRows.length+1}`).style({fill:'FFFFFF99'});
+    [15, 30, 14, 16, 16, 14].forEach((w, i) => sh.column(i + 1).width(w));
+    const blob = await wb.outputAsync();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'promotion_data.xlsx'; a.click(); a.remove(); URL.revokeObjectURL(url);
+    log('export_promo', `${appData.products.length} rows`);
+}
+function showExpiredPromoReport() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const expiredProducts = (appData.products || []).filter(p => p.expiresDate && new Date(p.expiresDate) < today);
+    if (expiredProducts.length === 0) return alert('No expired promotions found.');
+    const reportText = expiredProducts
+        .map(p => `SKU: ${p.sku}\nDesc: ${ellip(p.description, 40)}\nExpired: ${toDateInput(p.expiresDate)}\n--------------------`)
+        .join('\n');
+    alert(`--- Expired Promotions Report ---\n\n${reportText}`);
+    log('report_expired_promo', `${expiredProducts.length} items`);
+}
+
+/* ================= PRINT FLOW & OTHERS ================= */
+function togglePrintModal(show){ $('#printModal').classList.toggle('hidden', !show); }
+function buildPrintList(){
+  const box=$('#printList'); box.innerHTML='';
+  const items=filteredProducts();
+  const frag=document.createDocumentFragment();
+  items.forEach(p=>{
+    const row=document.createElement('div');
+    row.className='flex items-center gap-3 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-2';
+    row.innerHTML=`
+      <label class="flex items-center gap-2 w-6"><input type="checkbox" data-sel="${p.sku}"></label>
+      <div class="flex-1">
+        <div class="font-medium oneline" title="${escapeHTML(p.sku)}">${p.sku}</div>
+        <div class="text-xs text-zinc-400 oneline" title="${escapeHTML(p.description)}">${ellip(p.description, 46)}</div>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-zinc-400">Qty</span>
+        <input type="number" min="1" value="1" data-qty="${p.sku}" class="w-20 px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800">
+      </div>
+    `;
+    frag.appendChild(row);
+  });
+  box.appendChild(frag);
+  $('#printCheckAll').checked=false;
+  $('#printCheckAll').onchange=()=> $$('#printList input[type="checkbox"]').forEach(c=>c.checked=$('#printCheckAll').checked);
+  $('#printSearch').oninput=()=>{
+    const q=$('#printSearch').value.toLowerCase();
+    $$('#printList > div').forEach(div=>{
+      const textContent = div.textContent.toLowerCase();
+      div.style.display = textContent.includes(q) ? '' : 'none';
+    });
+  };
+  updatePrintSummary();
+  $$('#printList input').forEach(i=>i.oninput=updatePrintSummary);
+}
+function updatePrintSummary(){
+  const selected=$$('#printList input[type="checkbox"]:checked');
+  let count=0; selected.forEach(c=>{ const sku=c.dataset.sel; const qty=parseInt($(`[data-qty="${sku}"]`).value)||0; count+=qty; });
+  $('#printSummary').textContent = `${selected.length} SKUs selected • ${count} tags total`;
+}
+function fillTemplateDropdown(){
+  const dd=$('#printTemplate'); dd.innerHTML='';
+  (appData.templates || []).forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; dd.appendChild(o); });
+  dd.onchange=()=>{ 
+    const firstSelectedSku = $('#printList input[type="checkbox"]:checked')?.dataset.sel;
+    const firstItem = appData.products.find(p => p.sku === firstSelectedSku) || filteredProducts()[0];
+    renderPreview(firstItem, appData.templates.find(t=>t.id===dd.value)); 
+  };
+}
+
+function generateSingleTagHTML(p, tpl) {
+    const logo = appData.logo || '';
+    let pad = '10mm';
+    if(tpl.kind === 'IMAGE') { pad = '0mm'; }
+    else if(tpl.kind === 'A6') { pad = '8mm'; }
+    else if(tpl.kind === 'ACC') { pad = '6mm'; }
+    else if(tpl.kind === 'CARD') { pad = '4mm'; }
+
+    const style = `
+        <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            html,body { margin: 0; padding: 0; font-family:'Kanit','Prompt',sans-serif; width: 100%; height: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .tag { width: 100%; height: 100%; padding:${pad}; box-sizing:border-box; position:relative; display: flex; align-items: center; justify-content: center; }
+            .card { position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
+            .logo { position:absolute; }
+            .text-elevate { text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+        </style>
+    `;
+
+    let logoTag = '';
+    if (tpl.showLogo && logo) {
+        const { size = 64, margin = {top:10, right:10} } = tpl.logoStyles || {};
+        logoTag = `<img src="${logo}" class="logo" style="top:${margin.top}px; right:${margin.right}px; width:${size}px; height:auto;">`;
+    }
+    const content = renderTagInnerHTML(p, tpl);
+    const cardHTML = `<div class="card">${logoTag}${content}</div>`;
+    const tagHTML = `<div class="tag">${cardHTML}</div>`;
+    
+    return `<!doctype html><html><head><title>Preview</title>${style}</head><body style="margin:0;padding:0;">${tagHTML}</body></html>`;
+}
+
+function renderPreview(item, tpl) {
+  const box = $('#previewBox');
+  box.innerHTML = '';
+  if (!item || !tpl) {
+    box.innerHTML = '<div class="text-zinc-500">No items or template selected</div>';
+    return;
+  }
+
+  const size = baseSize(tpl.kind);
+  const aspectW = size.w;
+  const aspectH = size.h;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.width = `${aspectW}px`;
+  iframe.style.height = `${aspectH}px`;
+  iframe.style.border = 'none';
+  iframe.style.transformOrigin = 'top left';
+  iframe.scrolling = 'no';
+  
+  iframe.srcdoc = generateSingleTagHTML(item, tpl);
+
+  box.appendChild(iframe);
+  
+  function fit() {
+    if(!box || !iframe) return;
+    const availW = box.clientWidth;
+    const availH = box.clientHeight;
+    const scale = Math.min(availW / aspectW, availH / aspectH) * 0.95;
+    iframe.style.transform = `scale(${scale})`;
+    const left = (availW - (aspectW * scale)) / 2;
+    const top = (availH - (aspectH * scale)) / 2;
+    iframe.style.position = 'absolute';
+    iframe.style.left = `${left}px`;
+    iframe.style.top = `${top}px`;
+  }
+  
+  iframe.onload = () => {
+      fit();
+      const ro = new ResizeObserver(() => fit());
+      ro.observe(box);
+  };
+}
+
+function renderTagInnerHTML(p, tpl){
+  const innerPadding = tpl.kind === 'IMAGE' ? '20mm' : '10mm';
+  const styleInline = (o) => {
+    const m = o.margin || defaultMargin;
+    return `font-size:${o.fs||14}px; color:${o.color||'#fff'}; font-weight:${o.fw||'normal'}; font-style:${o.fs||'normal'}; text-decoration:${o.td||'none'}; margin: ${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`;
+  };
+  const content = `
+    <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
+        <div style="${styleInline(tpl.styles.sku)}" class="text-right text-elevate">${escapeHTML(p.sku)}</div>
+        <div style="font-weight:800;line-height:1.2; ${styleInline(tpl.styles.description)}" class="text-elevate">${escapeHTML(p.description)}</div>
+        <div class="space-y-1">${(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
+            <div class="flex gap-2 items-start text-elevate" style="${styleInline(tpl.styles.details)}"><span>•</span><span>${t}</span></div>`).join('')}</div>
+        <div class="mt-auto flex items-end justify-between">
+            <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+            <div class="text-right">
+            <div style="${styleInline(tpl.styles.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+            <div style="font-weight:900; ${styleInline(tpl.styles.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+            </div>
+        </div>
+    </div>
+  `;
+  if(tpl.kind === 'ACC' || tpl.kind === 'CARD'){
+      const s = tpl.styles;
+      const detailsLines = (p.details || '').split(/\n+/).filter(Boolean).slice(0, 2)
+          .map(line => `<div style="font-size: ${(s.details.fs || 9)}px; color: ${(s.details.color || '#cccccc')}; margin-top: 2px; line-height: 1.2;">• ${escapeHTML(ellip(line, 40))}</div>`)
+          .join('');
+
+      return `
+      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${escapeHTML(p.sku)}</div>
+      <div style="display:flex; flex-direction: column; align-items:center; justify-content:center; text-align:center; height:100%; padding:10mm 8mm;" class="text-elevate">
+          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${escapeHTML(ellip(p.description, 44))}</div>
+          <div style="margin-top: 4px; max-width: 100%;">${detailsLines}</div>
+      </div>
+      <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
+      <div style="position:absolute;right:6mm;bottom:4mm;text-align:right">
+          <div style="${styleInline(s.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>
+          <div style="font-weight:900;${styleInline(s.price)}" class="text-elevate">${money(p.promoPrice)}.-</div>
+      </div>
+      `;
+  }
+  return content;
+}
+
+
+function baseSize(kind){
+  if(kind==='A4') return {w:744,h:1052};
+  if(kind==='A5') return {w:526,h:744};
+  if(kind==='A6') return {w:372,h:526};
+  if(kind==='CARD') return {w:265, h:374}; // 70mm x 99mm for 3x3 on A4 portrait
+  return {w:640,h:320}; // ACC or default for IMAGE
+}
+
+function openPrintTab(list,tpl){
+  const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
+  if(!items.length){ alert('Select at least one SKU.'); return; }
+  const w=window.open('', '_blank');
+  if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
+  const logo=appData.logo||'';
+  let cols=1, rows=1, pad='8mm', pageSize='A4';
+  if(tpl.kind === 'IMAGE') { cols = 1; rows = 1; pad = '0mm'; pageSize = 'A4'; }
+  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
+  else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
+  else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
+  else if(tpl.kind==='CARD'){ cols=3; rows=3; pad='4mm'; pageSize='A4'; }
+  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
+
+  const style=`
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      @page { size: ${pageSize}; margin: 0; }
+      html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; margin: 0; padding: 0; }
+      .sheet{ width: ${pageSize.includes('landscape') ? '297mm' : '210mm'}; height: ${pageSize.includes('landscape') ? '210mm' : '297mm'}; margin: 0; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; box-sizing: border-box; }
+      .tag{ width:100%; height:100%; padding:${pad}; box-sizing:border-box; position:relative; display: flex; align-items: center; justify-content: center;}
+      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
+      .logo{ position:absolute; }
+      .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
+      
+#global-filter-dropdown.filter-dropdown {
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+    </style>
+  `;
+  const perSheet = cols*rows;
+  const pages=[]; for(let i=0;i<items.length;i+=perSheet) pages.push(items.slice(i,i+perSheet));
+  const body = pages.map(pg=>{
+    const inner=pg.map(p=>{
+      let logoTag = '';
+      if(tpl.showLogo && logo) {
+        const { size = 64, margin = {top:10, right:10} } = tpl.logoStyles || {};
+        logoTag = `<img src="${logo}" class="logo" style="top:${margin.top}px; right:${margin.right}px; width:${size}px; height:auto;">`;
+      }
+      const content = renderTagInnerHTML(p, tpl);
+      return `<div class="tag"><div class="card">${logoTag}${content}</div></div>`;
+    }).join('');
+    return `<div class="sheet">${inner}</div>`;
+  }).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Print</title>${style}</head><body>${body}</body></html>`);
+  w.document.close();
+  w.focus(); 
+  setTimeout(() => w.print(), 500);
+  log('open_print', `${items.length} tags, tpl=${tpl.name}`);
+}
+
+function closeAllFilterDropdowns(exceptKey = null) {
+  const g = $('#global-filter-dropdown');
+  if (g && (!exceptKey || g.dataset.key !== exceptKey)) g.style.display = 'none';
+  $$('.filter-dropdown').forEach(d => { d.style.display = 'none'; });
+}
+
+function openFilterDropdown(key) {
+  let g = document.querySelector('#global-filter-dropdown');
+  if (!g) {
+    g = document.createElement('div');
+    g.id = 'global-filter-dropdown';
+    g.className = 'filter-dropdown';
+    document.body.appendChild(g);
+  }
+  g.style.position = 'fixed';
+  g.style.zIndex = '9999';
+
+  const btn = document.querySelector(`.filter-btn[data-filter-key="${key}"]`);
+  if (!btn) return;
+
+  const isVisible = g.style.display === 'block' && g.dataset.key === String(key);
+  closeAllFilterDropdowns(key);
+  if (isVisible) { g.style.display = 'none'; return; }
+
+  const allValues = [...new Set((appData.products || [])
+    .map(p => (p[key] ?? '').toString())
+    .filter(Boolean))];
+
+  let sortDir = 'asc';
+  let viewValues = [...allValues].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const currentFilter = columnFilters[key] || new Set();
+
+  g.dataset.key = key;
+  g.innerHTML = `
+    <div class="filter-dropdown-content">
+      <input id="filter-search-${key}" class="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 outline-none" placeholder="Search values… (like Excel)" />
+      <div class="flex gap-2 my-1">
+        <button id="filter-sort-asc-${key}" class="flex-1 px-2 py-1 text-xs rounded bg-zinc-800 border border-zinc-700 hover:bg-zinc-700">Sort A–Z</button>
+        <button id="filter-sort-desc-${key}" class="flex-1 px-2 py-1 text-xs rounded bg-zinc-800 border border-zinc-700 hover:bg-zinc-700">Sort Z–A</button>
+      </div>
+      <label class="flex items-center gap-2 text-sm hover:bg-zinc-700 p-1 rounded">
+        <input type="checkbox" id="filter-select-all-${key}"> Select All (visible)
+      </label>
+      <div id="filter-values-${key}" class="max-h-60 overflow-auto rounded border border-zinc-800"></div>
+      <div class="flex gap-2 mt-2">
+        <button data-apply-filter="${key}" class="flex-1 px-2 py-1 text-xs rounded bg-brand.red hover:bg-red-600" data-total-values="${allValues.length}">Apply</button>
+        <button data-clear-filter="${key}" class="flex-1 px-2 py-1 text-xs rounded bg-zinc-700 hover:bg-zinc-600">Clear</button>
+      </div>
+    </div>
+  `;
+
+  const $valsBox = g.querySelector(`#filter-values-${key}`);
+  const $selectAll = g.querySelector(`#filter-select-all-${key}`);
+  const $search = g.querySelector(`#filter-search-${key}`);
+
+  function renderList() {
+    $valsBox.innerHTML = '';
+    const q = ($search.value || '').toString().trim().toLowerCase();
+    let display = viewValues.filter(v => v.toLowerCase().includes(q));
+    display.sort((a,b)=> sortDir==='asc' ? a.localeCompare(b,undefined,{numeric:true}) : b.localeCompare(a,undefined,{numeric:true}));
+    for (const v of display) {
+      const checked = (currentFilter.size===0) ? true : currentFilter.has(v);
+      const row = document.createElement('label');
+      row.className = 'flex items-center gap-2 text-sm hover:bg-zinc-700 p-1 rounded';
+      row.title = v;
+      row.innerHTML = `<input type="checkbox" class="filter-item-${key}" value="${v}" ${checked ? 'checked' : ''}><span class="oneline">${ellip(v, 40)}</span>`;
+      $valsBox.appendChild(row);
+    }
+    const visibleChecks = Array.from($valsBox.querySelectorAll(`.filter-item-${key}`));
+    $selectAll.checked = visibleChecks.length > 0 && visibleChecks.every(cb => cb.checked);
+    visibleChecks.forEach(cb => { cb.onchange = () => { $selectAll.checked = visibleChecks.length > 0 && visibleChecks.every(x => x.checked); }; });
+  }
+
+  g.querySelector(`#filter-sort-asc-${key}`).onclick = () => { sortDir = 'asc'; renderList(); };
+  g.querySelector(`#filter-sort-desc-${key}`).onclick = () => { sortDir = 'desc'; renderList(); };
+  $search.oninput = () => renderList();
+  g.setAttribute('tabindex', -1);
+  g.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); g.querySelector(`[data-apply-filter="${key}"]`).click(); } };
+  $selectAll.onchange = (e) => { Array.from($valsBox.querySelectorAll(`.filter-item-${key}`)).forEach(cb => cb.checked = e.target.checked); };
+  
+  const r = btn.getBoundingClientRect();
+  g.style.left = `${r.left}px`;
+  g.style.top  = `${r.bottom + 4}px`;
+  g.style.display = 'block';
+  renderList();
+}
+
+function makeTableResizable() {
+    const header = $('#productTHead');
+    if (!header) return;
+    let th, startX, startWidth;
+    function onMouseMove(e) {
+        const newWidth = startWidth + (e.clientX - startX);
+        if (newWidth > 50) { th.style.width = `${newWidth}px`; }
+    }
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        const resizer = th.querySelector('.resizer');
+        if(resizer) resizer.classList.remove('resizing');
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+    }
+    header.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('resizer')) {
+            e.preventDefault();
+            th = e.target.parentElement;
+            startX = e.clientX;
+            startWidth = th.offsetWidth;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.target.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        }
+    });
+}
+
+
+/* ================= EVENTS BINDING ================= */
+function bindAuthEvents() {
+    $('#btnCreateHost').onclick = async () => {
+        const pass = $('#setupPass').value;
+        if (pass !== $('#setupPassConfirm').value || !pass) return alert('Passwords do not match or are empty.');
+        if (pass.length < 4) return alert('Password must be at least 4 characters long.');
+        if (!appData) appData = JSON.parse(JSON.stringify(defaultAppState));
+        appData.users = [{ username: 'host', passwordHash: await hashPassword(pass), role: 'Host', channels: [...Channels], canSeeCosts: true, canPrint: true }];
+        const gistId = localStorage.getItem(LS.GIST_ID);
+        const token = localStorage.getItem(LS.TOKEN);
+        if(gistId && token) {
+            try {
+                await cloudSave(gistId, token);
+                alert('Host account created and saved. Please log in.');
+                $('#setupView').classList.add('hidden');
+                $('#loginView').classList.remove('hidden');
+            } catch (err) { alert('Failed to save host account: ' + err.message); }
+        } else { alert('Error: Gist credentials not found.'); }
+    };
+
+    $('#btnLogin').onclick = login;
+    $('#loginPass').onkeydown = (e) => { if (e.key === 'Enter') login(); };
+
+    $('#btnCloudCreate').onclick = async () => {
+        const token = $('#cloudToken').value.trim();
+        if (!token) return alert('GitHub Token is required.');
+        try {
+            const gistId = await cloudCreateGist(token, defaultAppState);
+            alert('Gist created: ' + gistId + '\nPlease create the host account.');
+            appData = JSON.parse(JSON.stringify(defaultAppState));
+            $('#cloudSetupView').classList.add('hidden');
+            $('#setupView').classList.remove('hidden');
+        } catch (err) { alert('Error creating Gist: ' + err.message); }
+    };
+
+    $('#btnCloudLoad').onclick = async () => {
+        const token = $('#cloudToken').value.trim();
+        const gistId = $('#cloudGistId').value.trim();
+        if (!token || !gistId) return alert('Token and Gist ID are required.');
+        try {
+            await cloudLoad(gistId, token);
+            alert('Loaded from Gist. Please log in.');
+            $('#cloudSetupView').classList.add('hidden');
+            $('#loginView').classList.remove('hidden');
+        } catch (err) { alert('Error loading from Gist: ' + err.message); }
+    };
+}
+
+function bindAppEvents() {
+    $('#btnLogout').onclick = logout;
+    $('#btnNewProduct').onclick = () => openEditor();
+    $('#btnSettings').onclick = () => openSettings('data');
+    $('#btnPrintModal').onclick = () => {
+        if (!currentUser || !currentUser.canPrint) return;
+        buildPrintList();
+        fillTemplateDropdown();
+        renderPreview(filteredProducts()[0], (appData.templates||[])[0]);
+        togglePrintModal(true);
+    };
+
+    $('#searchInput').oninput = () => { currentPage = 1; renderTable(); };
+    $('#dateStart').onchange = () => { currentPage = 1; renderTable(); };
+    $('#dateEnd').onchange = () => { currentPage = 1; renderTable(); };
+    $('#channelSelect').onchange = () => { updateColumnVisibility(); currentPage = 1; renderTable(); };
+
+    $('#btnCloseSettings').onclick = () => $('#settingsPanel').classList.add('hidden');
+    $$('.set-tab').forEach(b => b.onclick = () => openSettings(b.dataset.tab));
+    $('#btnCloseEditor').onclick = closeEditor;
+    $('#btnSaveEd').onclick = saveEditor;
+    $('#btnClosePrintModal').onclick = () => togglePrintModal(false);
+    $('#btnOpenPrint').onclick = () => {
+        const picks = $$('#printList input[type="checkbox"]:checked').map(c => c.dataset.sel);
+        const list = picks.map(sku => ({ p: appData.products.find(p => p.sku === sku), qty: parseInt($(`[data-qty="${sku}"]`).value) || 1 })).filter(item => item.p);
+        const tpl = appData.templates.find(t => t.id === $('#printTemplate').value) || appData.templates[0];
+        openPrintTab(list, tpl);
+    };
+
+    $('#productTHead').addEventListener('click', (e) => {
+        const headerCell = e.target.closest('th[data-sort-key]');
+        if (!headerCell) return;
+        
+        const key = headerCell.dataset.sortKey;
+
+        if (sortState.key === key) {
+            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.key = key;
+            sortState.direction = 'asc';
+        }
+        
+        renderTableHeader();
+        renderTable();
+    });
+}
+
+function bindTableEvents() {
+    $$('button[data-edit]').forEach(b => b.onclick = () => openEditor(b.dataset.edit));
+    $$('button[data-del]').forEach(b => b.onclick = () => {
+        const sku = b.dataset.del;
+        if (confirm(`Delete SKU ${sku}? This cannot be undone.`)) {
+            appData.products = appData.products.filter(x => x.sku !== sku);
+            log('delete_sku', sku);
+            updateLocalDataAndSave();
+        }
+    });
+
+    $$('.filter-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            openFilterDropdown(btn.dataset.filterKey);
+        }
+    });
 }
 
 function bindSettingsEvents(tab) {
@@ -1146,28 +1663,28 @@ function bindSettingsEvents(tab) {
             log('remove_logo');
             updateLocalDataAndSave();
             openSettings('logo');
-        };
+        }
     }
-
     if (tab === 'dealer') {
-        $('#btnSaveDealerNames').onclick=()=>{
-          appData.dealerNames = { t1: $('#edLabelT1').value.trim(), t2: $('#edLabelT2').value.trim(), t3: $('#edLabelT3').value.trim() };
-          log('update_dealer_names');
-          updateLocalDataAndSave();
-          alert('Saved');
+        $('#btnSaveDealer').onclick=()=>{
+            appData.dealerNames = {t1:$('#nameT1').value.trim()||'Dealer T1', t2:$('#nameT2').value.trim()||'Dealer T2', t3:$('#nameT3').value.trim()||'Dealer T3'};
+            log('save_dealer_names', JSON.stringify(appData.dealerNames));
+            updateLocalDataAndSave();
+            alert('Saved');
         };
     }
-
     if (tab === 'users') {
         $('#btnAddUser').onclick = () => $('#addUserBox').classList.toggle('hidden');
-        $('#nuCreate').onclick = async ()=>{
+        $('#nuCreate').onclick = async () => {
             const name = $('#nuName').value.trim();
             const pass = $('#nuPass').value.trim();
+            if (!name || !pass) return alert('Username & password required');
+            if ((appData.users || []).some(u => u.username === name)) return alert('Username already exists');
             const role = $('#nuRole').value;
             const canSee = $('#nuSeeCosts').checked;
             const canPrint = $('#nuCanPrint').checked;
-            const chs = Array.from($('#addUserBox').querySelectorAll('input[type="checkbox"][value]')).filter(x=>x.checked).map(x=>x.value);
-            if (!name || !pass || !role) return alert('Fill all fields');
+            const chs = $$('.nuCh').filter(x => x.checked).map(x => x.value);
+            if (!chs.length) return alert('Select at least one channel');
             appData.users.push({ username: name, passwordHash: await hashPassword(pass), role, channels: chs, canSeeCosts: canSee, canPrint });
             log('add_user', name);
             updateLocalDataAndSave();
@@ -1175,254 +1692,262 @@ function bindSettingsEvents(tab) {
             alert('User created');
         };
 
-        // render list
-        const tbody=$('#userRows'); tbody.innerHTML='';
-        (appData.users || []).forEach((u,i)=>{
-          const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
-          tr.innerHTML=`
-        <td class="px-3 py-2 oneline">${u.username}</td>
-        <td class="px-3 py-2">
-          <select data-role-idx="${i}" class="w-full px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700" ${u.username==='host'?'disabled':''}>
-          ${(['Host','Admin','User']).map(r=>`<option ${u.role===r?'selected':''}>${r}</option>`).join('')}
-          </select>
-        </td>
-        <td class="px-3 py-2 oneline">
-          ${Channels.map(ch=>`<label class="mr-2"><input type="checkbox" value="${ch}" ${u.channels?.includes(ch)?'checked':''}> <span class="text-xs">${ch}</span></label>`).join('')}
-        </td>
-        <td class="px-3 py-2 text-center"><input type="checkbox" data-cost-idx="${i}" ${u.canSeeCosts?'checked':''}></td>
-        <td class="px-3 py-2 text-center"><input type="checkbox" data-print-idx="${i}" ${u.canPrint?'checked':''}></td>
-        <td class="px-3 py-2"><input type="text" data-pass-idx="${i}"
-  class="w-full px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700">
-</td>
-        <td class="px-3 py-2">
-          <button class="px-2 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs" data-saveu-idx="${i}">Save</button>
-          ${u.username==='host' ? '' : `<button class="ml-2 px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700 hover:bg-red-700/20 text-xs" data-delu-idx="${i}">❌</button>`}
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+$$('button[data-saveu-idx]').forEach(b => {
+  b.onclick = async (e) => {
+    const i = +e.target.dataset.saveuIdx;
+    const u = appData.users[i];
+    if (!u) return;
 
-    $$('button[data-saveu-idx]').forEach(b => {
-      b.onclick = async (e) => {
-        const i = +e.target.dataset.saveuIdx;
-        const u = appData.users[i];
-        if (!u) return;
+    if (currentUser.role === 'Admin' && (u.role === 'Host' || u.username === 'host')) {
+      alert('Admin cannot modify Host accounts.');
+      return;
+    }
 
-        u.role = document.querySelector(`select[data-role-idx="${i}"]`).value;
-        u.channels = Array.from(document.querySelectorAll(`tr:nth-child(${i+1}) input[type=checkbox][value]`)).filter(x=>x.checked).map(x=>x.value);
-        u.canSeeCosts = document.querySelector(`input[data-cost-idx="${i}"]`).checked;
-        u.canPrint = document.querySelector(`input[data-print-idx="${i}"]`).checked;
-        const newPass = document.querySelector(`input[data-pass-idx="${i}"]`).value.trim();
-        if (newPass) u.passwordHash = await hashPassword(newPass);
+    const roleSel = $(`select[data-role-idx="${i}"]`);
+    const newRole = roleSel ? roleSel.value : u.role;
+    if (currentUser.role === 'Admin' && newRole === 'Host') {
+      alert('Admin cannot assign Host role.');
+      if (roleSel) roleSel.value = u.role;
+    } else {
+      u.role = newRole;
+    }
 
-        log('update_user', u.username);
-        updateLocalDataAndSave();
-        alert('Saved.');
-        openSettings('users');
-      };
-    });
+    u.canSeeCosts = $(`input[data-cost-idx="${i}"]`).checked;
+    u.canPrint   = $(`input[data-print-idx="${i}"]`).checked;
 
-    $$('button[data-delu-idx]').forEach(b => {
-      b.onclick = (e) => {
-        const i = +e.target.dataset.deluIdx;
-        const u = appData.users[i];
-        if(!u) return;
-        if (u.username === 'host') return alert('Cannot delete host account.');
-        if (confirm(`Delete user "${u.username}" ?`)) {
-          appData.users.splice(i,1);
-          log('delete_user', u.username);
-          updateLocalDataAndSave();
-          openSettings('users');
+    const newPass = $(`input[data-pass-idx="${i}"]`).value.trim();
+    if (!(currentUser.role === 'Admin' && (u.role === 'Host' || u.username === 'host'))) {
+      if (newPass) { u.passwordHash = await hashPassword(newPass); }
+    }
+
+    u.channels = Channels.filter(ch => $(`input[data-ch-idx="${i}|${ch}"]`).checked);
+
+    if (currentUser.username === u.username) {
+      currentUser = u;
+      initFiltersForUser();
+    }
+
+    log('update_user', u.username);
+    updateLocalDataAndSave();
+    alert('Saved.');
+    openSettings('users');
+  };
+});
+
+        $$('button[data-delu-idx]').forEach(b => {
+            b.onclick = (e) => {
+                const i = +e.target.dataset.deluIdx;
+                const u = appData.users[i];
+                if(!u) return;
+                if (u.username === 'host') return alert('Cannot delete host account.');
+                if (confirm(`Delete user "${u.username}"?`)) {
+                    appData.users.splice(i, 1);
+                    log('delete_user', u.username);
+                    updateLocalDataAndSave();
+                    openSettings('users');
+                }
+            };
+        });
+    } 
+    if (tab === 'templates') {
+        const addTplBox = $('#addTplBox');
+        $('#btnShowAddTpl').onclick = () => {
+            addTplBox.classList.remove('hidden');
+            const kindSelect = $('#newTplKind');
+            if (kindSelect.options.length === 0) {
+                const kinds = defaultAppState.templates.map(t => t.kind).filter((v, i, a) => a.indexOf(v) === i);
+                kinds.forEach(k => {
+                    const opt = document.createElement('option');
+                    opt.value = k;
+                    opt.textContent = k;
+                    kindSelect.appendChild(opt);
+                });
+            }
+        };
+
+        $('#btnCancelTpl').onclick = () => addTplBox.classList.add('hidden');
+        $('#btnCreateTpl').onclick = () => {
+            const kind = $('#newTplKind').value;
+            const name = $('#newTplName').value.trim();
+            if (!name) { return alert('Please enter a template name.'); }
+
+            const baseTemplate = defaultAppState.templates.find(t => t.kind === kind);
+            const newTpl = JSON.parse(JSON.stringify(baseTemplate));
+            newTpl.id = 'user-' + Math.random().toString(36).slice(2, 10);
+            newTpl.name = name;
+            newTpl.imageData = null;
+            
+            appData.templates.push(newTpl);
+            log('add_template', name);
+            updateLocalDataAndSave();
+            openSettings('templates');
+            alert('New template created.');
+        };
+        
+        $$('[data-style-tpl]').forEach(btn => {
+          btn.onclick = () => btn.classList.toggle('active');
+        });
+
+        $$('[data-savetpl-idx]').forEach(btn => {
+            btn.onclick = () => {
+                const i = +btn.dataset.savetplIdx;
+                const t = appData.templates[i];
+                if(!t) return;
+                t.name = $(`[data-name-tpl="${i}"]`).value.trim() || 'Untitled Template';
+                ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
+                    t.styles[k].fs = parseInt($(`[data-val-tpl="${i}|${k}|fontSize" fs->fontSize]`).value) || 14;
+                    t.styles[k].color = $(`[data-val-tpl="${i}|${k}|color"]`).value || '#ffffff';
+                    t.styles[k].margin = {
+                        top: parseInt($(`[data-val-tpl="${i}|${k}|margin|top"]`).value) || 0,
+                        right: parseInt($(`[data-val-tpl="${i}|${k}|margin|right"]`).value) || 0,
+                        bottom: parseInt($(`[data-val-tpl="${i}|${k}|margin|bottom"]`).value) || 0,
+                        left: parseInt($(`[data-val-tpl="${i}|${k}|margin|left"]`).value) || 0,
+                    };
+                    t.styles[k].fw = $(`[data-style-tpl="${i}|${k}|fw|bold"]`).classList.contains('active') ? 'bold' : 'normal';
+                    t.styles[k].fs = $(`[data-style-tpl="${i}|${k}|fontStyle|italic"]`).classList.contains('active') ? 'italic' : 'normal';
+                    let td = [];
+                    if ($(`[data-style-tpl="${i}|${k}|td|underline"]`).classList.contains('active')) td.push('underline');
+                    if ($(`[data-style-tpl="${i}|${k}|td|line-through"]`).classList.contains('active')) td.push('line-through');
+                    t.styles[k].td = td.length > 0 ? td.join(' ') : 'none';
+                });
+                t.showLogo = $(`[data-logo-tpl="${i}"]`).checked;
+                t.logoStyles.size = parseInt($(`[data-logosize-tpl="${i}"]`).value) || 64;
+                t.logoStyles.margin = {
+                    top: parseInt($(`[data-logomargintop-tpl="${i}"]`).value) || 10,
+                    right: parseInt($(`[data-logomarginright-tpl="${i}"]`).value) || 10,
+                    bottom: 0, left: 0
+                };
+                log('save_template', t.name);
+                updateLocalDataAndSave();
+                alert('Template saved.');
+            };
+        });
+        $$('[data-del-tpl]').forEach(btn => {
+            btn.onclick = () => {
+                const i = +btn.dataset.delTpl;
+                const t = appData.templates[i];
+                if(!t) return;
+                if (confirm(`Delete template "${t.name}"?`)) {
+                    appData.templates.splice(i, 1);
+                    log('delete_template', t.name);
+                    updateLocalDataAndSave();
+                    openSettings('templates');
+                }
+            };
+        });
+        $$('[data-img-tpl]').forEach(input => {
+            input.onchange = async (e) => {
+                const i = +e.target.dataset.imgTpl;
+                const file = e.target.files[0];
+                if (!file) return;
+                const t = appData.templates[i];
+                if (!t) return;
+                try {
+                    t.imageData = await fileToBase64(file);
+                    t.kind = t.kind || 'IMAGE';
+                    log('update_template_image', t.name);
+                    updateLocalDataAndSave();
+                    openSettings('templates');
+                } catch(err) { alert('Failed to update image: '+err.message); }
+            };
+        });
+    }
+    if (tab === 'cloud') {
+        $('#btnCloudLoadRefresh').onclick=async()=>{
+            const token = localStorage.getItem(LS.TOKEN);
+            const gistId = localStorage.getItem(LS.GIST_ID);
+            if(!gistId || !token) { alert('Gist ID and Token not found.'); return; }
+            try {
+                await cloudLoad(gistId, token);
+                updateLocalDataAndSave();
+                alert('Refreshed from cloud successfully.');
+            } catch(e){ alert(e.message); }
+        };
+    }
+}
+
+
+/* ================= STARTUP LOGIC ================= */
+async function initialCheck() {
+    const gistId = localStorage.getItem(LS.GIST_ID);
+    const token = localStorage.getItem(LS.TOKEN);
+
+    if (gistId && token) {
+        try {
+            console.log("Found credentials, attempting to load from cloud...");
+            await cloudLoad(gistId, token);
+            console.log("Cloud data loaded successfully.");
+
+            const lastUser = localStorage.getItem(LS.LAST_USER);
+            const userToLogin = lastUser ? (appData.users || []).find(u => u.username === lastUser) : null;
+            
+            if (userToLogin) {
+                console.log(`Found last user: ${lastUser}. Attempting auto-login.`);
+                performLogin(userToLogin);
+            } else {
+                console.log("No last user found or user not in data. Showing login screen.");
+                $('#cloudSetupView').classList.add('hidden');
+                $('#loginView').classList.remove('hidden');
+            }
+        } catch(e) {
+            console.error("Critical error during initial load:", e);
+            localStorage.removeItem(LS.GIST_ID);
+            localStorage.removeItem(LS.TOKEN);
+            localStorage.removeItem(LS.LAST_USER);
+            $('#cloudSetupView').classList.remove('hidden');
+            alert("Cloud load failed, credentials have been cleared. Please set up again. Error: " + e.message);
         }
-      };
-    });
-  }
-
-  if(tab==='templates'){
-    // Handle Add New Template
-    $('#btnShowAddTpl').onclick = ()=> $('#addTplBox').classList.toggle('hidden');
-    $('#btnCreateTpl').onclick = async ()=>{
-      const kind = $('#newTplKind').value; const name=$('#newTplName').value.trim()||kind; const id=$('#newTplId').value.trim()||('t-'+Math.random().toString(36).slice(2,8));
-      let base = defaultAppState.templates.find(t=>t.kind===kind);
-      base = base ? JSON.parse(JSON.stringify(base)) : { kind, name, id, styles: defaultTextStyles };
-      base.id=id; base.name=name;
-      const f=$('#newTplImg').files[0]; if(f) base.imageData = await fileToBase64(f);
-      appData.templates.push(base);
-      log('add_template', id);
-      updateLocalDataAndSave();
-      openSettings('templates');
-    };
-
-    // Render existing templates
-    const list = $('#tplList'); list.innerHTML='';
-    (appData.templates||[]).forEach((t,i)=>{
-      const card=document.createElement('div'); card.className='p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
-      // ensure keys
-      t.styles = t.styles || {}; ['sku','description','details','oldPrice','price','expire'].forEach(k=>{ t.styles[k] = t.styles[k] || {...defaultTextStyles}; t.styles[k].td = t.styles[k].td || 'none'; });
-
-      card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <input data-name-tpl="${i}" value="${t.name||'Untitled'}" class="flex-1 outline-none border-b border-zinc-700 focus:border-brand.red bg-transparent">
-          <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del-tpl="${i}">Delete</button>
-        </div>
-        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-sm font-semibold mb-2">Background Image</div>
-            <img src="${t.imageData||''}" alt="template" class="w-full bg-zinc-800 rounded-xl border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
-            <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
-            <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
-              <input type="file" data-img-tpl="${i}" class="hidden" accept="image/*">Upload/Change Image
-            </label>
-          </div>
-          <div>
-            <div class="text-sm font-semibold mb-2">Styles</div>
-            ${['sku','description','details','oldPrice','price','expire'].map(k=>`
-              <div class="grid grid-cols-6 gap-2 items-center mb-2">
-                <div class="col-span-2 text-sm">${k}</div>
-                <input type="number" min="8" max="48" value="${t.styles[k].fs||14}" data-fs-tpl="${i}-${k}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700">
-                <input type="color" value="${t.styles[k].color||'#ffffff'}" data-color-tpl="${i}-${k}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700">
-                <select data-fw-tpl="${i}-${k}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700">
-                  ${['normal','bold','bolder','lighter'].map(v=>`<option ${t.styles[k].fw===v?'selected':''}>${v}</option>`).join('')}
-                </select>
-                <div class="col-span-6 grid grid-cols-4 gap-2">
-                  ${['top','right','bottom','left'].map(side=>`<input type="number" value="${(t.styles[k].margin?.[side])??0}" data-m-${k}-${side}="${i}" class="px-2 py-1 rounded-xl bg-zinc-900 border border-zinc-700" placeholder="${side}">`).join('')}
-                </div>
-              </div>`).join('')}
-          </div>
-        </div>
-      `;
-      list.appendChild(card);
-    });
-  }
-
-  if(tab==='cloud'){
-    $('#btnCloudRefresh').onclick = async()=>{
-      try{
-        const id=$('#cfGistId').value.trim(); const tk=$('#cfToken').value.trim();
-        const data = await cloudLoad(id, tk);
-        appData = data; log('cloud_refresh'); updateLocalDataAndSave(); alert('Loaded');
-      }catch(e){ alert('Error: '+e.message); }
-    };
-    $('#btnCloudSave').onclick = async()=>{
-      try{
-        const id=$('#cfGistId').value.trim(); const tk=$('#cfToken').value.trim();
-        await cloudSave(id, tk); log('cloud_save'); alert('Saved to cloud');
-      }catch(e){ alert('Error: '+e.message); }
-    };
-  }
+    } else {
+        console.log("No credentials found. Showing cloud setup screen.");
+        $('#cloudSetupView').classList.remove('hidden');
+    }
 }
 
-/* ================= IMPORT/EXPORT ================= */
-async function fileToBase64(file){ return new Promise((resolve,reject)=>{ const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
 
-async function doImportMaster(){
-  const f = document.querySelector('#fileMaster').files[0];
-  if (!f) return alert('Choose an Excel file first.');
-  const data = await f.arrayBuffer();
-  const wb = XLSX.read(data, { type:'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-  const products = rows.map(r=>({
-    sku: r.SKU||r.sku||'', description: r.Description||r.description||'', details: r.Details||r.details||'', brand: r.Brand||r.brand||'', category: r.Category||r.category||'',
-    costs: +r.Costs||0, normalPrice:+r.Normal||0, promoPrice:+r.Promotion||0, expiresDate: fromExcelDate(r.Expire||r.Expires||r.expiresDate||r.ExpireDate||''),
-    marketplacePrice:+r.Marketplace||0, dealer1:+r.DealerT1||+r.T1||0, dealer2:+r.DealerT2||+r.T2||0, dealer3:+r.DealerT3||+r.T3||0
-  }));
-  appData.products = products;
-  log('import_master', products.length);
+function init() {
+  bindAuthEvents();
+  
+  document.addEventListener('click', (e) => {
+      if (!e.target.closest('.filter-dropdown')) {
+          closeAllFilterDropdowns();
+      }
+      
+      const applyFilterBtn = e.target.closest('[data-apply-filter]');
+if (applyFilterBtn) {
+  const key = applyFilterBtn.dataset.applyFilter;
+  const total = +applyFilterBtn.dataset.totalValues || Infinity;
+
+  const checkedValues = new Set(
+    Array.from(document.querySelectorAll(`.filter-item-${key}:checked`)).map(cb => cb.value)
+  );
+
+  columnFilters[key] = (checkedValues.size >= total) ? new Set() : checkedValues;
+
+  currentPage = 1;
+  closeAllFilterDropdowns();
   updateLocalDataAndSave();
 }
-
-async function doExportMaster(){
-  const ws = XLSX.utils.json_to_sheet(appData.products||[]);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Products');
-  XLSX.writeFile(wb, 'propricing_master.xlsx');
-}
-
-async function doImportPromo(){
-  const f = document.querySelector('#filePromo').files[0];
-  if (!f) return alert('Choose an Excel file first.');
-  const data = await f.arrayBuffer();
-  const wb = XLSX.read(data, { type:'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-  const map = new Map(appData.products.map(p=>[p.sku,p]));
-  let count=0;
-  rows.forEach(r=>{
-    const sku = r.SKU||r.sku||''; const p=map.get(sku); if(!p) return;
-    p.promoPrice = +r.Promotion||+r.Promo||p.promoPrice;
-    p.expiresDate = fromExcelDate(r.Expire||r.Expires||r.ExpiresDate||r.expiresDate||p.expiresDate);
-    count++;
+      const clearFilterBtn = e.target.closest('[data-clear-filter]');
+      if (clearFilterBtn) {
+          const key = clearFilterBtn.dataset.clearFilter;
+          if(columnFilters[key]) columnFilters[key].clear();
+          currentPage = 1;
+          closeAllFilterDropdowns();
+          updateLocalDataAndSave();
+      }
   });
-  log('import_promo', count);
-  updateLocalDataAndSave();
-}
-
-function showExpiredPromoReport(){
-  const arr = (appData.products||[]).filter(p=> p.expiresDate && new Date(p.expiresDate) < new Date());
-  const w = window.open('', '_blank');
-  w.document.write('<html><head><title>Expired Promotions</title></head><body><h2>Expired Promotions</h2>'+arr.map(p=>`${p.sku} • ${p.description} • ${p.expiresDate}`).join('<br>')+'</body></html>');
-  w.document.close();
-}
-
-/* ================= INIT / EVENTS ================= */
-$('#btnSetup').onclick = performFirstSetup;
-$('#btnGoCloud').onclick = ()=>{ $('#loginView').classList.add('hidden'); $('#cloudSetupView').classList.remove('hidden'); };
-$('#btnBackToLogin').onclick = ()=>{ $('#cloudSetupView').classList.add('hidden'); $('#loginView').classList.remove('hidden'); };
-$('#btnCreateGist').onclick = async ()=>{
-  try{
-    const token = $('#tokenInput').value.trim(); if(!token) return alert('Enter token');
-    const id = await cloudCreateGist(token, defaultAppState);
-    alert('Gist created: '+id);
-    localStorage.setItem(LS.GIST_ID, id); localStorage.setItem(LS.TOKEN, token);
-  }catch(e){ alert('Error creating gist: '+e.message); }
-};
-$('#btnLoadGist').onclick = async ()=>{
-  try{
-    const id = $('#gistIdInput').value.trim() || localStorage.getItem(LS.GIST_ID);
-    const tk = $('#tokenInput').value.trim() || localStorage.getItem(LS.TOKEN);
-    if(!id) return alert('Enter Gist ID');
-    const data = await cloudLoad(id, tk);
-    appData = data; log('cloud_load', id);
-    $('#cloudSetupView').classList.add('hidden');
-    $('#loginView').classList.remove('hidden');
-  }catch(e){ alert('Error: '+e.message); }
-};
-
-$('#btnLogin').onclick = login;
-$('#btnLogout').onclick = logout;
-$('#btnSettings').onclick = ()=> openSettings('data');
-$('#btnPrintModal').onclick = openPrintModal;
-
-$('#searchInput').oninput = ()=> { currentPage = 1; renderTable(); };
-$('#channelSelect').onchange = ()=> { currentPage = 1; updateColumnVisibility(); };
-$('#dateFrom').onchange = ()=> { currentPage = 1; renderTable(); };
-$('#dateTo').onchange = ()=> { currentPage = 1; renderTable(); };
-
-function makeTableResizable(){
-  const ths = document.querySelectorAll('#productTHead th');
-  ths.forEach(th=>{
-    const res = th.querySelector('.resizer');
-    if (!res) return;
-    let startX=0, startW=0;
-    res.onmousedown = (e)=>{
-      startX = e.clientX; startW = th.offsetWidth; document.body.style.userSelect='none';
-      document.onmousemove = (ev)=>{ const dx = ev.clientX - startX; th.style.width = Math.max(80, startW + dx) + 'px'; };
-      document.onmouseup = ()=>{ document.onmousemove=null; document.onmouseup=null; document.body.style.userSelect=''; };
-    };
+  
+  window.addEventListener('keydown', e => { 
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { 
+          e.preventDefault(); 
+          $('#searchInput')?.focus(); 
+      }
   });
+  
+  initialCheck();
 }
 
-// init default
-(function init(){
-  appData = structuredClone(defaultAppState);
-  const lastUser = localStorage.getItem(LS.LAST_USER);
-  if (lastUser && (appData.users||[]).some(u=>u.username===lastUser)) {
-    $('#loginUser').value = lastUser;
-  }
-  $('#setupView').classList.remove('hidden');
-})();
+init();
 </script>
 </body>
 </html>
