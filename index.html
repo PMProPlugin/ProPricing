@@ -24,6 +24,10 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-populate/browser/xlsx-populate.min.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/litepicker/dist/css/litepicker.css"/>
+
+
 <style>
   :root { color-scheme: dark; }
   html,body{ height:100%; background:#0b0b0c }
@@ -80,23 +84,30 @@
   }
   table {
     table-layout: fixed;
-    border-collapse: collapse; /* NEW */
+    border-collapse: collapse;
   }
   table th, table td {
-    border: 1px solid #3f3f46; /* NEW: border-zinc-700 */
+    border: 1px solid #3f3f46;
   }
-  #productTHead {
-    z-index: 20; 
-  }
-  #productBody {
-    position: relative;
-    z-index: 1;
-  }
+  #productTHead { z-index: 20; }
+  #productBody { position: relative; z-index: 1; }
   .style-btn {
     width: 28px; height: 28px; border-radius: 6px; border: 1px solid #555; background-color: #333;
     display: grid; place-items: center;
   }
   .style-btn.active { background-color: #E11D2E; border-color: #ff5566; }
+
+  /* NEW: Notification System Styles */
+  #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+  .toast { padding: 12px 20px; border-radius: 8px; color: white; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 1px solid #555; animation: toast-in 0.3s ease, toast-out 0.3s ease 2.7s; }
+  .toast.info { background-color: #18181b; }
+  .toast.success { background-color: #166534; border-color: #22c55e; }
+  .toast.error { background-color: #991b1b; border-color: #ef4444; }
+  @keyframes toast-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes toast-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+  .confirm-overlay { position: fixed; inset: 0; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 9990; display: grid; place-items: center; }
+  .confirm-modal { background-color: #18181b; border: 1px solid #555; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
 
 </style>
 </head>
@@ -176,9 +187,9 @@
       <select id="channelSelect" class="px-4 py-3 rounded-2xl bg-zinc-900 border border-zinc-700 focus:outline-none focus:ring-2 focus:ring-brand.red"></select>
       <div class="px-3 py-2 rounded-2xl bg-zinc-950 border border-zinc-700 flex items-center gap-2">
         <span class="text-sm text-zinc-400">Date range</span>
-        <input id="dateStart" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
-        <span class="text-zinc-500">→</span>
-        <input id="dateEnd" type="date" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700">
+        <input id="dateRangePicker" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 w-64 text-center">
+        <input id="dateStart" type="date" class="hidden">
+        <input id="dateEnd" type="date" class="hidden">
       </div>
       <button id="btnNewProduct" class="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 font-semibold">Add +</button>
       <button id="btnPrintModal" class="px-5 py-3 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700 font-semibold">Print</button>
@@ -273,11 +284,18 @@
     </div>
   </div>
 </div>
+
+<div id="toast-container"></div>
+<div id="confirm-container"></div>
+
 <script>
 /* ================= CORE STATE / STORAGE ================= */
 const LS = {
+  // MODIFIED: Using sessionStorage for token for slightly better security.
+  // WARNING: This is still NOT safe for public hosting. The token is accessible
+  // via JavaScript during the session. Use this app locally or on a trusted internal network.
   GIST_ID: 'pp_cloud_gist_id_v2',
-  TOKEN: 'pp_cloud_token_v2',
+  TOKEN: 'pp_cloud_token_v2', // The key remains the same, but we'll use sessionStorage to store it.
   LAST_USER: 'pp_last_user_v2'
 };
 const defaultDealerNames = {t1:'Dealer T1', t2:'Dealer T2', t3:'Dealer T3'};
@@ -294,23 +312,23 @@ const sampleProducts = [{
 }];
 
 const defaultMargin = { top: 0, right: 0, bottom: 0, left: 0 };
-const defaultFontStyle = { fw: 'normal', fontStyle: 'normal', td: 'none' }; split fs into fontStyle
-const defaultTextStyles = { fontSize: 14, color: '#ffffff', margin: defaultMargin, ...defaultFontStyle }; fs->fontSize
+const defaultFontStyle = { fw: 'normal', fs: 'normal', td: 'none' };
+const defaultTextStyles = { fs: 14, color: '#ffffff', margin: defaultMargin, ...defaultFontStyle };
 
 const defaultAppState = {
-    version: 3.2,
+    version: 3.3, // Version bump
     products: sampleProducts,
     templates: [
         { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null, logoStyles: { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
-          styles:{ sku:{...defaultTextStyles, fontSize:16}, description:{...defaultTextStyles, fontSize:30}, details:{...defaultTextStyles, fontSize:14}, price:{...defaultTextStyles, fontSize:72}, oldPrice:{...defaultTextStyles, fontSize:20, color:'#ff4d4f'}, expire:{...defaultTextStyles, fontSize:13} } },
+          styles:{ sku:{...defaultTextStyles, fs:16}, description:{...defaultTextStyles, fs:30}, details:{...defaultTextStyles, fs:14}, price:{...defaultTextStyles, fs:72}, oldPrice:{...defaultTextStyles, fs:20, color:'#ff4d4f'}, expire:{...defaultTextStyles, fs:13} } },
         { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null, logoStyles: { size: 50, margin: { top: 8, right: 8, bottom: 8, left: 8 } },
-          styles:{ sku:{...defaultTextStyles, fontSize:14}, description:{...defaultTextStyles, fontSize:26}, details:{...defaultTextStyles, fontSize:13}, price:{...defaultTextStyles, fontSize:60}, oldPrice:{...defaultTextStyles, fontSize:18, color:'#ff4d4f'}, expire:{...defaultTextStyles, fontSize:12} } },
+          styles:{ sku:{...defaultTextStyles, fs:14}, description:{...defaultTextStyles, fs:26}, details:{...defaultTextStyles, fs:13}, price:{...defaultTextStyles, fs:60}, oldPrice:{...defaultTextStyles, fs:18, color:'#ff4d4f'}, expire:{...defaultTextStyles, fs:12} } },
         { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null, logoStyles: { size: 40, margin: { top: 6, right: 6, bottom: 6, left: 6 } },
-          styles:{ sku:{...defaultTextStyles, fontSize:12}, description:{...defaultTextStyles, fontSize:22}, details:{...defaultTextStyles, fontSize:12}, price:{...defaultTextStyles, fontSize:48}, oldPrice:{...defaultTextStyles, fontSize:16, color:'#ff4d4f'}, expire:{...defaultTextStyles, fontSize:11} } },
+          styles:{ sku:{...defaultTextStyles, fs:12}, description:{...defaultTextStyles, fs:22}, details:{...defaultTextStyles, fs:12}, price:{...defaultTextStyles, fs:48}, oldPrice:{...defaultTextStyles, fs:16, color:'#ff4d4f'}, expire:{...defaultTextStyles, fs:11} } },
         { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null, logoStyles: { size: 30, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
-          styles:{ sku:{...defaultTextStyles, fontSize:11, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fontSize:15, align:'center'}, details:{...defaultTextStyles, fontSize:10, color:'#cccccc'}, price:{...defaultTextStyles, fontSize:22}, oldPrice:{...defaultTextStyles, fontSize:12, color:'#B91C1C'}, expire:{...defaultTextStyles, fontSize:10} } },
+          styles:{ sku:{...defaultTextStyles, fs:11, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fs:15, align:'center'}, details:{...defaultTextStyles, fs:10, color:'#cccccc'}, price:{...defaultTextStyles, fs:22}, oldPrice:{...defaultTextStyles, fs:12, color:'#B91C1C'}, expire:{...defaultTextStyles, fs:10} } },
         { id:'t-card', name:'Card (9 per A4 portrait)', kind:'CARD', showLogo:true, imageData:null, logoStyles: { size: 24, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
-          styles:{ sku:{...defaultTextStyles, fontSize:10, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fontSize:14, align:'center'}, details:{...defaultTextStyles, fontSize:9, color:'#cccccc'}, price:{...defaultTextStyles, fontSize:20}, oldPrice:{...defaultTextStyles, fontSize:11, color:'#B91C1C'}, expire:{...defaultTextStyles, fontSize:9} } }
+          styles:{ sku:{...defaultTextStyles, fs:10, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fs:14, align:'center'}, details:{...defaultTextStyles, fs:9, color:'#cccccc'}, price:{...defaultTextStyles, fs:20}, oldPrice:{...defaultTextStyles, fs:11, color:'#B91C1C'}, expire:{...defaultTextStyles, fs:9} } }
     ],
     dealerNames: defaultDealerNames,
     users: [],
@@ -331,22 +349,7 @@ let columnFilters = {};
 /* ================= UTILITIES ================= */
 const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-/* [CHANGE] improved money() to distinguish 0 vs missing */
-const money = (n) => {
-  if (n === null || n === undefined || n === '' || Number.isNaN(Number(n))) return '-';
-  const num = Number(n);
-  if (!isFinite(num)) return '-';
-  if (num === 0) return '0';
-  return num.toLocaleString('th-TH', { maximumFractionDigits: 0 });
-};
-
-/* [CHANGE] add safe HTML escaper to prevent XSS via innerHTML injections */
-const escapeHTML = (s) => {
-  if (s === null || s === undefined) return '';
-  return String(s).replace(/[&<>"'`]/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;'
-  }[c]));
-};
+const money = n => isFinite(n) && n > 0 ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) : '-';
 const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
 const fromExcelDate = v => {
   if (v instanceof Date) return v.toISOString().slice(0,10);
@@ -363,6 +366,69 @@ async function hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
+
+// NEW: Debounce function for performance on large datasets
+const debounce = (func, delay = 300) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    };
+};
+
+/* NEW: Notification System */
+function showToast(message, type = 'info') { // types: info, success, error
+    const container = $('#toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+function showConfirm(title, message) {
+    return new Promise(resolve => {
+        const container = $('#confirm-container');
+        const modalHTML = `
+            <div class="confirm-overlay">
+                <div class="confirm-modal">
+                    <h3 class="text-xl font-bold mb-2">${title}</h3>
+                    <p class="text-zinc-400 mb-6">${message}</p>
+                    <div class="flex justify-end gap-3">
+                        <button id="confirm-cancel" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Cancel</button>
+                        <button id="confirm-ok" class="px-4 py-2 rounded-xl bg-brand.red hover:bg-red-600 border border-red-700">Confirm</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML = modalHTML;
+
+        const overlay = $('.confirm-overlay');
+        const btnOk = $('#confirm-ok');
+        const btnCancel = $('#confirm-cancel');
+
+        const cleanup = () => container.innerHTML = '';
+
+        btnOk.onclick = () => {
+            cleanup();
+            resolve(true);
+        };
+        btnCancel.onclick = () => {
+            cleanup();
+            resolve(false);
+        };
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                cleanup();
+                resolve(false);
+            }
+        };
+    });
+}
 
 function log(action, meta = '') {
   if (!appData) return;
@@ -385,9 +451,12 @@ function updateLocalDataAndSave(newData) {
         $('#logoFallback').classList.remove('hidden');
     }
     const gistId = localStorage.getItem(LS.GIST_ID);
-    const token = localStorage.getItem(LS.TOKEN);
+    const token = sessionStorage.getItem(LS.TOKEN); // MODIFIED
     if (currentUser?.role === 'Host' && gistId && token) {
-        cloudSave(gistId, token).catch(e => console.error("Auto-save failed:", e));
+        cloudSave(gistId, token).catch(e => {
+            console.error("Auto-save failed:", e);
+            showToast('Auto-save to cloud failed.', 'error');
+        });
     }
 }
 
@@ -403,7 +472,7 @@ async function gistRequest(method, path, body, token){
 async function cloudCreateGist(token, appState){
   const resp = await gistRequest('POST','/gists',{ public:false, files:{ 'proplugin-data.json':{ content: JSON.stringify(appState) } } }, token);
   localStorage.setItem(LS.GIST_ID, resp.id);
-  localStorage.setItem(LS.TOKEN, token);
+  sessionStorage.setItem(LS.TOKEN, token); // MODIFIED
   return resp.id;
 }
 async function cloudSave(gistId, token){
@@ -419,7 +488,7 @@ async function cloudLoad(gistId, token){
   const data = JSON.parse(file.content);
   appData = data;
   localStorage.setItem(LS.GIST_ID, gistId);
-  localStorage.setItem(LS.TOKEN, token);
+  sessionStorage.setItem(LS.TOKEN, token); // MODIFIED
 }
 
 /* ================= AUTH ================= */
@@ -443,10 +512,16 @@ function performLogin(user) {
 async function login(){
   const u = $('#loginUser').value.trim();
   const p = $('#loginPass').value;
-  if (!appData || !appData.users) return alert('Application data is not loaded. Please set up cloud storage or refresh.');
+  if (!appData || !appData.users) {
+      showToast('Application data is not loaded. Please set up cloud storage.', 'error');
+      return;
+  }
   const pHash = await hashPassword(p);
   const found = appData.users.find(x => x.username === u && x.passwordHash === pHash);
-  if(!found) return alert('Invalid credentials');
+  if(!found) {
+      showToast('Invalid credentials.', 'error');
+      return;
+  }
 
   performLogin(found);
 }
@@ -456,6 +531,7 @@ function logout(){
   currentUser = null;
   columnFilters = {};
   localStorage.removeItem(LS.LAST_USER);
+  sessionStorage.removeItem(LS.TOKEN); // MODIFIED
   
   $('#appView').classList.add('hidden');
   $('#loginView').classList.remove('hidden');
@@ -483,8 +559,9 @@ function updateColumnVisibility(){
       market: ch === 'Marketplace', marketgp: ch === 'Marketplace',
       t1: ch === 'Dealer', gp1: ch === 'Dealer', t2: ch === 'Dealer',
       gp2: ch === 'Dealer', t3: ch === 'Dealer', gp3: ch === 'Dealer',
+      details: ch === 'Flagship'
   };
-  const map={ 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
+  const map={ 'col-details':show.details, 'col-normal':show.normal,'col-promo':show.promo,'col-expire':show.expire,'col-market':show.market,'col-marketgp':show.marketgp,'col-t1':show.t1,'col-gp1':show.gp1,'col-t2':show.t2,'col-gp2':show.gp2,'col-t3':show.t3,'col-gp3':show.gp3 };
   Object.entries(map).forEach(([cls,v])=> $$('.'+cls).forEach(el=>el.classList.toggle('hidden',!v)));
   updateRoleBasedVisibility();
   updateCostsVisibility();
@@ -588,10 +665,10 @@ function renderTableHeader() {
     const columns = [
         { key: 'sku', label: 'SKU', width: '120px', sortable: true },
         { key: 'description', label: 'Description', width: '200px', sortable: true },
-        { key: 'details', label: 'Details', width: '200px', sortable: false },
+        { key: 'details', label: 'Details', width: '200px', class: 'col-details', sortable: false },
         { key: 'brand', label: 'Brand', width: '120px', sortable: true },
         { key: 'category', label: 'Category', width: '120px', sortable: true },
-        { key: 'costs', label: 'Costs', width: '80px', class: 'col-costs', sortable: true }, // MODIFIED
+        { key: 'costs', label: 'Costs', width: '80px', class: 'col-costs', sortable: true },
         { key: 'normal', label: 'Normal', width: '80px', class: 'col-normal', sortable: true },
         { key: 'promo', label: 'Promotion', width: '80px', class: 'col-promo', sortable: true },
         { key: 'expire', label: 'Expire Date', width: '100px', class: 'col-expire', sortable: true },
@@ -653,7 +730,7 @@ function renderTable(){
 
   paginatedItems.forEach(p=>{
     const tr=document.createElement('tr');
-    tr.className='hover:bg-zinc-700/70'; // MODIFIED
+    tr.className='hover:bg-zinc-700/70';
     let isPromoExpired = p.expiresDate && new Date(p.expiresDate) < today;
     const displayedPromoPrice = isPromoExpired ? '-' : money(p.promoPrice);
     const promoPriceTitle = isPromoExpired ? 'Promotion Expired' : money(p.promoPrice);
@@ -661,15 +738,16 @@ function renderTable(){
     const gp1 = gpPct(p.dealer1, p.costs);
     const gp2 = gpPct(p.dealer2, p.costs);
     const gp3 = gpPct(p.dealer3, p.costs);
-    const detailsOneLine=(p.details||'').replace(/\n+/g,' • ');
+    const detailsOneLine=(p.details||'').replace(/\\n+/g,' • ');
 
     tr.innerHTML = `
-      <td class="px-3 py-3 oneline" title="${escapeHTML(p.sku)}">${escapeHTML(p.sku) || '-'}</td>
-      <td class="px-3 py-3 oneline" title="${escapeHTML(p.description)}">${escapeHTML(p.description) || '-'}</td>
-      <td class="px-3 py-3 oneline" title="${escapeHTML(detailsOneLine)}">${escapeHTML(detailsOneLine)}</td>
-      <td class="px-3 py-3 oneline" title="${escapeHTML(p.brand)}">${escapeHTML(p.brand) || '-'}</td>
-      <td class="px-3 py-3 oneline" title="${escapeHTML(p.category)}">${escapeHTML(p.category) || '-'}</td>
-      <td class="px-3 py-3 col-costs oneline" title="${money(p.costs)}">${money(p.costs)}</td> <td class="px-3 py-3 col-normal oneline" title="${money(p.normalPrice)}">${money(p.normalPrice)}</td>
+      <td class="px-3 py-3 oneline" title="${p.sku}">${p.sku || '-'}</td>
+      <td class="px-3 py-3 oneline" title="${p.description}">${p.description || '-'}</td>
+      <td class="px-3 py-3 oneline col-details" title="${detailsOneLine}">${detailsOneLine}</td>
+      <td class="px-3 py-3 oneline" style="color: #E11D2E;" title="${p.brand}">${p.brand || '-'}</td>
+      <td class="px-3 py-3 oneline" title="${p.category}">${p.category || '-'}</td>
+      <td class="px-3 py-3 col-costs oneline" title="${money(p.costs)}">${money(p.costs)}</td>
+      <td class="px-3 py-3 col-normal oneline" title="${money(p.normalPrice)}">${money(p.normalPrice)}</td>
       <td class="px-3 py-3 col-promo oneline" title="${promoPriceTitle}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};"><span style="text-decoration:${isPromoExpired ? 'line-through' : 'none'};">${displayedPromoPrice}</span></td>
       <td class="px-3 py-3 col-expire oneline" title="${toDateInput(p.expiresDate)}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};">${toDateInput(p.expiresDate)}</td>
       <td class="px-3 py-3 col-market oneline" title="${money(p.marketplacePrice)}">${money(p.marketplacePrice)}</td>
@@ -728,7 +806,10 @@ function openEditor(sku = null) {
 function closeEditor(){ $('#editorModal').classList.add('hidden'); }
 async function saveEditor() {
   const sku = $('#edSku').value.trim();
-  if (!sku) { alert('SKU is required.'); return; }
+  if (!sku) { 
+    showToast('SKU is required.', 'error');
+    return;
+  }
   const newProductData = {
     sku: sku,
     description:$('#edDesc').value.trim(), 
@@ -751,12 +832,14 @@ async function saveEditor() {
     log('edit_product', sku);
   } else {
     if (appData.products.some(p => p.sku === sku)) {
-      alert(`SKU "${sku}" already exists.`); return;
+      showToast(`SKU "${sku}" already exists.`, 'error');
+      return;
     }
     appData.products.unshift(newProductData);
     log('add_product', sku);
   }
   closeEditor();
+  showToast(`Product ${sku} saved successfully.`, 'success');
   updateLocalDataAndSave();
 }
 
@@ -905,7 +988,7 @@ function renderSettings(tab){
     
     const tbody=$('#userRows'); tbody.innerHTML='';
     (appData.users || []).forEach((u,i)=>{
-        if (isAdmin && (u.role === 'Host' || u.username === 'host')) return; // Admin ไม่เห็น Host
+        if (isAdmin && (u.role === 'Host' || u.username === 'host')) return; // Admin cannot see Host
       const tr=document.createElement('tr'); tr.className='border-b border-zinc-800';
       tr.innerHTML=`
         <td class="px-3 py-2 oneline">${u.username}</td>
@@ -934,16 +1017,14 @@ function renderSettings(tab){
   }
   if(tab==='templates'){
     if(!isHost){ box.innerHTML='<div class="text-zinc-400">Host only.</div>'; return; }
-    const arr = appData.templates || [];
     box.innerHTML = `
       <div class="flex items-center justify-between mb-4">
         <div>
-          <div class="text-2xl font-semibold">Template Management</div>
-          <div class="text-sm text-zinc-400">All templates are fully customizable.</div>
+            <div class="text-2xl font-semibold">Template Management</div>
+            <div class="text-sm text-zinc-400">Select a template to edit, or create a new one.</div>
         </div>
         <button id="btnShowAddTpl" class="px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Add New Template</button>
       </div>
-      
       <div id="addTplBox" class="hidden p-4 mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
         <h3 class="font-semibold">Create New Template</h3>
         <div>
@@ -959,93 +1040,27 @@ function renderSettings(tab){
           <button id="btnCancelTpl" class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700">Cancel</button>
         </div>
       </div>
-
-      <div id="tplList" class="grid lg:grid-cols-2 gap-6 mt-2"></div>
+      <select id="templateSelect" class="w-full max-w-sm px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 mb-6"></select>
+      <div id="templateEditorContainer"></div>
     `;
-
-    const listBox = $('#tplList'); listBox.innerHTML='';
-    arr.forEach((t,i)=>{
-      const card = document.createElement('div');
-      card.className = 'p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40';
-      
-      // Ensure data structure integrity for older templates
-      t.logoStyles = t.logoStyles || { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } };
-      if(typeof t.logoStyles.margin !== 'object') t.logoStyles.margin = { top: t.logoStyles.margin, right: t.logoStyles.margin, bottom:0, left:0 };
-
-      t.styles = t.styles || {};
-      ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-        t.styles[k] = t.styles[k] || { ...defaultTextStyles };
-        if(typeof t.styles[k].margin !== 'object') t.styles[k].margin = { top: t.styles[k].mt || 0, right:0, bottom:0, left:0 };
-        migration + defaults for new keys
-        t.styles[k].fw = t.styles[k].fw || 'normal';
-        // migrate legacy 'fs': number => fontSize, string => fontStyle
-        if (typeof t.styles[k].fontSize === 'undefined' && typeof t.styles[k].fs === 'number') t.styles[k].fontSize = t.styles[k].fs;
-        if (!t.styles[k].fontStyle && typeof t.styles[k].fs === 'string') t.styles[k].fontStyle = t.styles[k].fs;
-        delete t.styles[k].fs;
-        t.styles[k].fontSize = t.styles[k].fontSize || 14;
-        t.styles[k].fontStyle = t.styles[k].fontStyle || 'normal';
-        t.styles[k].td = t.styles[k].td || 'none';
-      });
-
-      card.innerHTML = `
-        <div class="flex justify-between items-start">
-          <input data-name-tpl="${i}" value="${t.name||'Untitled Template'}" class="bg-transparent text-white text-lg font-semibold px-2 py-1 outline-none border-b border-zinc-700 focus:border-brand.red">
-          <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del-tpl="${i}">Delete</button>
-        </div>
-        <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-sm font-semibold mb-2">Background Image</div>
-            <img src="${t.imageData||''}" alt="template" class="w-full rounded-lg border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
-            <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
-            <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
-              <input type="file" data-img-tpl="${i}" accept="image/png, image/jpeg" class="hidden">
-              Upload/Change Image
-            </label>
-          </div>
-          <div>
-            <div class="text-sm font-semibold mb-2">Logo Settings</div>
-            <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-logo-tpl="${i}" ${t.showLogo?'checked':''}> Show logo</label>
-            <div class="grid grid-cols-2 gap-2 mt-2">
-              <div><label class="text-xs text-zinc-400">Size (px)</label><input type="number" step="1" data-logosize-tpl="${i}" value="${t.logoStyles.size}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
-              <div><label class="text-xs text-zinc-400">Margin Top</label><input type="number" step="1" data-logomargintop-tpl="${i}" value="${t.logoStyles.margin.top}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
-              <div></div><div><label class="text-xs text-zinc-400">Margin Right</label><input type="number" step="1" data-logomarginright-tpl="${i}" value="${t.logoStyles.margin.right}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 mt-4">
-          ${['sku','description','details','price','oldPrice','expire'].map(k=>`
-            <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
-              <div class="text-xs text-zinc-400 capitalize">${k.replace('oldPrice','Old Price')}</div>
-              <div class="grid grid-cols-2 gap-2">
-                <div><label class="text-xs">Font size</label><input type="number" step="1" data-val-tpl="${i}|${k}|fontSize" fs->fontSize value="${t.styles[k].fontSize}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
-                <div><label class="text-xs">Color</label><input type="color" data-val-tpl="${i}|${k}|color" value="${t.styles[k].color}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800"></div>
-              </div>
-              <div>
-                <label class="text-xs">Margin (T-R-B-L)</label>
-                <div class="grid grid-cols-4 gap-1">
-                  <input type="number" step="1" placeholder="T" data-val-tpl="${i}|${k}|margin|top" value="${t.styles[k].margin.top}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
-                  <input type="number" step="1" placeholder="R" data-val-tpl="${i}|${k}|margin|right" value="${t.styles[k].margin.right}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
-                  <input type="number" step="1" placeholder="B" data-val-tpl="${i}|${k}|margin|bottom" value="${t.styles[k].margin.bottom}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
-                  <input type="number" step="1" placeholder="L" data-val-tpl="${i}|${k}|margin|left" value="${t.styles[k].margin.left}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
-                </div>
-              </div>
-              <div>
-                <label class="text-xs">Font Style</label>
-                <div class="grid grid-cols-4 gap-1">
-                  <button data-style-tpl="${i}|${k}|fw|bold" class="style-btn ${t.styles[k].fw === 'bold' ? 'active':''}"><b>B</b></button>
-                  <button data-style-tpl="${i}|${k}|fontStyle|italic" class="style-btn ${t.styles[k].fontStyle === 'italic' ? 'active':''}"><i>I</i></button>
-                  <button data-style-tpl="${i}|${k}|td|underline" class="style-btn ${t.styles[k].td.includes('underline') ? 'active':''}"><u>U</u></button>
-                  <button data-style-tpl="${i}|${k}|td|line-through" class="style-btn ${t.styles[k].td.includes('line-through') ? 'active':''}"><s>S</s></button>
-                </div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-        <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savetpl-idx="${i}">Save Template</button>
-      `;
-      listBox.appendChild(card);
+    
+    const tplSelect = $('#templateSelect');
+    tplSelect.innerHTML = '<option value="">-- Select a template to edit --</option>';
+    (appData.templates || []).forEach((t, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = t.name;
+      tplSelect.appendChild(opt);
     });
+    
+    tplSelect.onchange = () => {
+        const idx = tplSelect.value;
+        if(idx !== "") {
+            renderTemplateEditor(parseInt(idx));
+        } else {
+            $('#templateEditorContainer').innerHTML = '';
+        }
+    };
     bindSettingsEvents(tab);
   }
   if(tab==='cloud'){
@@ -1076,16 +1091,98 @@ function renderSettings(tab){
   }
 }
 
+// NEW: Renders the editor for a single template
+function renderTemplateEditor(i) {
+    const box = $('#templateEditorContainer');
+    const t = appData.templates[i];
+    if(!t) {
+        box.innerHTML = '<p class="text-zinc-500">Template not found.</p>';
+        return;
+    }
+
+    t.logoStyles = t.logoStyles || { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } };
+    if(typeof t.logoStyles.margin !== 'object') t.logoStyles.margin = { top: t.logoStyles.margin, right: t.logoStyles.margin, bottom:0, left:0 };
+    t.styles = t.styles || {};
+    ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
+      t.styles[k] = t.styles[k] || { ...defaultTextStyles };
+      if(typeof t.styles[k].margin !== 'object') t.styles[k].margin = { top: t.styles[k].mt || 0, right:0, bottom:0, left:0 };
+      t.styles[k].fw = t.styles[k].fw || 'normal';
+      t.styles[k].fs = t.styles[k].fs || 'normal';
+      t.styles[k].td = t.styles[k].td || 'none';
+    });
+
+    const editorHTML = `
+        <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+            <div class="flex justify-between items-start">
+              <input data-name-tpl="${i}" value="${t.name||'Untitled Template'}" class="bg-transparent text-white text-lg font-semibold px-2 py-1 outline-none border-b border-zinc-700 focus:border-brand.red">
+              <button class="ml-2 px-3 py-1 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700" data-del-tpl="${i}">Delete</button>
+            </div>
+            <div class="text-xs text-zinc-400 mb-3">ID: ${t.id||'-'} • Kind: ${t.kind||'-'}</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <div class="text-sm font-semibold mb-2">Background Image</div>
+                <img src="${t.imageData||''}" alt="template" class="w-full rounded-lg border border-zinc-700 my-2 object-contain max-h-32 ${t.imageData?'':'hidden'}">
+                <div class="${t.imageData?'hidden':''} text-xs text-zinc-500">No background image</div>
+                <label class="w-full text-center block mt-2 px-3 py-2 rounded-2xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 cursor-pointer">
+                  <input type="file" data-img-tpl="${i}" accept="image/png, image/jpeg" class="hidden">
+                  Upload/Change Image
+                </label>
+              </div>
+              <div>
+                <div class="text-sm font-semibold mb-2">Logo Settings</div>
+                <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-logo-tpl="${i}" ${t.showLogo?'checked':''}> Show logo</label>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                  <div><label class="text-xs text-zinc-400">Size (px)</label><input type="number" step="1" data-logosize-tpl="${i}" value="${t.logoStyles.size}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+                  <div><label class="text-xs text-zinc-400">Margin Top</label><input type="number" step="1" data-logomargintop-tpl="${i}" value="${t.logoStyles.margin.top}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+                  <div></div><div><label class="text-xs text-zinc-400">Margin Right</label><input type="number" step="1" data-logomarginright-tpl="${i}" value="${t.logoStyles.margin.right}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-4">
+              ${['sku','description','details','price','oldPrice','expire'].map(k=>`
+                <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800 space-y-2">
+                  <div class="text-xs text-zinc-400 capitalize">${k.replace('oldPrice','Old Price')}</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs">Font size</label><input type="number" step="1" data-val-tpl="${i}|${k}|fs" value="${t.styles[k].fs}" class="w-full px-2 py-1 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+                    <div><label class="text-xs">Color</label><input type="color" data-val-tpl="${i}|${k}|color" value="${t.styles[k].color}" class="w-full h-8 rounded-xl bg-zinc-950 border border-zinc-800"></div>
+                  </div>
+                  <div>
+                    <label class="text-xs">Margin (T-R-B-L)</label>
+                    <div class="grid grid-cols-4 gap-1">
+                      <input type="number" step="1" placeholder="T" data-val-tpl="${i}|${k}|margin|top" value="${t.styles[k].margin.top}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                      <input type="number" step="1" placeholder="R" data-val-tpl="${i}|${k}|margin|right" value="${t.styles[k].margin.right}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                      <input type="number" step="1" placeholder="B" data-val-tpl="${i}|${k}|margin|bottom" value="${t.styles[k].margin.bottom}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                      <input type="number" step="1" placeholder="L" data-val-tpl="${i}|${k}|margin|left" value="${t.styles[k].margin.left}" class="w-full px-1 py-1 text-center rounded-md bg-zinc-950 border border-zinc-800">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="text-xs">Font Style</label>
+                    <div class="grid grid-cols-4 gap-1">
+                      <button data-style-tpl="${i}|${k}|fw|bold" class="style-btn ${t.styles[k].fw === 'bold' ? 'active':''}"><b>B</b></button>
+                      <button data-style-tpl="${i}|${k}|fs|italic" class="style-btn ${t.styles[k].fs === 'italic' ? 'active':''}"><i>I</i></button>
+                      <button data-style-tpl="${i}|${k}|td|underline" class="style-btn ${t.styles[k].td.includes('underline') ? 'active':''}"><u>U</u></button>
+                      <button data-style-tpl="${i}|${k}|td|line-through" class="style-btn ${t.styles[k].td.includes('line-through') ? 'active':''}"><s>S</s></button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <button class="mt-4 w-full px-3 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700" data-savetpl-idx="${i}">Save Template</button>
+        </div>
+    `;
+    box.innerHTML = editorHTML;
+    bindSettingsEvents('templates'); // Re-bind events for the new elements
+}
 
 /* ================= IMPORT / EXPORT ================= */
 async function doImportMaster(){
-  const fi=$('#fileImportMaster'); if(!fi.files[0]) return alert('Choose a file');
+  const fi=$('#fileImportMaster'); if(!fi.files[0]) { showToast('Please choose a file first.', 'error'); return; }
   try {
     const data=await fi.files[0].arrayBuffer();
     const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
     let headerRowIndex = rows.findIndex(row => (row[0] || '').toString().toLowerCase().trim() === 'sku');
-    if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
+    if (headerRowIndex === -1) { showToast('Cannot find header row "SKU".', 'error'); return; }
     const start=headerRowIndex + 1;
     const newItems=[], existingSkus = new Set(appData.products.map(p => p.sku));
     let skippedCount = 0;
@@ -1103,12 +1200,12 @@ async function doImportMaster(){
         promoPrice: 0, expiresDate: ''
       });
     }
-    if(!newItems.length && skippedCount === 0) return alert('No new valid products found to import.');
+    if(!newItems.length && skippedCount === 0) { showToast('No new valid products found to import.', 'info'); return; }
     appData.products=[...newItems, ...appData.products];
     log('import_master', `${newItems.length} rows`);
-    alert(`Import complete.\n- New products added: ${newItems.length}\n- Existing SKUs skipped: ${skippedCount}`);
+    showToast(`Import complete. Added: ${newItems.length}, Skipped: ${skippedCount}`, 'success');
     updateLocalDataAndSave();
-  } catch(e){ alert('An error occurred during import: ' + e.message); }
+  } catch(e){ showToast('An error occurred during import: ' + e.message, 'error'); }
 }
 async function doExportMaster(){
   const wb=await XlsxPopulate.fromBlankAsync(); const sh=wb.sheet(0).name('MasterPriceData');
@@ -1127,13 +1224,13 @@ async function doExportMaster(){
   log('export_master', `${appData.products.length} rows`);
 }
 async function doImportPromo() {
-    const fi = $('#fileImportPromo'); if (!fi.files[0]) return alert('Choose a file');
+    const fi = $('#fileImportPromo'); if (!fi.files[0]) { showToast('Please choose a file first.', 'error'); return; }
     try {
         const data = await fi.files[0].arrayBuffer();
         const wb = XLSX.read(data, { type: 'array' }); const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         let headerRowIndex = rows.findIndex(row => (row[0] || '').toString().toLowerCase().trim() === 'sku');
-        if (headerRowIndex === -1) { return alert('Error: Cannot find header row "SKU".'); }
+        if (headerRowIndex === -1) { showToast('Cannot find header row "SKU".', 'error'); return; }
         const start = headerRowIndex + 1;
         let updatedCount = 0; let notFoundCount = 0;
         const productMap = new Map(appData.products.map(p => [p.sku, p]));
@@ -1147,9 +1244,9 @@ async function doImportPromo() {
             } else { notFoundCount++; }
         }
         log('import_promo', `${updatedCount} rows updated`);
-        alert(`Promotion import complete.\n- Products updated: ${updatedCount}\n- SKUs not found: ${notFoundCount}`);
+        showToast(`Promo import complete. Updated: ${updatedCount}, Not Found: ${notFoundCount}`, 'success');
         updateLocalDataAndSave();
-    } catch(e){ alert('An error occurred during import: ' + e.message); }
+    } catch(e){ showToast('An error occurred during import: ' + e.message, 'error'); }
 }
 async function doExportPromo() {
     const wb = await XlsxPopulate.fromBlankAsync(); const sh = wb.sheet(0).name('PromotionData');
@@ -1164,16 +1261,20 @@ async function doExportPromo() {
     [15, 30, 14, 16, 16, 14].forEach((w, i) => sh.column(i + 1).width(w));
     const blob = await wb.outputAsync();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'promotion_data.xlsx'; a.click(); a.remove(); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href=url; a.download = 'promotion_data.xlsx'; a.click(); a.remove(); URL.revokeObjectURL(url);
     log('export_promo', `${appData.products.length} rows`);
 }
-function showExpiredPromoReport() {
+async function showExpiredPromoReport() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const expiredProducts = (appData.products || []).filter(p => p.expiresDate && new Date(p.expiresDate) < today);
-    if (expiredProducts.length === 0) return alert('No expired promotions found.');
+    if (expiredProducts.length === 0) {
+        showToast('No expired promotions found.', 'info');
+        return;
+    }
     const reportText = expiredProducts
-        .map(p => `SKU: ${p.sku}\nDesc: ${ellip(p.description, 40)}\nExpired: ${toDateInput(p.expiresDate)}\n--------------------`)
+        .map(p => `SKU: ${p.sku}, Desc: ${ellip(p.description, 40)}, Expired: ${toDateInput(p.expiresDate)}`)
         .join('\n');
+    await showConfirm('Expired Promotions Report', `Found ${expiredProducts.length} expired items. The list is long and will be shown in a system dialog.`);
     alert(`--- Expired Promotions Report ---\n\n${reportText}`);
     log('report_expired_promo', `${expiredProducts.length} items`);
 }
@@ -1190,8 +1291,8 @@ function buildPrintList(){
     row.innerHTML=`
       <label class="flex items-center gap-2 w-6"><input type="checkbox" data-sel="${p.sku}"></label>
       <div class="flex-1">
-        <div class="font-medium oneline" title="${escapeHTML(p.sku)}">${p.sku}</div>
-        <div class="text-xs text-zinc-400 oneline" title="${escapeHTML(p.description)}">${ellip(p.description, 46)}</div>
+        <div class="font-medium oneline" title="${p.sku}">${p.sku}</div>
+        <div class="text-xs text-zinc-400 oneline" title="${p.description}">${ellip(p.description, 46)}</div>
       </div>
       <div class="flex items-center gap-1">
         <span class="text-xs text-zinc-400">Qty</span>
@@ -1230,11 +1331,7 @@ function fillTemplateDropdown(){
 
 function generateSingleTagHTML(p, tpl) {
     const logo = appData.logo || '';
-    let pad = '10mm';
-    if(tpl.kind === 'IMAGE') { pad = '0mm'; }
-    else if(tpl.kind === 'A6') { pad = '8mm'; }
-    else if(tpl.kind === 'ACC') { pad = '6mm'; }
-    else if(tpl.kind === 'CARD') { pad = '4mm'; }
+    const pad = '0'; // MODIFIED: Print margin removed
 
     const style = `
         <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
@@ -1303,16 +1400,16 @@ function renderPreview(item, tpl) {
 }
 
 function renderTagInnerHTML(p, tpl){
-  const innerPadding = tpl.kind === 'IMAGE' ? '20mm' : '10mm';
+  const innerPadding = '10mm'; // This padding is now inside the card content, not the printable area.
   const styleInline = (o) => {
     const m = o.margin || defaultMargin;
     return `font-size:${o.fs||14}px; color:${o.color||'#fff'}; font-weight:${o.fw||'normal'}; font-style:${o.fs||'normal'}; text-decoration:${o.td||'none'}; margin: ${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`;
   };
   const content = `
     <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
-        <div style="${styleInline(tpl.styles.sku)}" class="text-right text-elevate">${escapeHTML(p.sku)}</div>
-        <div style="font-weight:800;line-height:1.2; ${styleInline(tpl.styles.description)}" class="text-elevate">${escapeHTML(p.description)}</div>
-        <div class="space-y-1">${(p.details||'').split(/\n+/).filter(Boolean).slice(0,5).map(t=>`
+        <div style="${styleInline(tpl.styles.sku)}" class="text-right text-elevate">${p.sku}</div>
+        <div style="font-weight:800;line-height:1.2; ${styleInline(tpl.styles.description)}" class="text-elevate">${p.description}</div>
+        <div class="space-y-1">${(p.details||'').split(/\\n+/).filter(Boolean).slice(0,5).map(t=>`
             <div class="flex gap-2 items-start text-elevate" style="${styleInline(tpl.styles.details)}"><span>•</span><span>${t}</span></div>`).join('')}</div>
         <div class="mt-auto flex items-end justify-between">
             <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
@@ -1325,14 +1422,14 @@ function renderTagInnerHTML(p, tpl){
   `;
   if(tpl.kind === 'ACC' || tpl.kind === 'CARD'){
       const s = tpl.styles;
-      const detailsLines = (p.details || '').split(/\n+/).filter(Boolean).slice(0, 2)
-          .map(line => `<div style="font-size: ${(s.details.fs || 9)}px; color: ${(s.details.color || '#cccccc')}; margin-top: 2px; line-height: 1.2;">• ${escapeHTML(ellip(line, 40))}</div>`)
+      const detailsLines = (p.details || '').split(/\\n+/).filter(Boolean).slice(0, 2)
+          .map(line => `<div style="font-size: ${(s.details.fs || 9)}px; color: ${(s.details.color || '#cccccc')}; margin-top: 2px; line-height: 1.2;">• ${ellip(line, 40)}</div>`)
           .join('');
 
       return `
-      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${escapeHTML(p.sku)}</div>
+      <div style="position:absolute;left:6mm;top:4mm;${styleInline(s.sku)}" class="text-elevate">${p.sku}</div>
       <div style="display:flex; flex-direction: column; align-items:center; justify-content:center; text-align:center; height:100%; padding:10mm 8mm;" class="text-elevate">
-          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${escapeHTML(ellip(p.description, 44))}</div>
+          <div style="${styleInline(s.description)};max-width:100%;word-break:break-word">${ellip(p.description, 44)}</div>
           <div style="margin-top: 4px; max-width: 100%;">${detailsLines}</div>
       </div>
       <div style="position:absolute;left:6mm;bottom:4mm;${styleInline(s.expire)}" class="text-elevate">Expire ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
@@ -1356,17 +1453,19 @@ function baseSize(kind){
 
 function openPrintTab(list,tpl){
   const items=[]; list.forEach(({p,qty})=>{ for(let i=0;i<qty;i++) items.push(p); });
-  if(!items.length){ alert('Select at least one SKU.'); return; }
+  if(!items.length){ showToast('Select at least one SKU.', 'info'); return; }
   const w=window.open('', '_blank');
-  if(!w){ alert('Pop-up blocked. Please allow pop-ups and click "Open Print Page" again.'); return; }
+  if(!w){ showToast('Pop-up blocked. Please allow pop-ups.', 'error'); return; }
   const logo=appData.logo||'';
-  let cols=1, rows=1, pad='8mm', pageSize='A4';
-  if(tpl.kind === 'IMAGE') { cols = 1; rows = 1; pad = '0mm'; pageSize = 'A4'; }
-  else if(tpl.kind==='A4'){ cols=1; rows=1; pad='10mm'; pageSize='A4'; }
-  else if(tpl.kind==='A5'){ cols=2; rows=1; pad='10mm'; pageSize='A4 landscape'; }
-  else if(tpl.kind==='A6'){ cols=2; rows=2; pad='8mm'; pageSize='A4'; }
-  else if(tpl.kind==='CARD'){ cols=3; rows=3; pad='4mm'; pageSize='A4'; }
-  else { cols=2; rows=6; pad='6mm'; pageSize='A4'; }
+  let cols=1, rows=1, pageSize='A4';
+  const pad = '0'; // MODIFIED: Print margin removed
+
+  if(tpl.kind==='A4'){ cols=1; rows=1; pageSize='A4'; }
+  else if(tpl.kind==='A5'){ cols=2; rows=1; pageSize='A4 landscape'; }
+  else if(tpl.kind==='A6'){ cols=2; rows=2; pageSize='A4'; }
+  else if(tpl.kind==='CARD'){ cols=3; rows=3; pageSize='A4'; }
+  else if(tpl.kind==='ACC'){ cols=2; rows=6; pageSize='A4'; }
+  else { cols=1; rows=1; pageSize='A4'; } // Default for IMAGE
 
   const style=`
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
@@ -1378,12 +1477,6 @@ function openPrintTab(list,tpl){
       .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
       .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
-      
-#global-filter-dropdown.filter-dropdown {
-  position: fixed !important;
-  z-index: 9999 !important;
-}
-
     </style>
   `;
   const perSheet = cols*rows;
@@ -1530,20 +1623,20 @@ function makeTableResizable() {
 function bindAuthEvents() {
     $('#btnCreateHost').onclick = async () => {
         const pass = $('#setupPass').value;
-        if (pass !== $('#setupPassConfirm').value || !pass) return alert('Passwords do not match or are empty.');
-        if (pass.length < 4) return alert('Password must be at least 4 characters long.');
+        if (pass.length < 4) { showToast('Password must be at least 4 characters long.', 'error'); return; }
+        if (pass !== $('#setupPassConfirm').value) { showToast('Passwords do not match.', 'error'); return; }
         if (!appData) appData = JSON.parse(JSON.stringify(defaultAppState));
         appData.users = [{ username: 'host', passwordHash: await hashPassword(pass), role: 'Host', channels: [...Channels], canSeeCosts: true, canPrint: true }];
         const gistId = localStorage.getItem(LS.GIST_ID);
-        const token = localStorage.getItem(LS.TOKEN);
+        const token = sessionStorage.getItem(LS.TOKEN); // MODIFIED
         if(gistId && token) {
             try {
                 await cloudSave(gistId, token);
-                alert('Host account created and saved. Please log in.');
+                showToast('Host account created and saved. Please log in.', 'success');
                 $('#setupView').classList.add('hidden');
                 $('#loginView').classList.remove('hidden');
-            } catch (err) { alert('Failed to save host account: ' + err.message); }
-        } else { alert('Error: Gist credentials not found.'); }
+            } catch (err) { showToast('Failed to save host account: ' + err.message, 'error'); }
+        } else { showToast('Error: Gist credentials not found.', 'error'); }
     };
 
     $('#btnLogin').onclick = login;
@@ -1551,26 +1644,27 @@ function bindAuthEvents() {
 
     $('#btnCloudCreate').onclick = async () => {
         const token = $('#cloudToken').value.trim();
-        if (!token) return alert('GitHub Token is required.');
+        if (!token) { showToast('GitHub Token is required.', 'error'); return; }
         try {
             const gistId = await cloudCreateGist(token, defaultAppState);
-            alert('Gist created: ' + gistId + '\nPlease create the host account.');
+            showToast('Gist created: ' + gistId, 'success');
+            showToast('Please create the host account.', 'info');
             appData = JSON.parse(JSON.stringify(defaultAppState));
             $('#cloudSetupView').classList.add('hidden');
             $('#setupView').classList.remove('hidden');
-        } catch (err) { alert('Error creating Gist: ' + err.message); }
+        } catch (err) { showToast('Error creating Gist: ' + err.message, 'error'); }
     };
 
     $('#btnCloudLoad').onclick = async () => {
         const token = $('#cloudToken').value.trim();
         const gistId = $('#cloudGistId').value.trim();
-        if (!token || !gistId) return alert('Token and Gist ID are required.');
+        if (!token || !gistId) { showToast('Token and Gist ID are required.', 'error'); return; }
         try {
             await cloudLoad(gistId, token);
-            alert('Loaded from Gist. Please log in.');
+            showToast('Loaded from Gist. Please log in.', 'success');
             $('#cloudSetupView').classList.add('hidden');
             $('#loginView').classList.remove('hidden');
-        } catch (err) { alert('Error loading from Gist: ' + err.message); }
+        } catch (err) { showToast('Error loading from Gist: ' + err.message, 'error'); }
     };
 }
 
@@ -1586,10 +1680,8 @@ function bindAppEvents() {
         togglePrintModal(true);
     };
 
-    $('#searchInput').oninput = () => { currentPage = 1; renderTable(); };
-    $('#dateStart').onchange = () => { currentPage = 1; renderTable(); };
-    $('#dateEnd').onchange = () => { currentPage = 1; renderTable(); };
-    $('#channelSelect').onchange = () => { updateColumnVisibility(); currentPage = 1; renderTable(); };
+    // MODIFIED: Use debounce for search
+    $('#searchInput').oninput = debounce(() => { currentPage = 1; renderTable(); }, 300);
 
     $('#btnCloseSettings').onclick = () => $('#settingsPanel').classList.add('hidden');
     $$('.set-tab').forEach(b => b.onclick = () => openSettings(b.dataset.tab));
@@ -1623,11 +1715,13 @@ function bindAppEvents() {
 
 function bindTableEvents() {
     $$('button[data-edit]').forEach(b => b.onclick = () => openEditor(b.dataset.edit));
-    $$('button[data-del]').forEach(b => b.onclick = () => {
+    $$('button[data-del]').forEach(b => b.onclick = async () => {
         const sku = b.dataset.del;
-        if (confirm(`Delete SKU ${sku}? This cannot be undone.`)) {
+        const confirmed = await showConfirm('Delete Product?', `Are you sure you want to delete SKU ${sku}? This cannot be undone.`);
+        if (confirmed) {
             appData.products = appData.products.filter(x => x.sku !== sku);
             log('delete_sku', sku);
+            showToast(`SKU ${sku} deleted.`, 'success');
             updateLocalDataAndSave();
         }
     });
@@ -1652,16 +1746,18 @@ function bindSettingsEvents(tab) {
     }
     if (tab === 'logo') {
         $('#btnSaveLogo').onclick=async()=>{
-            const f=$('#logoFile').files[0]; if(!f) return alert('Choose a file.');
+            const f=$('#logoFile').files[0]; if(!f) { showToast('Choose a file.', 'error'); return; }
             appData.logo = await fileToBase64(f);
             log('update_logo');
             updateLocalDataAndSave();
+            showToast('Logo updated.', 'success');
             openSettings('logo');
         };
         $('#btnRemoveLogo').onclick=()=>{
             appData.logo = '';
             log('remove_logo');
             updateLocalDataAndSave();
+            showToast('Logo removed.', 'success');
             openSettings('logo');
         }
     }
@@ -1670,7 +1766,7 @@ function bindSettingsEvents(tab) {
             appData.dealerNames = {t1:$('#nameT1').value.trim()||'Dealer T1', t2:$('#nameT2').value.trim()||'Dealer T2', t3:$('#nameT3').value.trim()||'Dealer T3'};
             log('save_dealer_names', JSON.stringify(appData.dealerNames));
             updateLocalDataAndSave();
-            alert('Saved');
+            showToast('Dealer names saved.', 'success');
         };
     }
     if (tab === 'users') {
@@ -1678,18 +1774,18 @@ function bindSettingsEvents(tab) {
         $('#nuCreate').onclick = async () => {
             const name = $('#nuName').value.trim();
             const pass = $('#nuPass').value.trim();
-            if (!name || !pass) return alert('Username & password required');
-            if ((appData.users || []).some(u => u.username === name)) return alert('Username already exists');
+            if (!name || !pass) { showToast('Username & password required', 'error'); return; }
+            if ((appData.users || []).some(u => u.username === name)) { showToast('Username already exists', 'error'); return; }
             const role = $('#nuRole').value;
             const canSee = $('#nuSeeCosts').checked;
             const canPrint = $('#nuCanPrint').checked;
             const chs = $$('.nuCh').filter(x => x.checked).map(x => x.value);
-            if (!chs.length) return alert('Select at least one channel');
+            if (!chs.length) { showToast('Select at least one channel', 'error'); return; }
             appData.users.push({ username: name, passwordHash: await hashPassword(pass), role, channels: chs, canSeeCosts: canSee, canPrint });
             log('add_user', name);
             updateLocalDataAndSave();
+            showToast('User created successfully.', 'success');
             openSettings('users');
-            alert('User created');
         };
 
 $$('button[data-saveu-idx]').forEach(b => {
@@ -1699,15 +1795,16 @@ $$('button[data-saveu-idx]').forEach(b => {
     if (!u) return;
 
     if (currentUser.role === 'Admin' && (u.role === 'Host' || u.username === 'host')) {
-      alert('Admin cannot modify Host accounts.');
+      showToast('Admin cannot modify Host accounts.', 'error');
       return;
     }
 
     const roleSel = $(`select[data-role-idx="${i}"]`);
     const newRole = roleSel ? roleSel.value : u.role;
     if (currentUser.role === 'Admin' && newRole === 'Host') {
-      alert('Admin cannot assign Host role.');
+      showToast('Admin cannot assign Host role.', 'error');
       if (roleSel) roleSel.value = u.role;
+      return;
     } else {
       u.role = newRole;
     }
@@ -1717,10 +1814,20 @@ $$('button[data-saveu-idx]').forEach(b => {
 
     const newPass = $(`input[data-pass-idx="${i}"]`).value.trim();
     if (!(currentUser.role === 'Admin' && (u.role === 'Host' || u.username === 'host'))) {
-      if (newPass) { u.passwordHash = await hashPassword(newPass); }
+      if (newPass) { 
+        if(newPass.length < 4) {
+            showToast('New password must be at least 4 characters long.', 'error');
+            return;
+        }
+        u.passwordHash = await hashPassword(newPass); 
+      }
     }
 
     u.channels = Channels.filter(ch => $(`input[data-ch-idx="${i}|${ch}"]`).checked);
+    if(u.channels.length === 0) {
+        showToast('User must have at least one channel.', 'error');
+        return;
+    }
 
     if (currentUser.username === u.username) {
       currentUser = u;
@@ -1729,47 +1836,35 @@ $$('button[data-saveu-idx]').forEach(b => {
 
     log('update_user', u.username);
     updateLocalDataAndSave();
-    alert('Saved.');
+    showToast(`User ${u.username} updated.`, 'success');
     openSettings('users');
   };
 });
 
         $$('button[data-delu-idx]').forEach(b => {
-            b.onclick = (e) => {
+            b.onclick = async (e) => {
                 const i = +e.target.dataset.deluIdx;
                 const u = appData.users[i];
                 if(!u) return;
-                if (u.username === 'host') return alert('Cannot delete host account.');
-                if (confirm(`Delete user "${u.username}"?`)) {
+                if (u.username === 'host') { showToast('Cannot delete host account.', 'error'); return; }
+                const confirmed = await showConfirm('Delete User?', `Are you sure you want to delete user "${u.username}"?`);
+                if (confirmed) {
                     appData.users.splice(i, 1);
                     log('delete_user', u.username);
                     updateLocalDataAndSave();
+                    showToast(`User ${u.username} deleted.`, 'success');
                     openSettings('users');
                 }
             };
         });
     } 
     if (tab === 'templates') {
-        const addTplBox = $('#addTplBox');
-        $('#btnShowAddTpl').onclick = () => {
-            addTplBox.classList.remove('hidden');
-            const kindSelect = $('#newTplKind');
-            if (kindSelect.options.length === 0) {
-                const kinds = defaultAppState.templates.map(t => t.kind).filter((v, i, a) => a.indexOf(v) === i);
-                kinds.forEach(k => {
-                    const opt = document.createElement('option');
-                    opt.value = k;
-                    opt.textContent = k;
-                    kindSelect.appendChild(opt);
-                });
-            }
-        };
-
-        $('#btnCancelTpl').onclick = () => addTplBox.classList.add('hidden');
-        $('#btnCreateTpl').onclick = () => {
+        $('#btnShowAddTpl').onclick = () => $('#addTplBox').classList.toggle('hidden');
+        $('#btnCancelTpl').onclick = () => $('#addTplBox').classList.add('hidden');
+        $('#btnCreateTpl').onclick = async () => {
             const kind = $('#newTplKind').value;
             const name = $('#newTplName').value.trim();
-            if (!name) { return alert('Please enter a template name.'); }
+            if (!name) { showToast('Please enter a template name.', 'error'); return; }
 
             const baseTemplate = defaultAppState.templates.find(t => t.kind === kind);
             const newTpl = JSON.parse(JSON.stringify(baseTemplate));
@@ -1780,22 +1875,31 @@ $$('button[data-saveu-idx]').forEach(b => {
             appData.templates.push(newTpl);
             log('add_template', name);
             updateLocalDataAndSave();
+            showToast('New template created.', 'success');
             openSettings('templates');
-            alert('New template created.');
         };
+        const kindSelect = $('#newTplKind');
+        if (kindSelect && kindSelect.options.length === 0) {
+            const kinds = defaultAppState.templates.map(t => t.kind).filter((v, i, a) => a.indexOf(v) === i);
+            kinds.forEach(k => {
+                const opt = document.createElement('option'); opt.value = k; opt.textContent = k; kindSelect.appendChild(opt);
+            });
+        }
         
         $$('[data-style-tpl]').forEach(btn => {
           btn.onclick = () => btn.classList.toggle('active');
         });
-
         $$('[data-savetpl-idx]').forEach(btn => {
-            btn.onclick = () => {
+            btn.onclick = async () => {
+                const confirmed = await showConfirm('Save Template?', 'Are you sure you want to save changes to this template?');
+                if(!confirmed) return;
+                
                 const i = +btn.dataset.savetplIdx;
                 const t = appData.templates[i];
                 if(!t) return;
                 t.name = $(`[data-name-tpl="${i}"]`).value.trim() || 'Untitled Template';
                 ['sku','description','details','price','oldPrice','expire'].forEach(k=>{
-                    t.styles[k].fs = parseInt($(`[data-val-tpl="${i}|${k}|fontSize" fs->fontSize]`).value) || 14;
+                    t.styles[k].fs = parseInt($(`[data-val-tpl="${i}|${k}|fs"]`).value) || 14;
                     t.styles[k].color = $(`[data-val-tpl="${i}|${k}|color"]`).value || '#ffffff';
                     t.styles[k].margin = {
                         top: parseInt($(`[data-val-tpl="${i}|${k}|margin|top"]`).value) || 0,
@@ -1804,7 +1908,7 @@ $$('button[data-saveu-idx]').forEach(b => {
                         left: parseInt($(`[data-val-tpl="${i}|${k}|margin|left"]`).value) || 0,
                     };
                     t.styles[k].fw = $(`[data-style-tpl="${i}|${k}|fw|bold"]`).classList.contains('active') ? 'bold' : 'normal';
-                    t.styles[k].fs = $(`[data-style-tpl="${i}|${k}|fontStyle|italic"]`).classList.contains('active') ? 'italic' : 'normal';
+                    t.styles[k].fs = $(`[data-style-tpl="${i}|${k}|fs|italic"]`).classList.contains('active') ? 'italic' : 'normal';
                     let td = [];
                     if ($(`[data-style-tpl="${i}|${k}|td|underline"]`).classList.contains('active')) td.push('underline');
                     if ($(`[data-style-tpl="${i}|${k}|td|line-through"]`).classList.contains('active')) td.push('line-through');
@@ -1819,18 +1923,21 @@ $$('button[data-saveu-idx]').forEach(b => {
                 };
                 log('save_template', t.name);
                 updateLocalDataAndSave();
-                alert('Template saved.');
+                showToast('Template saved.', 'success');
+                openSettings('templates');
             };
         });
         $$('[data-del-tpl]').forEach(btn => {
-            btn.onclick = () => {
+            btn.onclick = async () => {
                 const i = +btn.dataset.delTpl;
                 const t = appData.templates[i];
                 if(!t) return;
-                if (confirm(`Delete template "${t.name}"?`)) {
+                const confirmed = await showConfirm('Delete Template?', `Are you sure you want to delete template "${t.name}"?`);
+                if (confirmed) {
                     appData.templates.splice(i, 1);
                     log('delete_template', t.name);
                     updateLocalDataAndSave();
+                    showToast(`Template ${t.name} deleted.`, 'success');
                     openSettings('templates');
                 }
             };
@@ -1847,21 +1954,22 @@ $$('button[data-saveu-idx]').forEach(b => {
                     t.kind = t.kind || 'IMAGE';
                     log('update_template_image', t.name);
                     updateLocalDataAndSave();
-                    openSettings('templates');
-                } catch(err) { alert('Failed to update image: '+err.message); }
+                    showToast('Template image updated.', 'success');
+                    renderTemplateEditor(i);
+                } catch(err) { showToast('Failed to update image: '+err.message, 'error'); }
             };
         });
     }
     if (tab === 'cloud') {
         $('#btnCloudLoadRefresh').onclick=async()=>{
-            const token = localStorage.getItem(LS.TOKEN);
+            const token = sessionStorage.getItem(LS.TOKEN); // MODIFIED
             const gistId = localStorage.getItem(LS.GIST_ID);
-            if(!gistId || !token) { alert('Gist ID and Token not found.'); return; }
+            if(!gistId || !token) { showToast('Gist ID and Token not found.', 'error'); return; }
             try {
                 await cloudLoad(gistId, token);
                 updateLocalDataAndSave();
-                alert('Refreshed from cloud successfully.');
-            } catch(e){ alert(e.message); }
+                showToast('Refreshed from cloud successfully.', 'success');
+            } catch(e){ showToast(e.message, 'error'); }
         };
     }
 }
@@ -1870,42 +1978,56 @@ $$('button[data-saveu-idx]').forEach(b => {
 /* ================= STARTUP LOGIC ================= */
 async function initialCheck() {
     const gistId = localStorage.getItem(LS.GIST_ID);
-    const token = localStorage.getItem(LS.TOKEN);
+    const token = sessionStorage.getItem(LS.TOKEN); // MODIFIED
 
     if (gistId && token) {
         try {
-            console.log("Found credentials, attempting to load from cloud...");
             await cloudLoad(gistId, token);
-            console.log("Cloud data loaded successfully.");
-
             const lastUser = localStorage.getItem(LS.LAST_USER);
             const userToLogin = lastUser ? (appData.users || []).find(u => u.username === lastUser) : null;
-            
             if (userToLogin) {
-                console.log(`Found last user: ${lastUser}. Attempting auto-login.`);
                 performLogin(userToLogin);
             } else {
-                console.log("No last user found or user not in data. Showing login screen.");
                 $('#cloudSetupView').classList.add('hidden');
                 $('#loginView').classList.remove('hidden');
             }
         } catch(e) {
             console.error("Critical error during initial load:", e);
             localStorage.removeItem(LS.GIST_ID);
-            localStorage.removeItem(LS.TOKEN);
+            sessionStorage.removeItem(LS.TOKEN);
             localStorage.removeItem(LS.LAST_USER);
             $('#cloudSetupView').classList.remove('hidden');
-            alert("Cloud load failed, credentials have been cleared. Please set up again. Error: " + e.message);
+            showToast("Cloud load failed, credentials have been cleared. Please set up again.", 'error');
         }
     } else {
-        console.log("No credentials found. Showing cloud setup screen.");
         $('#cloudSetupView').classList.remove('hidden');
     }
 }
 
-
 function init() {
   bindAuthEvents();
+  
+  // MODIFIED: Initialize Litepicker
+  const datePickerElement = $('#dateRangePicker');
+  if (datePickerElement) {
+    const picker = new Litepicker({ 
+        element: datePickerElement,
+        singleMode: false,
+        format: 'DD MMM YYYY',
+        tooltipText: {
+            one: 'day',
+            other: 'days'
+        },
+        setup: (picker) => {
+            picker.on('selected', (date1, date2) => {
+                $('#dateStart').value = date1 ? date1.format('YYYY-MM-DD') : '';
+                $('#dateEnd').value = date2 ? date2.format('YYYY-MM-DD') : '';
+                currentPage = 1;
+                renderTable();
+            });
+        }
+    });
+  }
   
   document.addEventListener('click', (e) => {
       if (!e.target.closest('.filter-dropdown')) {
@@ -1913,20 +2035,20 @@ function init() {
       }
       
       const applyFilterBtn = e.target.closest('[data-apply-filter]');
-if (applyFilterBtn) {
-  const key = applyFilterBtn.dataset.applyFilter;
-  const total = +applyFilterBtn.dataset.totalValues || Infinity;
+      if (applyFilterBtn) {
+        const key = applyFilterBtn.dataset.applyFilter;
+        const total = +applyFilterBtn.dataset.totalValues || Infinity;
 
-  const checkedValues = new Set(
-    Array.from(document.querySelectorAll(`.filter-item-${key}:checked`)).map(cb => cb.value)
-  );
+        const checkedValues = new Set(
+          Array.from(document.querySelectorAll(`.filter-item-${key}:checked`)).map(cb => cb.value)
+        );
 
-  columnFilters[key] = (checkedValues.size >= total) ? new Set() : checkedValues;
+        columnFilters[key] = (checkedValues.size >= total) ? new Set() : checkedValues;
 
-  currentPage = 1;
-  closeAllFilterDropdowns();
-  updateLocalDataAndSave();
-}
+        currentPage = 1;
+        closeAllFilterDropdowns();
+        updateLocalDataAndSave();
+      }
       const clearFilterBtn = e.target.closest('[data-clear-filter]');
       if (clearFilterBtn) {
           const key = clearFilterBtn.dataset.clearFilter;
