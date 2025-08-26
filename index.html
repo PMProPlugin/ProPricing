@@ -1331,7 +1331,7 @@ function fillTemplateDropdown(){
 
 function generateSingleTagHTML(p, tpl) {
     const logo = appData.logo || '';
-    const pad = '0'; // MODIFIED: Print margin removed
+    const pad = '0.5'; // MODIFIED: Print margin removed
 
     const style = `
         <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
@@ -1458,7 +1458,7 @@ function openPrintTab(list,tpl){
   if(!w){ showToast('Pop-up blocked. Please allow pop-ups.', 'error'); return; }
   const logo=appData.logo||'';
   let cols=1, rows=1, pageSize='A4';
-  const pad = '0'; // MODIFIED: Print margin removed
+  const pad = '0.5'; // MODIFIED: Print margin removed
 
   if(tpl.kind==='A4'){ cols=1; rows=1; pageSize='A4'; }
   else if(tpl.kind==='A5'){ cols=2; rows=1; pageSize='A4 landscape'; }
