@@ -321,15 +321,15 @@ const defaultAppState = {
     version: 3.4, // Version bump
     products: sampleProducts,
     templates: [
-        { id:'t-a4',  name:'A4 (1 per sheet)', kind:'A4',  showLogo:true, imageData:null, logoStyles: { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
+        { id:'t-a4',  name:'A4', kind:'A4',  showLogo:true, imageData:null, logoStyles: { size: 64, margin: { top: 10, right: 10, bottom: 10, left: 10 } },
           styles:{ sku:{...defaultTextStyles, fs:16}, description:{...defaultTextStyles, fs:30}, details:{...defaultTextStyles, fs:14}, price:{...defaultTextStyles, fs:72}, oldPrice:{...defaultTextStyles, fs:20, color:'#ff4d4f'}, expire:{...defaultTextStyles, fs:13} } },
-        { id:'t-a5',  name:'A5 (2 per A4 landscape)', kind:'A5',  showLogo:true, imageData:null, logoStyles: { size: 50, margin: { top: 8, right: 8, bottom: 8, left: 8 } },
+        { id:'t-a5',  name:'A5)', kind:'A5',  showLogo:true, imageData:null, logoStyles: { size: 50, margin: { top: 8, right: 8, bottom: 8, left: 8 } },
           styles:{ sku:{...defaultTextStyles, fs:14}, description:{...defaultTextStyles, fs:26}, details:{...defaultTextStyles, fs:13}, price:{...defaultTextStyles, fs:60}, oldPrice:{...defaultTextStyles, fs:18, color:'#ff4d4f'}, expire:{...defaultTextStyles, fs:12} } },
-        { id:'t-a6',  name:'A6 (4 per sheet)', kind:'A6',  showLogo:true, imageData:null, logoStyles: { size: 40, margin: { top: 6, right: 6, bottom: 6, left: 6 } },
+        { id:'t-a6',  name:'A6', kind:'A6',  showLogo:true, imageData:null, logoStyles: { size: 40, margin: { top: 6, right: 6, bottom: 6, left: 6 } },
           styles:{ sku:{...defaultTextStyles, fs:12}, description:{...defaultTextStyles, fs:22}, details:{...defaultTextStyles, fs:12}, price:{...defaultTextStyles, fs:48}, oldPrice:{...defaultTextStyles, fs:16, color:'#ff4d4f'}, expire:{...defaultTextStyles, fs:11} } },
-        { id:'t-acc', name:'Accessories (12 per sheet)', kind:'ACC', showLogo:true, imageData:null, logoStyles: { size: 30, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+        { id:'t-acc', name:'Accessories', kind:'ACC', showLogo:true, imageData:null, logoStyles: { size: 30, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
           styles:{ sku:{...defaultTextStyles, fs:11, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fs:15, align:'center'}, details:{...defaultTextStyles, fs:10, color:'#cccccc'}, price:{...defaultTextStyles, fs:22}, oldPrice:{...defaultTextStyles, fs:12, color:'#B91C1C'}, expire:{...defaultTextStyles, fs:10} } },
-        { id:'t-card', name:'Card (9 per A4 portrait)', kind:'CARD', showLogo:true, imageData:null, logoStyles: { size: 24, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
+        { id:'t-card', name:'Card', kind:'CARD', showLogo:true, imageData:null, logoStyles: { size: 24, margin: { top: 4, right: 4, bottom: 4, left: 4 } },
           styles:{ sku:{...defaultTextStyles, fs:10, margin:{...defaultMargin, top:2}}, description:{...defaultTextStyles, fs:14, align:'center'}, details:{...defaultTextStyles, fs:9, color:'#cccccc'}, price:{...defaultTextStyles, fs:20}, oldPrice:{...defaultTextStyles, fs:11, color:'#B91C1C'}, expire:{...defaultTextStyles, fs:9} } }
     ],
     dealerNames: defaultDealerNames,
@@ -917,7 +917,7 @@ function renderSettings(tab){
           <div class="font-semibold mb-2">Upload logo</div>
           <input type="file" id="logoFile" accept="image/*">
           <p class="text-xs text-zinc-400 mt-2">PNG/JPG/SVG. Used on default templates.</p>
-          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save logo</button>
+          <button id="btnSaveLogo" class="mt-4 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save</button>
           <button id="btnRemoveLogo" class="mt-4 ml-2 px-4 py-2 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700">Remove</button>
         </div>
         <div class="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
@@ -941,7 +941,7 @@ function renderSettings(tab){
           <div><label class="text-xs text-zinc-400">Name for Dealer T2</label><input id="nameT2" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t2||'Dealer T2'}"></div>
           <div><label class="text-xs text-zinc-400">Name for Dealer T3</label><input id="nameT3" class="mt-1 w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700" value="${names.t3||'Dealer T3'}"></div>
         </div>
-        <button id="btnSaveDealer" class="mt-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save Names</button>
+        <button id="btnSaveDealer" class="mt-2 px-4 py-2 rounded-2xl bg-brand.red hover:bg-red-600 border border-red-700">Save</button>
       </div>
     `;
     bindSettingsEvents(tab);
