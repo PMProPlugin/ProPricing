@@ -1339,7 +1339,17 @@ function generateSingleTagHTML(p, tpl) {
         <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;700;800;900&family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
             html,body { margin: 0; padding: 0; font-family:'Kanit','Prompt',sans-serif; width: 100%; height: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .tag { width: 100%; height: 100%; padding:${pad}; box-sizing:border-box; position:relative; display: flex; align-items: center; justify-content: center; }
+            .tag { width: 100%; 
+                   height: 100%; 
+                   padding-top: 0.5mm;
+                   padding-right: 0.5mm;
+                   padding-bottom: 0.5mm;
+                   padding-left: 0.5mm; 
+                   box-sizing:border-box; 
+                   position:relative; 
+                   display: flex; 
+                   align-items: center; 
+                   justify-content: center; }
             .card { position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
             .logo { position:absolute; }
             .text-elevate { text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
