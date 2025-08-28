@@ -368,18 +368,6 @@ async function hashPassword(password) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 const ellip = (s,max=40)=> !s ? '' : (s.length<=max? s : s.slice(0,max-3)+'...');
-  function getEffectivePromoPrice(product) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // ตั้งเวลาเป็นเที่ยงคืนเพื่อการเปรียบเทียบที่แม่นยำ
-    const expires = product.expiresDate ? new Date(product.expiresDate) : null;
-    
-    // ถ้ามีวันหมดอายุ และเลยวันนี้ไปแล้ว ให้ใช้ราคาปกติ
-    if (expires && expires < today) {
-        return product.normalPrice;
-    }
-    // ถ้ายังไม่หมดอายุ หรือไม่มีวันหมดอายุ ก็ใช้ราคาโปรโมชั่น
-    return product.promoPrice;
-}
 
 // NEW: Debounce function for performance on large datasets
 const debounce = (func, delay = 300) => {
@@ -745,8 +733,9 @@ function renderTable(){
   paginatedItems.forEach(p=>{
     const tr=document.createElement('tr');
     tr.className='hover:bg-zinc-700/70';
-    const effectivePromo = getEffectivePromoPrice(p);
-    const isActuallyDiscounted = effectivePromo > 0 && effectivePromo < p.normalPrice;
+    let isPromoExpired = p.expiresDate && new Date(p.expiresDate) < today;
+    const displayedPromoPrice = isPromoExpired ? '-' : money(p.promoPrice);
+    const promoPriceTitle = isPromoExpired ? 'Promotion Expired' : money(p.promoPrice);
     const gpM = gpPct(p.marketplacePrice, p.costs);
     const gp1 = gpPct(p.dealer1, p.costs);
     const gp2 = gpPct(p.dealer2, p.costs);
@@ -761,7 +750,7 @@ function renderTable(){
       <td class="px-3 py-3 oneline" title="${p.category}">${p.category || '-'}</td>
       <td class="px-3 py-3 col-costs oneline" title="${money(p.costs)}">${money(p.costs)}</td>
       <td class="px-3 py-3 col-normal oneline" title="${money(p.normalPrice)}">${money(p.normalPrice)}</td>
-      <td class="px-3 py-3 col-promo oneline" title="${money(effectivePromo)}" style="color:${isActuallyDiscounted ? '#E11D2E' : 'white'};">${money(effectivePromo)}</td>
+      <td class="px-3 py-3 col-promo oneline" title="${promoPriceTitle}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};"><span style="text-decoration:${isPromoExpired ? 'line-through' : 'none'};">${displayedPromoPrice}</span></td>
       <td class="px-3 py-3 col-expire oneline" title="${toDateInput(p.expiresDate)}" style="color:${isPromoExpired ? '#666' : '#E11D2E'};">${toDateInput(p.expiresDate)}</td>
       <td class="px-3 py-3 col-market oneline" title="${money(p.marketplacePrice)}">${money(p.marketplacePrice)}</td>
       <td class="px-3 py-3 col-marketgp oneline" style="color: #22c55e;" title="(${gpM.toFixed(1)}%)">(${gpM.toFixed(1)}%)</td>
@@ -1428,10 +1417,7 @@ function renderTagInnerHTML(p, tpl){
     const m = o.margin || defaultMargin;
     return `font-size:${o.fs||14}px; color:${o.color||'#fff'}; font-weight:${o.fw||'normal'}; font-style:${o.fst||'normal'}; text-decoration:${o.td||'none'}; margin: ${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`;
   };
-const effectivePromo = getEffectivePromoPrice(p);
-const isDiscounted = effectivePromo > 0 && effectivePromo < p.normalPrice;
-
-const content = `
+  const content = `
     <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
         <div style="${styleInline(tpl.styles.sku)}" class="text-right text-elevate">${p.sku}</div>
         <div style="font-weight:800;line-height:1.2; ${styleInline(tpl.styles.description)}" class="text-elevate">${p.description}</div>
@@ -1439,10 +1425,10 @@ const content = `
             <div class="flex gap-2 items-start text-elevate" style="${styleInline(tpl.styles.details)}"><span>•</span><span>${t}</span></div>`).join('')}</div>
         <div class="mt-auto flex items-end justify-between">
             <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
-        <div class="text-right">
-        ${isDiscounted ? `<div style="${styleInline(tpl.styles.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}.-</div>` : ''}
-        <div style="font-weight:900; ${styleInline(tpl.styles.price)}" class="text-elevate">${money(isDiscounted ? effectivePromo : p.normalPrice)}.-</div>
-        </div>
+            <div class="text-right">
+            <div style="${styleInline(tpl.styles.oldPrice)}" class="line-through text-elevate">${money(p.normalPrice)}</div>
+            <div style="font-weight:900; ${styleInline(tpl.styles.price)}" class="text-elevate">${money(p.promoPrice)}</div>
+            </div>
         </div>
     </div>
   `;
