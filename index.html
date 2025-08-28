@@ -351,7 +351,7 @@ let columnFilters = {};
 /* ================= UTILITIES ================= */
 const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-const money = n => isFinite(n) && n > 0 ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) + ' ฿';
+const money = n => isFinite(n) && n > 0 ? n.toLocaleString('th-TH',{maximumFractionDigits:0}) + ' ฿' :'' ;
 const toDateInput = v => v ? new Date(v).toISOString().slice(0,10) : '';
 const fromExcelDate = v => {
   if (v instanceof Date) return v.toISOString().slice(0,10);
