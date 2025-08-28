@@ -453,7 +453,7 @@ function updateLocalDataAndSave(newData) {
         $('#logoFallback').classList.remove('hidden');
     }
     const gistId = localStorage.getItem(LS.GIST_ID);
-    const token = sessionStorage.getItem(LS.TOKEN); // MODIFIED
+    const token = localStorage.getItem(LS.TOKEN); // MODIFIED
     if (currentUser?.role === 'Host' && gistId && token) {
         cloudSave(gistId, token).catch(e => {
             console.error("Auto-save failed:", e);
@@ -474,7 +474,7 @@ async function gistRequest(method, path, body, token){
 async function cloudCreateGist(token, appState){
   const resp = await gistRequest('POST','/gists',{ public:false, files:{ 'proplugin-data.json':{ content: JSON.stringify(appState) } } }, token);
   localStorage.setItem(LS.GIST_ID, resp.id);
-  sessionStorage.setItem(LS.TOKEN, token); // MODIFIED
+  localStorage.setItem(LS.TOKEN, token); // MODIFIED
   return resp.id;
 }
 async function cloudSave(gistId, token){
@@ -490,7 +490,7 @@ async function cloudLoad(gistId, token){
   const data = JSON.parse(file.content);
   appData = data;
   localStorage.setItem(LS.GIST_ID, gistId);
-  sessionStorage.setItem(LS.TOKEN, token); // MODIFIED
+  localStorage.setItem(LS.TOKEN, token); // MODIFIED
 }
 
 /* ================= AUTH ================= */
@@ -533,7 +533,7 @@ function logout(){
   currentUser = null;
   columnFilters = {};
   localStorage.removeItem(LS.LAST_USER);
-  sessionStorage.removeItem(LS.TOKEN); // MODIFIED
+  localStorage.removeItem(LS.TOKEN); // MODIFIED
   
   $('#appView').classList.add('hidden');
   $('#loginView').classList.remove('hidden');
@@ -1995,7 +1995,7 @@ $$('[data-img-tpl]').forEach(input => {
 /* ================= STARTUP LOGIC ================= */
 async function initialCheck() {
     const gistId = localStorage.getItem(LS.GIST_ID);
-    const token = sessionStorage.getItem(LS.TOKEN); // MODIFIED
+    const token = localStorage.getItem(LS.TOKEN); // MODIFIED
 
     if (gistId && token) {
         try {
