@@ -1109,7 +1109,7 @@ function renderTemplateEditor(i) {
       t.styles[k] = t.styles[k] || { ...defaultTextStyles };
       if(typeof t.styles[k].margin !== 'object') t.styles[k].margin = { top: t.styles[k].mt || 0, right:0, bottom:0, left:0 };
       t.styles[k].fw = t.styles[k].fw || 'normal';
-      t.styles[k].fs = t.styles[k].fs || 'normal';
+      t.styles[k].fst = t.styles[k].fst || 'normal';
       t.styles[k].td = t.styles[k].td || 'none';
     });
 
@@ -1161,7 +1161,7 @@ function renderTemplateEditor(i) {
                     <label class="text-xs">Font Style</label>
                     <div class="grid grid-cols-4 gap-1">
                       <button data-style-tpl="${i}|${k}|fw|bold" class="style-btn ${t.styles[k].fw === 'bold' ? 'active':''}"><b>B</b></button>
-                      <button data-style-tpl="${i}|${k}|fs|italic" class="style-btn ${t.styles[k].fs === 'italic' ? 'active':''}"><i>I</i></button>
+                      <button data-style-tpl="${i}|${k}|fst|italic" class="style-btn ${t.styles[k].fst === 'italic' ? 'active':''}"><i>I</i></button>
                       <button data-style-tpl="${i}|${k}|td|underline" class="style-btn ${t.styles[k].td.includes('underline') ? 'active':''}"><u>U</u></button>
                       <button data-style-tpl="${i}|${k}|td|line-through" class="style-btn ${t.styles[k].td.includes('line-through') ? 'active':''}"><s>S</s></button>
                     </div>
@@ -1415,7 +1415,7 @@ function renderTagInnerHTML(p, tpl){
   const innerPadding = '10mm'; // This padding is now inside the card content, not the printable area.
   const styleInline = (o) => {
     const m = o.margin || defaultMargin;
-    return `font-size:${o.fs||14}px; color:${o.color||'#fff'}; font-weight:${o.fw||'normal'}; font-style:${o.fs||'normal'}; text-decoration:${o.td||'none'}; margin: ${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`;
+    return `font-size:${o.fs||14}px; color:${o.color||'#fff'}; font-weight:${o.fw||'normal'}; font-style:${o.fst||'normal'}; text-decoration:${o.td||'none'}; margin: ${m.top}px ${m.right}px ${m.bottom}px ${m.left}px;`;
   };
   const content = `
     <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
@@ -1935,7 +1935,7 @@ $$('button[data-saveu-idx]').forEach(b => {
                         left: parseInt($(`[data-val-tpl="${i}|${k}|margin|left"]`).value) || 0,
                     };
                     t.styles[k].fw = $(`[data-style-tpl="${i}|${k}|fw|bold"]`).classList.contains('active') ? 'bold' : 'normal';
-                    t.styles[k].fs = $(`[data-style-tpl="${i}|${k}|fs|italic"]`).classList.contains('active') ? 'italic' : 'normal';
+                    t.styles[k].fst = $(`[data-style-tpl="${i}|${k}|fst|italic"]`).classList.contains('active') ? 'italic' : 'normal';
                     let td = [];
                     if ($(`[data-style-tpl="${i}|${k}|td|underline"]`).classList.contains('active')) td.push('underline');
                     if ($(`[data-style-tpl="${i}|${k}|td|line-through"]`).classList.contains('active')) td.push('line-through');
