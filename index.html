@@ -1421,7 +1421,7 @@ function renderTagInnerHTML(p, tpl){
     <div style="position:absolute; top:0; left:0; right:0; bottom:0; padding:${innerPadding}; display:flex; flex-direction:column;">
         <div style="${styleInline(tpl.styles.sku)}" class="text-right text-elevate">${p.sku}</div>
         <div style="font-weight:800;line-height:1.2; ${styleInline(tpl.styles.description)}" class="text-elevate">${p.description}</div>
-        <div class="space-y-1">${(p.details||'').split(/\\n+/).filter(Boolean).slice(0,5).map(t=>`
+        <div class="space-y-1">${(p.details||'').split(/\\n|\n+/).filter(Boolean).slice(0,5).map(t=>`
             <div class="flex gap-2 items-start text-elevate" style="${styleInline(tpl.styles.details)}"><span>•</span><span>${t}</span></div>`).join('')}</div>
         <div class="mt-auto flex items-end justify-between">
             <div style="${styleInline(tpl.styles.expire)}" class="text-elevate">Expire : ${p.expiresDate?toDateInput(p.expiresDate):''}</div>
@@ -1434,7 +1434,7 @@ function renderTagInnerHTML(p, tpl){
   `;
   if(tpl.kind === 'ACC' || tpl.kind === 'CARD'){
       const s = tpl.styles;
-      const detailsLines = (p.details || '').split(/\\n+/).filter(Boolean).slice(0, 2)
+      const detailsLines = (p.details || '').split(/\\n|\n+/).filter(Boolean).slice(0, 2)
           .map(line => `<div style="font-size: ${(s.details.fs || 9)}px; color: ${(s.details.color || '#cccccc')}; margin-top: 2px; line-height: 1.2;">• ${ellip(line, 40)}</div>`)
           .join('');
 
