@@ -1484,7 +1484,7 @@ function openPrintTab(list,tpl){
     <style>
       @page { size: ${pageSize}; margin: 0; }
       html,body{ background:#fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family:'Kanit','Prompt',sans-serif; margin: 0; padding: 0; }
-      .sheet{ width: ${pageSize.includes('landscape') ? '297mm' : '210mm'}; height: ${pageSize.includes('landscape') ? '210mm' : '297mm'}; margin: 0; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; box-sizing: border-box; }
+      .sheet{ width: ${pageSize.includes('landscape') ? '287mm' : '200mm'}; height: ${pageSize.includes('landscape') ? '200mm' : '287mm'}; margin: 0 auto; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; box-sizing: border-box; }
       .tag{ width:100%; 
             height:100%; 
             padding-top: 2mm;
