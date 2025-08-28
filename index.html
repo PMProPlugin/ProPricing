@@ -1487,16 +1487,16 @@ function openPrintTab(list,tpl){
       .sheet{ width: ${pageSize.includes('landscape') ? '297mm' : '210mm'}; height: ${pageSize.includes('landscape') ? '210mm' : '297mm'}; margin: 0; display: grid; grid-template-columns: repeat(${cols}, 1fr); grid-template-rows: repeat(${rows}, 1fr); gap: 0; page-break-after: always; box-sizing: border-box; }
       .tag{ width:100%; 
             height:100%; 
-            padding-top: 5mm;
+            padding-top: 2mm;
             padding-right: 0mm;
-            padding-bottom: 5mm;
+            padding-bottom: 2mm;
             padding-left: 0mm;
             box-sizing:border-box; 
             position:relative; 
             display: flex; 
             align-items: center; 
             justify-content: center;}
-      .card{ position:relative; width:100%; height:100%; border-radius:12px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
+      .card{ position:relative; width:100%; height:100%; border-radius:0px; overflow:hidden; border:2px solid #1f1f22; background-color:${tpl.imageData ? 'transparent' : (tpl.kind==='ACC'?'#000':'#0b0b0c')}; color:#fff; background-image: ${tpl.imageData ? `url(${tpl.imageData})` : 'none'}; background-size: cover; background-position: center; }
       .logo{ position:absolute; }
       .text-elevate{ text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,.7); }
     </style>
